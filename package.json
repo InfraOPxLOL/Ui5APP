@@ -1,0 +1,22 @@
+{
+  "name": "integrationsuite.ui5app",
+  "version": "0.0.1",
+  "private": true,
+  "description": "UI5 freestyle application consuming an SAP Integration Suite OData API",
+  "scripts": {
+    "start": "fiori run --open \"index.html\"",
+    "start-noflp": "fiori run --config ./ui5.yaml --open \"index.html\"",
+    "build": "ui5 build --clean-dest --dest dist",
+    "deploy": "fiori deploy"
+  },
+  "devDependencies": {
+    "@sap/ux-ui5-tooling": "^1",
+    "@ui5/cli": "^4",
+    "@sap-ux/ui5-middleware-fe-mockserver": "^2"
+  },
+  "ui5": {
+    "dependencies": [
+      "@sap/ux-ui5-tooling"
+    ]
+  }
+}
