@@ -1,0 +1,31 @@
+<!--
+  Reusable detail popover.
+  Expands a list row into a rich detail panel without navigating away, realizing the product
+  principle that a row rarely requires pivoting into the native Integration Suite UI. The `detail`
+  model supplies a title and an array of { label, value } rows. Modules populate the model; the
+  layout is shared.
+-->
+<core:FragmentDefinition
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core"
+  xmlns:form="sap.ui.layout.form">
+  <Popover
+    title="{detail>/title}"
+    placement="Auto"
+    contentWidth="28rem">
+    <content>
+      <form:SimpleForm
+        editable="false"
+        layout="ResponsiveGridLayout"
+        labelSpanXL="4"
+        labelSpanL="4"
+        labelSpanM="4"
+        labelSpanS="12">
+        <form:content>
+          <Label text="{detail>label}" />
+          <Text text="{detail>value}" />
+        </form:content>
+      </form:SimpleForm>
+    </content>
+  </Popover>
+</core:FragmentDefinition>

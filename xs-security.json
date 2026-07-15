@@ -1,0 +1,65 @@
+{
+  "xsappname": "integration-portal",
+  "tenant-mode": "dedicated",
+  "description": "Security descriptor for the Integration Portal operations platform.",
+  "scopes": [
+    { "name": "$XSAPPNAME.Viewer", "description": "Read-only access to all monitoring views" },
+    { "name": "$XSAPPNAME.Operator", "description": "Operational access (view + non-destructive actions)" },
+    { "name": "$XSAPPNAME.Administrator", "description": "Full administrative access" },
+    { "name": "$XSAPPNAME.MessageReplay.Execute", "description": "Execute message replay/resend actions" },
+    { "name": "$XSAPPNAME.JmsQueue.Purge", "description": "Purge or delete JMS queue messages" },
+    { "name": "$XSAPPNAME.Administration.Manage", "description": "Manage destinations, module enablement and settings" }
+  ],
+  "attributes": [],
+  "role-templates": [
+    {
+      "name": "Viewer",
+      "description": "Read-only operations viewer",
+      "scope-references": ["$XSAPPNAME.Viewer"]
+    },
+    {
+      "name": "Operator",
+      "description": "Operations engineer: view plus guarded sensitive actions",
+      "scope-references": [
+        "$XSAPPNAME.Viewer",
+        "$XSAPPNAME.Operator",
+        "$XSAPPNAME.MessageReplay.Execute",
+        "$XSAPPNAME.JmsQueue.Purge"
+      ]
+    },
+    {
+      "name": "Administrator",
+      "description": "Platform administrator: all scopes",
+      "scope-references": [
+        "$XSAPPNAME.Viewer",
+        "$XSAPPNAME.Operator",
+        "$XSAPPNAME.Administrator",
+        "$XSAPPNAME.MessageReplay.Execute",
+        "$XSAPPNAME.JmsQueue.Purge",
+        "$XSAPPNAME.Administration.Manage"
+      ]
+    }
+  ],
+  "role-collections": [
+    {
+      "name": "IntegrationPortal_Viewer",
+      "description": "Integration Portal - Viewer",
+      "role-template-references": ["$XSAPPNAME.Viewer"]
+    },
+    {
+      "name": "IntegrationPortal_Operator",
+      "description": "Integration Portal - Operator",
+      "role-template-references": ["$XSAPPNAME.Operator"]
+    },
+    {
+      "name": "IntegrationPortal_Administrator",
+      "description": "Integration Portal - Administrator",
+      "role-template-references": ["$XSAPPNAME.Administrator"]
+    }
+  ],
+  "oauth2-configuration": {
+    "token-validity": 900,
+    "refresh-token-validity": 3600,
+    "redirect-uris": ["https://*.cfapps.*.hana.ondemand.com/**"]
+  }
+}

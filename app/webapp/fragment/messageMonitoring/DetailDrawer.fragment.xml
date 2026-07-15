@@ -1,0 +1,182 @@
+<!--
+  Detail Drawer (§ Detail Drawer) — the workspace's expandable bottom panel.
+
+  Tabs: Overview, Metadata, Headers (SAP-standard), Properties (custom), Attachments Summary,
+  Timeline, Related Messages, Actions. No payload rendering here — payload has its own future
+  workspace (Phase 10). Content is bound to `view>/drawer/detail` (`MessageDetail | null`), loaded
+  lazily on first expand/selection by the controller.
+-->
+<core:FragmentDefinition
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core"
+  xmlns:l="sap.ui.layout"
+  xmlns:suite="sap.suite.ui.commons">
+  <VBox height="100%" class="investigationDrawer">
+    <items>
+      <Toolbar class="investigationDrawerToolbar">
+        <Button
+          icon="{= ${view>/drawer/expanded} ? 'sap-icon://slim-arrow-down' : 'sap-icon://slim-arrow-up' }"
+          type="Transparent"
+          press=".onDrawerToggle"
+          tooltip="{i18n>investigation.drawer.toggle}" />
+        <Title
+          text="{i18n>investigation.drawer.title} — {view>/drawer/detail/messageId}"
+          level="H4" />
+        <ToolbarSpacer />
+      </Toolbar>
+
+      <IconTabBar
+        visible="{view>/drawer/expanded}"
+        expanded="true"
+        busy="{view>/drawer/busy}"
+        busyIndicatorDelay="0"
+        selectedKey="{view>/drawer/activeTab}"
+        select=".onDrawerTabSelect"
+        class="investigationDrawerTabs">
+        <items>
+
+          <IconTabFilter key="overview" text="{i18n>investigation.drawer.overview}" icon="sap-icon://hint">
+            <l:VerticalLayout width="100%" class="sapUiSmallMargin">
+              <ObjectStatus
+                text="{view>/drawer/detail/humanReadableStatus}"
+                state="{ path: 'view>/drawer/detail/severity', formatter: '.formatSeverityState' }" />
+              <ObjectAttribute title="{i18n>column.integrationFlow}" text="{view>/drawer/detail/integrationFlow}" />
+              <ObjectAttribute title="{i18n>column.sapSender}" text="{view>/drawer/detail/sender}" />
+              <ObjectAttribute title="{i18n>column.sapReceiver}" text="{view>/drawer/detail/receiver}" />
+              <ObjectAttribute title="{i18n>column.processingTime}" text="{view>/drawer/detail/processingTimeHuman}" />
+              <ObjectAttribute
+                title="{i18n>investigation.drawer.retryStatus}"
+                text="{view>/drawer/detail/retryStatus}" />
+              <List
+                headerText="{i18n>investigation.drawer.errorDetails}"
+                items="{view>/drawer/detail/errorDetails}"
+                noDataText="{i18n>investigation.drawer.noErrors}">
+                <StandardListItem title="{view>text}" description="{view>category}" icon="sap-icon://error" />
+              </List>
+            </l:VerticalLayout>
+          </IconTabFilter>
+
+          <IconTabFilter key="metadata" text="{i18n>investigation.drawer.metadata}" icon="sap-icon://list">
+            <l:VerticalLayout width="100%" class="sapUiSmallMargin">
+              <ObjectAttribute title="{i18n>column.messageId}" text="{view>/drawer/detail/messageId}" />
+              <ObjectAttribute title="{i18n>column.mplId}" text="{view>/drawer/detail/mplId}" />
+              <ObjectAttribute title="{i18n>column.correlationId}" text="{view>/drawer/detail/correlationId}" />
+              <ObjectAttribute title="{i18n>column.applicationId}" text="{view>/drawer/detail/applicationId}" />
+              <ObjectAttribute title="{i18n>column.sapMessageType}" text="{view>/drawer/detail/messageType}" />
+              <ObjectAttribute title="{i18n>column.customStatus}" text="{view>/drawer/detail/customStatus}" />
+              <ObjectAttribute title="{i18n>column.environment}" text="{view>/drawer/detail/environment}" />
+              <ObjectAttribute title="{i18n>column.tenant}" text="{view>/drawer/detail/tenantId}" />
+              <ObjectAttribute title="{i18n>column.startTime}" text="{view>/drawer/detail/startTime}" />
+              <ObjectAttribute title="{i18n>column.endTime}" text="{view>/drawer/detail/endTime}" />
+            </l:VerticalLayout>
+          </IconTabFilter>
+
+          <IconTabFilter key="headers" text="{i18n>investigation.drawer.headers}" icon="sap-icon://list">
+            <List
+              items="{view>/drawer/detail/headerSummary/sapStandard}"
+              noDataText="{i18n>investigation.drawer.noHeaders}">
+              <StandardListItem title="{view>name}" description="{view>value}" />
+            </List>
+          </IconTabFilter>
+
+          <IconTabFilter key="properties" text="{i18n>investigation.drawer.properties}" icon="sap-icon://list">
+            <List
+              items="{view>/drawer/detail/headerSummary/custom}"
+              noDataText="{i18n>investigation.drawer.noProperties}">
+              <StandardListItem title="{view>name}" description="{view>value}" />
+            </List>
+          </IconTabFilter>
+
+          <IconTabFilter key="jmsRetry" text="{i18n>investigation.drawer.jmsRetry}" icon="sap-icon://redo">
+            <l:VerticalLayout width="100%" class="sapUiSmallMargin">
+              <Text text="{i18n>investigation.jmsRetry.checking}" visible="{= !${view>/jmsRetry/checked} &amp;&amp; ${view>/jmsRetry/busy} }" />
+              <ObjectStatus
+                visible="{view>/jmsRetry/checked}"
+                text="{= ${view>/jmsRetry/eligible} ? ${i18n>investigation.jmsRetry.eligible} : ${i18n>investigation.jmsRetry.notEligible} }"
+                state="{= ${view>/jmsRetry/eligible} ? 'Success' : 'None' }" />
+              <ObjectAttribute
+                visible="{= ${view>/jmsRetry/checked} &amp;&amp; ${view>/jmsRetry/eligible} }"
+                title="{i18n>investigation.jmsRetry.resolvedQueue}"
+                text="{view>/jmsRetry/resolvedQueue}" />
+              <ObjectAttribute
+                visible="{= ${view>/jmsRetry/checked} &amp;&amp; ${view>/jmsRetry/eligible} }"
+                title="{i18n>investigation.jmsRetry.currentQueue}"
+                text="{view>/jmsRetry/currentQueue}" />
+              <ObjectAttribute
+                visible="{= ${view>/jmsRetry/checked} &amp;&amp; ${view>/jmsRetry/eligible} }"
+                title="{i18n>investigation.jmsRetry.retryCount}"
+                text="{view>/jmsRetry/retryCount}" />
+              <ObjectAttribute
+                visible="{= ${view>/jmsRetry/checked} &amp;&amp; ${view>/jmsRetry/reason} !== '' }"
+                title="{i18n>investigation.jmsRetry.reason}"
+                text="{view>/jmsRetry/reason}" />
+              <Button
+                text="{i18n>investigation.jmsRetry.retryButton}"
+                type="Emphasized"
+                icon="sap-icon://redo"
+                enabled="{= ${view>/jmsRetry/checked} &amp;&amp; ${view>/jmsRetry/eligible} }"
+                busy="{view>/jmsRetry/busy}"
+                press=".onRetryFromDrawerPress"
+                class="sapUiSmallMarginTop" />
+            </l:VerticalLayout>
+          </IconTabFilter>
+
+          <IconTabFilter key="attachments" text="{i18n>investigation.drawer.attachments}" icon="sap-icon://attachment">
+            <List
+              items="{view>/drawer/detail/attachments}"
+              noDataText="{i18n>investigation.drawer.noAttachments}">
+              <StandardListItem
+                title="{view>name}"
+                description="{view>contentType}"
+                info="{view>sizeHuman}"
+                icon="sap-icon://attachment" />
+            </List>
+          </IconTabFilter>
+
+          <IconTabFilter key="timeline" text="{i18n>investigation.drawer.timeline}" icon="sap-icon://timesheet">
+            <suite:Timeline
+              content="{view>/drawer/detail/timeline}"
+              enableScroll="true"
+              class="investigationTimeline">
+              <suite:TimelineItem
+                title="{view>title}"
+                text="{view>description}"
+                dateTime="{ path: 'view>timestamp', formatter: '.formatRelative' }"
+                icon="sap-icon://circle-task-2" />
+            </suite:Timeline>
+          </IconTabFilter>
+
+          <IconTabFilter key="related" text="{i18n>investigation.drawer.related}" icon="sap-icon://chain-link">
+            <List items="{view>/context/related}" noDataText="{i18n>investigation.context.noRelated}">
+              <CustomListItem>
+                <l:VerticalLayout width="100%" class="investigationRelatedGroup">
+                  <Label text="{view>value}" design="Bold" class="sapUiTinyMarginTop" />
+                  <List items="{view>items}" noDataText=" ">
+                    <StandardListItem
+                      title="{view>integrationFlow}"
+                      description="{view>sender} → {view>receiver}"
+                      infoState="{ path: 'view>severity', formatter: '.formatSeverityState' }"
+                      info="{view>humanReadableStatus}"
+                      type="Active"
+                      press=".onOpenRelatedMessage" />
+                  </List>
+                </l:VerticalLayout>
+              </CustomListItem>
+            </List>
+          </IconTabFilter>
+
+          <IconTabFilter key="actions" text="{i18n>investigation.drawer.actions}" icon="sap-icon://action">
+            <List items="{view>/actions}" noDataText=" ">
+              <StandardListItem
+                title="{view>title}"
+                icon="{view>icon}"
+                type="Active"
+                press=".onContextActionPress" />
+            </List>
+          </IconTabFilter>
+
+        </items>
+      </IconTabBar>
+    </items>
+  </VBox>
+</core:FragmentDefinition>

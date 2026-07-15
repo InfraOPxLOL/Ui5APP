@@ -1,0 +1,85 @@
+<mvc:View
+  controllerName="com.middlewareops.integrationportal.controller.coeRouter.Hub"
+  height="100%"
+  xmlns="sap.m"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns:core="sap.ui.core"
+  xmlns:f="sap.f"
+  xmlns:card="sap.f.cards">
+  <NavContainer id="creationNav" height="100%">
+
+    <!-- Launcher: pick a creation flow -->
+    <Page id="hubPage" title="{i18n>hub.title}" class="integrationPortalModulePage">
+      <content>
+        <VBox class="sapUiMediumMargin">
+          <Title text="{i18n>hub.heading}" level="H2" />
+          <Text
+            text="{i18n>hub.subtitle}"
+            class="sapUiTinyMarginTop sapUiSmallMarginBottom" />
+          <FlexBox wrap="Wrap" items="{view>/options}" class="sapUiSmallMarginTop">
+            <f:Card
+              width="22rem"
+              class="sapUiMediumMarginEnd sapUiMediumMarginBottom">
+              <f:header>
+                <card:Header
+                  title="{view>title}"
+                  subtitle="{view>subtitle}"
+                  iconSrc="{view>icon}"
+                  iconDisplayShape="Square" />
+              </f:header>
+              <f:content>
+                <VBox class="sapUiSmallMargin">
+                  <Text text="{view>description}" />
+                  <HBox class="sapUiSmallMarginTop" alignItems="Center" wrap="Wrap">
+                    <core:Icon
+                      src="sap-icon://add-document"
+                      class="sapUiTinyMarginEnd"
+                      color="Neutral" />
+                    <Text text="{view>creates}" />
+                  </HBox>
+                  <HBox
+                    class="sapUiMediumMarginTop"
+                    alignItems="Center"
+                    justifyContent="SpaceBetween">
+                    <ObjectStatus
+                      text="{i18n>hub.card.comingNext}"
+                      state="Warning"
+                      icon="sap-icon://pending"
+                      visible="{= !${view>available} }" />
+                    <ObjectStatus
+                      text="{i18n>hub.card.ready}"
+                      state="Success"
+                      icon="sap-icon://sys-enter-2"
+                      visible="{view>available}" />
+                    <Button
+                      text="{= ${view>available} ? ${i18n>hub.card.open} : ${i18n>hub.card.preview} }"
+                      type="{= ${view>available} ? 'Emphasized' : 'Transparent' }"
+                      icon="sap-icon://arrow-right"
+                      iconFirst="false"
+                      press=".onOpenFlow" />
+                  </HBox>
+                </VBox>
+              </f:content>
+            </f:Card>
+          </FlexBox>
+        </VBox>
+      </content>
+    </Page>
+
+    <!-- Flow 1: Create JMS Entry (JMS agreement + QUEUE_JMS_/ROUTE_JMS_) -->
+    <mvc:XMLView
+      id="jmsEntryFlow"
+      viewName="com.middlewareops.integrationportal.view.coeRouter.RouteWizard" />
+
+    <!-- Flow: Create only Common Router (router agreement + ROUTE_ mapping) -->
+    <mvc:XMLView
+      id="routerOnlyFlow"
+      viewName="com.middlewareops.integrationportal.view.coeRouter.CommonRouterWizard" />
+
+    <!-- Flow: Create JMS + Common Router Connection (combined write set, one route key) -->
+    <mvc:XMLView
+      id="jmsRouterFlow"
+      viewName="com.middlewareops.integrationportal.view.coeRouter.JmsRouterWizard" />
+
+  </NavContainer>
+</mvc:View>

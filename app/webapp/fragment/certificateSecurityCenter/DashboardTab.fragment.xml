@@ -1,0 +1,81 @@
+<!--
+  Certificate Dashboard (§ Certificate Dashboard) — certificate health, expiring/expired
+  certificates, security summary, health score.
+-->
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:l="sap.ui.layout">
+  <l:Grid defaultSpan="L6 M6 S12" class="sapUiSmallMargin">
+
+    <!-- Security summary -->
+    <Panel headerText="{i18n>dashboard.summary}" class="sapUiTinyMarginBottom">
+      <content>
+        <l:Grid defaultSpan="L3 M3 S6">
+          <VBox class="certificateStatTile">
+            <Text text="{i18n>summary.total}" />
+            <Title text="{view>/dashboard/summary/totalCertificates}" level="H2" />
+          </VBox>
+          <VBox class="certificateStatTile">
+            <Text text="{i18n>summary.healthScore}" />
+            <Title text="{view>/dashboard/summary/healthScore}" level="H2" />
+          </VBox>
+          <VBox class="certificateStatTile">
+            <Text text="{i18n>summary.expiringSoon}" />
+            <Title text="{view>/dashboard/summary/expiringSoonCount}" level="H2" />
+          </VBox>
+          <VBox class="certificateStatTile">
+            <Text text="{i18n>summary.expired}" />
+            <Title text="{view>/dashboard/summary/expiredCount}" level="H2" />
+          </VBox>
+          <VBox class="certificateStatTile">
+            <Text text="{i18n>summary.selfSigned}" />
+            <Title text="{view>/dashboard/summary/selfSignedCount}" level="H3" />
+          </VBox>
+          <VBox class="certificateStatTile">
+            <Text text="{i18n>summary.weakAlgorithm}" />
+            <Title text="{view>/dashboard/summary/weakAlgorithmCount}" level="H3" />
+          </VBox>
+        </l:Grid>
+      </content>
+    </Panel>
+
+    <!-- Security materials -->
+    <Panel headerText="{i18n>dashboard.securityMaterials}" class="sapUiTinyMarginBottom">
+      <content>
+        <List items="{view>/securityMaterials}" noDataText=" ">
+          <StandardListItem
+            title="{view>category}"
+            description="{view>reason}"
+            info="{= ${view>available} ? ${view>count} : ${i18n>securityMaterials.notAvailable} }"
+            infoState="{ path: 'view>available', formatter: '.formatAvailabilityState' }"
+            icon="{ path: 'view>available', formatter: '.formatAvailabilityIcon' }" />
+        </List>
+      </content>
+    </Panel>
+
+    <!-- Expiring certificates -->
+    <Panel headerText="{i18n>dashboard.expiringSoon}" class="sapUiTinyMarginBottom">
+      <content>
+        <List items="{view>/dashboard/expiringSoon}" noDataText="{i18n>dashboard.expiringSoonEmpty}">
+          <StandardListItem
+            title="{view>alias}"
+            description="{view>issuer}"
+            info="{view>daysRemaining}"
+            infoState="{ path: 'view>health', formatter: '.formatHealthState' }" />
+        </List>
+      </content>
+    </Panel>
+
+    <!-- Expired certificates -->
+    <Panel headerText="{i18n>dashboard.expired}" class="sapUiTinyMarginBottom">
+      <content>
+        <List items="{view>/dashboard/expired}" noDataText="{i18n>dashboard.expiredEmpty}">
+          <StandardListItem
+            title="{view>alias}"
+            description="{view>issuer}"
+            info="{view>daysRemaining}"
+            infoState="{ path: 'view>health', formatter: '.formatHealthState' }" />
+        </List>
+      </content>
+    </Panel>
+
+  </l:Grid>
+</core:FragmentDefinition>

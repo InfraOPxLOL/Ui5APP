@@ -1,0 +1,84 @@
+<!--
+  Queue Explorer (§ Queue Explorer) — queue list, depth, oldest/newest message, consumer status,
+  search, sorting, filtering and saved layouts. Reads the same per-queue `queueHealth` data the
+  Queue Health tab shows, presented here with an operational (depth/age) emphasis rather than a
+  health-scoring emphasis.
+-->
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core">
+  <VBox class="sapUiSmallMargin" fitContainer="true">
+    <items>
+      <Toolbar class="recoveryExplorerToolbar">
+        <SearchField
+          width="16rem"
+          placeholder="{i18n>recovery.explorer.searchPlaceholder}"
+          value="{view>/explorerSearch}"
+          search=".onExplorerSearch" />
+        <Select selectedKey="{view>/explorerSort/field}" change=".onExplorerSortChange">
+          <core:Item key="queueName" text="{i18n>recovery.column.queueName}" />
+          <core:Item key="messageCount" text="{i18n>recovery.column.messageCount}" />
+          <core:Item key="healthScore" text="{i18n>recovery.column.healthScore}" />
+        </Select>
+        <Button
+          icon="sap-icon://sort"
+          type="Transparent"
+          tooltip="{i18n>recovery.explorer.toggleSortDirection}"
+          press=".onExplorerSortDirectionToggle" />
+        <ToolbarSpacer />
+        <Button
+          text="{i18n>recovery.explorer.saveLayout}"
+          icon="sap-icon://save"
+          press=".onOpenSaveLayoutDialogPress" />
+      </Toolbar>
+
+      <Table
+        id="queueExplorerTable"
+        items="{view>/queueHealth}"
+        growing="true"
+        growingThreshold="50"
+        noDataText="{i18n>recovery.explorer.empty}">
+        <columns>
+          <Column><Text text="{i18n>recovery.column.queueName}" /></Column>
+          <Column hAlign="End"><Text text="{i18n>recovery.column.messageCount}" /></Column>
+          <Column hAlign="End"><Text text="{i18n>recovery.column.oldestMessage}" /></Column>
+          <Column hAlign="End"><Text text="{i18n>recovery.column.newestMessage}" /></Column>
+          <Column><Text text="{i18n>recovery.column.consumerStatus}" /></Column>
+          <Column><Text text="{i18n>recovery.column.recoveryReadiness}" /></Column>
+        </columns>
+        <items>
+          <ColumnListItem type="Active" press=".onQueueContextPress">
+            <cells>
+              <Text text="{view>displayName}" />
+              <ObjectNumber number="{view>messageCount}" />
+              <Text text="{ path: 'view>oldestMessageAgeMs', formatter: '.formatMessageAge' }" />
+              <Text text="{ path: 'view>newestMessageAgeMs', formatter: '.formatMessageAge' }" />
+              <ObjectStatus
+                text="{view>consumerStatus}"
+                state="{ path: 'view>consumerStatus', formatter: '.formatConsumerState' }" />
+              <ObjectStatus
+                text="{view>recoveryReadiness}"
+                icon="{ path: 'view>recoveryReadiness', formatter: '.formatReadinessIcon' }"
+                state="{ path: 'view>recoveryReadiness', formatter: '.formatReadinessState' }" />
+            </cells>
+          </ColumnListItem>
+        </items>
+      </Table>
+
+      <Panel
+        headerText="{i18n>recovery.explorer.savedLayouts}"
+        expandable="true"
+        expanded="false"
+        visible="{= ${view>/savedLayouts}.length > 0 }">
+        <content>
+          <List
+            items="{view>/savedLayouts}"
+            noDataText=" "
+            mode="Delete"
+            delete=".onDeleteLayoutPress">
+            <StandardListItem title="{view>name}" type="Active" press=".onApplyLayoutPress" />
+          </List>
+        </content>
+      </Panel>
+
+    </items>
+  </VBox>
+</core:FragmentDefinition>

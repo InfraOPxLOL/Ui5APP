@@ -1,0 +1,49 @@
+/*
+ * Recovery Center styles (Phase 11).
+ *
+ * A section-tabbed operational workspace (Dashboard | Queue Explorer | Recovery Candidates |
+ * Queue Health | Recovery History) with a collapsible Context Panel, matching the resizable-Splitter
+ * chrome already established by Message Investigation and Payload Studio.
+ */
+
+.recoveryCenterSplitter {
+  height: 100%;
+}
+
+.recoveryContextPane {
+  overflow: hidden;
+  border-inline-start: 1px solid var(--sapList_BorderColor, rgba(127, 127, 127, 0.3));
+}
+
+.recoveryContextScroll {
+  height: 100%;
+}
+
+.recoveryCenterTabBar {
+  height: 100%;
+}
+
+.recoveryStatTile {
+  padding: 0.5rem 0.75rem;
+}
+
+.recoveryDashboardGrid {
+  align-items: stretch;
+}
+
+.recoveryPreviewGroup {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--sapList_BorderColor, rgba(127, 127, 127, 0.3));
+}
+
+.recoveryCandidatesToolbar,
+.recoveryExplorerToolbar,
+.recoveryHistoryToolbar {
+  gap: 0.25rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recoveryCenterPage * {
+    transition: none !important;
+  }
+}

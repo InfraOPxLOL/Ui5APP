@@ -1,0 +1,78 @@
+<!--
+  Runtime Status (§ Integration Details — "Runtime status") + Runtime Health (§ Runtime Health) +
+  Related Navigation (§ Related Navigation).
+-->
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:l="sap.ui.layout">
+  <VBox class="sapUiSmallMargin">
+    <items>
+
+      <ObjectStatus
+        text="{view>/selectedArtifact/details/humanReadableStatus}"
+        icon="{ path: 'view>/selectedArtifact/details/health', formatter: '.formatHealthIcon' }"
+        state="{ path: 'view>/selectedArtifact/details/health', formatter: '.formatHealthState' }"
+        class="sapUiTinyMarginBottom" />
+      <ObjectAttribute title="{i18n>runtimeCenter.column.version}" text="{view>/selectedArtifact/details/version}" />
+      <ObjectAttribute title="{i18n>runtimeCenter.column.deployments}" text="{ path: 'view>/selectedArtifact/details/deployedOn', formatter: '.formatDateTime' }" />
+
+      <Title text="{i18n>runtimeCenter.health.score}" level="H5" class="sapUiSmallMarginTop" />
+      <l:Grid defaultSpan="L6 M6 S12">
+        <VBox class="runtimeCatalogTile">
+          <Text text="{i18n>runtimeCenter.health.score}" />
+          <ProgressIndicator
+            percentValue="{view>/selectedArtifact/health/healthScore}"
+            displayValue="{view>/selectedArtifact/health/healthScore}"
+            state="{ path: 'view>/selectedArtifact/health/healthScore', formatter: '.formatHealthScoreState' }" />
+        </VBox>
+        <VBox class="runtimeCatalogTile">
+          <Text text="{i18n>runtimeCenter.health.successRate}" />
+          <Title text="{view>/selectedArtifact/health/successRatePct}%" level="H3" />
+        </VBox>
+        <VBox class="runtimeCatalogTile">
+          <Text text="{i18n>runtimeCenter.health.avgRuntime}" />
+          <Title text="{ path: 'view>/selectedArtifact/health/averageRuntimeMs', formatter: '.formatDuration' }" level="H3" />
+        </VBox>
+        <VBox class="runtimeCatalogTile">
+          <Text text="{i18n>runtimeCenter.health.failureTrend}" />
+          <ObjectStatus
+            text="{view>/selectedArtifact/health/failureTrend}"
+            icon="{ path: 'view>/selectedArtifact/health/failureTrend', formatter: '.formatFailureTrendIcon' }"
+            state="{ path: 'view>/selectedArtifact/health/failureTrend', formatter: '.formatFailureTrendState' }" />
+        </VBox>
+      </l:Grid>
+
+      <Title
+        text="{i18n>runtimeCenter.health.activeAlerts}"
+        level="H5"
+        class="sapUiSmallMarginTop"
+        visible="{ path: 'view>/selectedArtifact/health/activeAlerts', formatter: '.formatHasItems' }" />
+      <List
+        items="{view>/selectedArtifact/health/activeAlerts}"
+        noDataText=" "
+        visible="{ path: 'view>/selectedArtifact/health/activeAlerts', formatter: '.formatHasItems' }">
+        <StandardListItem
+          title="{view>title}"
+          description="{view>description}"
+          infoState="{ path: 'view>severity', formatter: '.formatSeverityState' }"
+          info="{ path: 'view>raisedAt', formatter: '.formatRelative' }" />
+      </List>
+
+      <Title text="{i18n>runtimeCenter.timeline.redeploy}" level="H5" class="sapUiSmallMarginTop" />
+      <Button
+        text="{i18n>runtimeCenter.timeline.redeploy}"
+        icon="sap-icon://redo"
+        press=".onRedeployPress"
+        class="sapUiTinyMarginBottom" />
+
+      <Title text="{i18n>runtimeCenter.related.title}" level="H5" />
+      <HBox wrap="Wrap">
+        <items>
+          <Button text="{i18n>runtimeCenter.related.openMessages}" press=".onOpenMessagesPress" class="sapUiTinyMarginEnd sapUiTinyMarginBottom" />
+          <Button text="{i18n>runtimeCenter.related.openPayload}" press=".onOpenPayloadPress" class="sapUiTinyMarginEnd sapUiTinyMarginBottom" />
+          <Button text="{i18n>runtimeCenter.related.openRecovery}" press=".onOpenRecoveryPress" class="sapUiTinyMarginEnd sapUiTinyMarginBottom" />
+          <Button text="{i18n>runtimeCenter.related.openCertificates}" press=".onOpenCertificatesPress" class="sapUiTinyMarginEnd sapUiTinyMarginBottom" />
+        </items>
+      </HBox>
+
+    </items>
+  </VBox>
+</core:FragmentDefinition>

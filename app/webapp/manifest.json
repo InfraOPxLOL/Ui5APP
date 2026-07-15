@@ -1,0 +1,366 @@
+{
+  "_version": "1.60.0",
+  "sap.app": {
+    "id": "com.middlewareops.integrationportal",
+    "type": "application",
+    "i18n": "i18n/i18n.properties",
+    "title": "{{appTitle}}",
+    "description": "{{appDescription}}",
+    "applicationVersion": {
+      "version": "0.1.0"
+    },
+    "dataSources": {}
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "deviceTypes": {
+      "desktop": true,
+      "tablet": true,
+      "phone": true
+    }
+  },
+  "sap.ui5": {
+    "rootView": {
+      "viewName": "com.middlewareops.integrationportal.shell.view.Shell",
+      "type": "XML",
+      "id": "shell",
+      "async": true
+    },
+    "dependencies": {
+      "minUI5Version": "1.120.0",
+      "libs": {
+        "sap.ui.core": {},
+        "sap.m": {},
+        "sap.f": {},
+        "sap.tnt": {},
+        "sap.ui.layout": {},
+        "sap.ui.table": {},
+        "sap.ui.comp": {},
+        "sap.suite.ui.commons": {}
+      }
+    },
+    "contentDensities": {
+      "compact": true,
+      "cozy": true
+    },
+    "models": {
+      "i18n": {
+        "type": "sap.ui.model.resource.ResourceModel",
+        "settings": {
+          "bundleName": "com.middlewareops.integrationportal.i18n.i18n",
+          "supportedLocales": [""],
+          "fallbackLocale": ""
+        }
+      }
+    },
+    "resources": {
+      "css": [
+        {
+          "uri": "css/certificateSecurityCenter/certificateSecurityCenter.css"
+        },
+        {
+          "uri": "css/dashboard/operations.css"
+        },
+        {
+          "uri": "css/messageMonitoring/investigation.css"
+        },
+        {
+          "uri": "css/payloadStudio/payloadStudio.css"
+        },
+        {
+          "uri": "css/recoveryCenter/recoveryCenter.css"
+        },
+        {
+          "uri": "css/runtimeCenter/runtimeCenter.css"
+        },
+        {
+          "uri": "css/shell.css"
+        }
+      ]
+    },
+    "componentUsages": {},
+    "routing": {
+      "config": {
+        "routerClass": "sap.m.routing.Router",
+        "controlId": "moduleContainer",
+        "controlAggregation": "pages",
+        "transition": "slide",
+        "async": true,
+        "clearControlAggregation": false
+      },
+      "routes": [
+        {
+          "name": "root",
+          "pattern": "",
+          "target": "home"
+        },
+        {
+          "name": "home",
+          "pattern": "home",
+          "target": "home"
+        },
+        {
+          "name": "dashboard",
+          "pattern": "dashboard",
+          "target": "dashboard"
+        },
+        {
+          "name": "messageMonitoring",
+          "pattern": "messageMonitoring/:mplId::?query:",
+          "target": "messageMonitoring"
+        },
+        {
+          "name": "payloadStudio",
+          "pattern": "payloadStudio:?query:",
+          "target": "payloadStudio"
+        },
+        {
+          "name": "recoveryCenter",
+          "pattern": "recoveryCenter",
+          "target": "recoveryCenter"
+        },
+        {
+          "name": "runtimeCenter",
+          "pattern": "runtimeCenter",
+          "target": "runtimeCenter"
+        },
+        {
+          "name": "certificateSecurityCenter",
+          "pattern": "certificateSecurityCenter",
+          "target": "certificateSecurityCenter"
+        },
+        {
+          "name": "jmsQueue",
+          "pattern": "jmsQueue",
+          "target": "jmsQueue"
+        },
+        {
+          "name": "messageReplay",
+          "pattern": "messageReplay",
+          "target": "messageReplay"
+        },
+        {
+          "name": "alertNotification",
+          "pattern": "alertNotification",
+          "target": "alertNotification"
+        },
+        {
+          "name": "auditView",
+          "pattern": "auditView",
+          "target": "auditView"
+        },
+        {
+          "name": "roleView",
+          "pattern": "roleView",
+          "target": "roleView"
+        },
+        {
+          "name": "administration",
+          "pattern": "administration",
+          "target": "administration"
+        },
+        {
+          "name": "apiMonitoring",
+          "pattern": "apiMonitoring",
+          "target": "apiMonitoring"
+        },
+        {
+          "name": "integrationAdvisor",
+          "pattern": "integrationAdvisor",
+          "target": "integrationAdvisor"
+        },
+        {
+          "name": "analytics",
+          "pattern": "analytics",
+          "target": "analytics"
+        },
+        {
+          "name": "coeAdmin",
+          "pattern": "coeAdmin",
+          "target": "coeAdmin"
+        },
+        {
+          "name": "coeRouter",
+          "pattern": "coeRouter:?query:",
+          "target": "coeRouter"
+        },
+        {
+          "name": "coeRegistry",
+          "pattern": "coeRegistry",
+          "target": "coeRegistry"
+        },
+        {
+          "name": "coeDlq",
+          "pattern": "coeDlq",
+          "target": "coeDlq"
+        },
+        {
+          "name": "coeRuleBuilder",
+          "pattern": "coeRuleBuilder:?query:",
+          "target": "coeRuleBuilder"
+        },
+        {
+          "name": "coePartnerDashboard",
+          "pattern": "coePartnerDashboard",
+          "target": "coePartnerDashboard"
+        }
+      ],
+      "targets": {
+        "home": {
+          "type": "View",
+          "name": "com.middlewareops.integrationportal.shell.landing.view.Home",
+          "viewType": "XML",
+          "controlAggregation": "pages",
+          "controlId": "moduleContainer"
+        },
+        "dashboard": {
+          "type": "View",
+          "name": "com.middlewareops.integrationportal.view.dashboard.Dashboard",
+          "viewType": "XML",
+          "controlAggregation": "pages",
+          "controlId": "moduleContainer"
+        },
+        "messageMonitoring": {
+          "type": "View",
+          "name": "com.middlewareops.integrationportal.view.messageMonitoring.List",
+          "viewType": "XML",
+          "controlAggregation": "pages",
+          "controlId": "moduleContainer"
+        },
+        "payloadStudio": {
+          "type": "View",
+          "name": "com.middlewareops.integrationportal.view.payloadStudio.Studio",
+          "viewType": "XML",
+          "controlAggregation": "pages",
+          "controlId": "moduleContainer"
+        },
+        "recoveryCenter": {
+          "type": "View",
+          "name": "com.middlewareops.integrationportal.view.recoveryCenter.RecoveryCenter",
+          "viewType": "XML",
+          "controlAggregation": "pages",
+          "controlId": "moduleContainer"
+        },
+        "runtimeCenter": {
+          "type": "View",
+          "name": "com.middlewareops.integrationportal.view.runtimeCenter.RuntimeCenter",
+          "viewType": "XML",
+          "controlAggregation": "pages",
+          "controlId": "moduleContainer"
+        },
+        "certificateSecurityCenter": {
+          "type": "View",
+          "name": "com.middlewareops.integrationportal.view.certificateSecurityCenter.CertificateSecurityCenter",
+          "viewType": "XML",
+          "controlAggregation": "pages",
+          "controlId": "moduleContainer"
+        },
+        "jmsQueue": {
+          "type": "View",
+          "name": "com.middlewareops.integrationportal.view.jmsQueue.List",
+          "viewType": "XML",
+          "controlAggregation": "pages",
+          "controlId": "moduleContainer"
+        },
+        "messageReplay": {
+          "type": "View",
+          "name": "com.middlewareops.integrationportal.view.messageReplay.List",
+          "viewType": "XML",
+          "controlAggregation": "pages",
+          "controlId": "moduleContainer"
+        },
+        "alertNotification": {
+          "type": "View",
+          "name": "com.middlewareops.integrationportal.view.alertNotification.List",
+          "viewType": "XML",
+          "controlAggregation": "pages",
+          "controlId": "moduleContainer"
+        },
+        "auditView": {
+          "type": "View",
+          "name": "com.middlewareops.integrationportal.view.auditView.List",
+          "viewType": "XML",
+          "controlAggregation": "pages",
+          "controlId": "moduleContainer"
+        },
+        "roleView": {
+          "type": "View",
+          "name": "com.middlewareops.integrationportal.view.roleView.List",
+          "viewType": "XML",
+          "controlAggregation": "pages",
+          "controlId": "moduleContainer"
+        },
+        "administration": {
+          "type": "View",
+          "name": "com.middlewareops.integrationportal.view.administration.List",
+          "viewType": "XML",
+          "controlAggregation": "pages",
+          "controlId": "moduleContainer"
+        },
+        "apiMonitoring": {
+          "type": "View",
+          "name": "com.middlewareops.integrationportal.view.apiMonitoring.List",
+          "viewType": "XML",
+          "controlAggregation": "pages",
+          "controlId": "moduleContainer"
+        },
+        "integrationAdvisor": {
+          "type": "View",
+          "name": "com.middlewareops.integrationportal.view.integrationAdvisor.List",
+          "viewType": "XML",
+          "controlAggregation": "pages",
+          "controlId": "moduleContainer"
+        },
+        "analytics": {
+          "type": "View",
+          "name": "com.middlewareops.integrationportal.view.analytics.List",
+          "viewType": "XML",
+          "controlAggregation": "pages",
+          "controlId": "moduleContainer"
+        },
+        "coeAdmin": {
+          "type": "View",
+          "name": "com.middlewareops.integrationportal.view.coeAdmin.AdminSettings",
+          "viewType": "XML",
+          "controlAggregation": "pages",
+          "controlId": "moduleContainer"
+        },
+        "coeRouter": {
+          "type": "View",
+          "name": "com.middlewareops.integrationportal.view.coeRouter.Hub",
+          "viewType": "XML",
+          "controlAggregation": "pages",
+          "controlId": "moduleContainer"
+        },
+        "coeRegistry": {
+          "type": "View",
+          "name": "com.middlewareops.integrationportal.view.coeRegistry.Registry",
+          "viewType": "XML",
+          "controlAggregation": "pages",
+          "controlId": "moduleContainer"
+        },
+        "coeDlq": {
+          "type": "View",
+          "name": "com.middlewareops.integrationportal.view.coeDlq.Dlq",
+          "viewType": "XML",
+          "controlAggregation": "pages",
+          "controlId": "moduleContainer"
+        },
+        "coeRuleBuilder": {
+          "type": "View",
+          "name": "com.middlewareops.integrationportal.view.coeRuleBuilder.RuleBuilder",
+          "viewType": "XML",
+          "controlAggregation": "pages",
+          "controlId": "moduleContainer"
+        },
+        "coePartnerDashboard": {
+          "type": "View",
+          "name": "com.middlewareops.integrationportal.view.coePartnerDashboard.PartnerDashboard",
+          "viewType": "XML",
+          "controlAggregation": "pages",
+          "controlId": "moduleContainer"
+        }
+      }
+    }
+  }
+}

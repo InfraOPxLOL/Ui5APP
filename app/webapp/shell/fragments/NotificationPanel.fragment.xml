@@ -1,0 +1,37 @@
+<!--
+  Shell notification center (§13). Renders the notifications held in the global `notifications`
+  model: severity-prioritised list items with per-item dismiss, plus mark-all-read (on open) and a
+  clear-all footer action. Framework only — a future Alert Notification integration feeds items in
+  through the NotificationCenter service and this panel lights up unchanged.
+-->
+<core:FragmentDefinition
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core">
+  <Popover
+    title="{i18n>shell.notifications}"
+    placement="Bottom"
+    contentWidth="26rem"
+    contentHeight="26rem">
+    <List
+      items="{notifications>/items}"
+      noDataText="{i18n>shell.notifications.empty}">
+      <NotificationListItem
+        title="{notifications>title}"
+        description="{notifications>description}"
+        datetime="{notifications>timestamp}"
+        priority="{= ${notifications>severity} === 'CRITICAL' || ${notifications>severity} === 'ERROR' ? 'High' : (${notifications>severity} === 'WARNING' ? 'Medium' : 'Low') }"
+        showCloseButton="true"
+        close=".onNotificationDismiss" />
+    </List>
+    <footer>
+      <OverflowToolbar>
+        <ToolbarSpacer />
+        <Button
+          text="{i18n>shell.notifications.clear}"
+          icon="sap-icon://decline"
+          type="Transparent"
+          press=".onNotificationClear" />
+      </OverflowToolbar>
+    </footer>
+  </Popover>
+</core:FragmentDefinition>

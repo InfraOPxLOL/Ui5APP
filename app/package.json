@@ -1,0 +1,28 @@
+{
+  "name": "@integration-portal/app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SAP UI5 + TypeScript frontend for the Integration Portal. Shell plus lazy-loaded module components.",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "ui5 build --clean-dest --dest dist",
+    "start": "ui5 serve --open index.html",
+    "ts-typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "echo \"UI5 QUnit/OPA5 tests run via the UI5 test runner: open /test/testsuite.qunit.html\" && exit 0"
+  },
+  "devDependencies": {
+    "@sap/ux-ui5-tooling": "1.28.0",
+    "@sapui5/types": "1.120.47",
+    "@ui5/cli": "^4.0.57",
+    "typescript": "^5.7.2",
+    "ui5-tooling-transpile": "^3.11.3"
+  },
+  "ui5": {
+    "dependencies": [
+      "@sap/ux-ui5-tooling",
+      "ui5-tooling-transpile"
+    ]
+  }
+}

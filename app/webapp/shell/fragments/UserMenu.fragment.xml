@@ -1,0 +1,35 @@
+<!--
+  Shell user-profile popover (§1, §10). Surfaces the current user's identity and the role
+  collections resolved for them, all from the `shell` view model built by the Shell controller from
+  the UserContext.
+-->
+<core:FragmentDefinition
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core">
+  <Popover
+    title="{i18n>shell.user}"
+    placement="Bottom"
+    contentWidth="22rem">
+    <VBox class="sapUiSmallMargin ipUserCard">
+      <HBox alignItems="Center">
+        <Avatar
+          initials="{shell>/user/initials}"
+          displaySize="M"
+          class="sapUiSmallMarginEnd" />
+        <VBox>
+          <Title text="{shell>/user/name}" level="H4" />
+          <Text text="{shell>/user/email}" class="ipMuted" />
+        </VBox>
+      </HBox>
+      <Label
+        text="{i18n>user.roleCollections}"
+        class="sapUiSmallMarginTop" />
+      <List
+        items="{shell>/user/roleCollections}"
+        noDataText="{i18n>user.roleCollections.empty}"
+        showSeparators="None">
+        <StandardListItem title="{shell>}" icon="sap-icon://role" />
+      </List>
+    </VBox>
+  </Popover>
+</core:FragmentDefinition>

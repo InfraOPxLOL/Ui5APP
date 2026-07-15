@@ -1,0 +1,76 @@
+<!--
+  Bottom panel (§ Headers, § Attachments, § Properties, § Validation) — Properties / Attachments /
+  Headers / Validation tabs. Headers/Properties reuse the same categorized headers bag (documented
+  seam — see the backend DTO's own doc comment); Validation is read-only, never editing.
+-->
+<core:FragmentDefinition
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core">
+  <VBox height="100%" class="payloadStudioBottom">
+    <items>
+      <Toolbar class="payloadStudioBottomToolbar">
+        <Button
+          icon="{= ${view>/layout/bottomPanelExpanded} ? 'sap-icon://slim-arrow-down' : 'sap-icon://slim-arrow-up' }"
+          type="Transparent"
+          press=".onToggleBottomPanel"
+          tooltip="{i18n>payloadStudio.bottom.toggle}" />
+        <Title text="{i18n>payloadStudio.bottom.title}" level="H4" />
+        <ToolbarSpacer />
+      </Toolbar>
+
+      <IconTabBar
+        visible="{view>/layout/bottomPanelExpanded}"
+        expanded="true"
+        selectedKey="{view>/layout/bottomTab}"
+        select=".onBottomTabSelect"
+        class="payloadStudioBottomTabs">
+        <items>
+
+          <IconTabFilter key="properties" text="{i18n>payloadStudio.nav.properties}" icon="sap-icon://key-user-settings">
+            <List items="{view>/data/properties/all}" noDataText="{i18n>payloadStudio.properties.empty}">
+              <StandardListItem title="{view>name}" description="{view>value}" info="{view>category}" />
+            </List>
+          </IconTabFilter>
+
+          <IconTabFilter key="headers" text="{i18n>payloadStudio.nav.headers}" icon="sap-icon://list">
+            <List items="{view>/data/headers/all}" noDataText="{i18n>payloadStudio.headers.empty}">
+              <StandardListItem title="{view>name}" description="{view>value}" info="{view>category}" />
+            </List>
+          </IconTabFilter>
+
+          <IconTabFilter key="attachments" text="{i18n>payloadStudio.nav.attachments}" icon="sap-icon://attachment">
+            <List items="{view>/data/attachments}" noDataText="{i18n>payloadStudio.attachments.empty}">
+              <StandardListItem
+                title="{view>name}"
+                description="{view>contentType}"
+                info="{view>sizeHuman}"
+                icon="sap-icon://attachment" />
+            </List>
+          </IconTabFilter>
+
+          <IconTabFilter key="validation" text="{i18n>payloadStudio.validation.title}" icon="sap-icon://validate">
+            <VBox class="sapUiSmallMargin">
+              <items>
+                <MessageStrip
+                  visible="{= ${view>/validation} !== null &amp;&amp; ${view>/validation/valid} === true }"
+                  text="{i18n>payloadStudio.validation.valid}"
+                  type="Success"
+                  showIcon="true" />
+                <List
+                  items="{view>/validation/issues}"
+                  visible="{= ${view>/validation} !== null }"
+                  noDataText=" ">
+                  <StandardListItem
+                    title="{view>message}"
+                    icon="sap-icon://alert"
+                    infoState="{ path: 'view>severity', formatter: '.formatValidationSeverityState' }" />
+                </List>
+              </items>
+            </VBox>
+          </IconTabFilter>
+
+        </items>
+      </IconTabBar>
+    </items>
+  </VBox>
+</core:FragmentDefinition>

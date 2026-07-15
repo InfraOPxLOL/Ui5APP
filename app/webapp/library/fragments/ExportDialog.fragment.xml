@@ -1,0 +1,44 @@
+<!--
+  Reusable export dialog.
+  Lets the user choose an export format and scope before triggering ExportHelper. Shared by every
+  table's export action so the export UX is identical everywhere. The `export` model supplies the
+  available formats and current selection.
+-->
+<core:FragmentDefinition
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core"
+  xmlns:l="sap.ui.layout">
+  <Dialog
+    title="{i18n>export.dialog.title}"
+    contentWidth="24rem">
+    <content>
+      <l:VerticalLayout
+        width="100%"
+        class="sapUiContentPadding">
+        <Label
+          text="{i18n>export.dialog.formatLabel}"
+          labelFor="exportFormatSelect" />
+        <Select
+          id="exportFormatSelect"
+          width="100%"
+          selectedKey="{export>/format}"
+          items="{export>/formats}">
+          <core:Item
+            key="{export>key}"
+            text="{export>text}" />
+        </Select>
+      </l:VerticalLayout>
+    </content>
+    <beginButton>
+      <Button
+        text="{i18n>export.dialog.confirm}"
+        type="Emphasized"
+        press=".onExportConfirm" />
+    </beginButton>
+    <endButton>
+      <Button
+        text="{i18n>export.dialog.cancel}"
+        press=".onExportCancel" />
+    </endButton>
+  </Dialog>
+</core:FragmentDefinition>

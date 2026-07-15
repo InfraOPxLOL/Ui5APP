@@ -1,0 +1,25 @@
+/*
+ * Runtime Center styles (Phase 12).
+ *
+ * The Integration Catalog and per-artifact Integration Details share the section-tabbed chrome
+ * already established by Recovery Center, plus a details side panel for Runtime Health/Timeline.
+ */
+
+.runtimeCenterPage {
+  height: 100%;
+}
+
+.runtimeCatalogTile {
+  padding: 0.5rem 0.75rem;
+}
+
+.runtimeDetailsPane {
+  overflow: hidden;
+  border-inline-start: 1px solid var(--sapList_BorderColor, rgba(127, 127, 127, 0.3));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .runtimeCenterPage * {
+    transition: none !important;
+  }
+}

@@ -1,0 +1,75 @@
+<!--
+  Metadata Panel (§ Metadata Panel) — the workspace's right pane.
+
+  Bound to `view>/data/metadata`, composed server-side from the Operations Engine. `compression` is
+  "gzip" when the payload came from the Splunk fallback and "none" otherwise (the MPL domain model
+  carries no transfer-compression indicator); `encoding`/`characterSet` are derived from the
+  payload's declared content type. `payloadSource` is the honest "where did this come from" label —
+  mpl (a real MPL attachment), splunk (no MPL attachment; recovered from Splunk instead), or
+  unavailable (neither source had anything).
+-->
+<core:FragmentDefinition
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core"
+  xmlns:l="sap.ui.layout">
+  <ScrollContainer height="100%" vertical="true" class="payloadStudioMetadataScroll">
+    <l:VerticalLayout width="100%" class="sapUiSmallMargin">
+      <Title text="{i18n>payloadStudio.metadata.title}" level="H4" class="sapUiTinyMarginBottom" />
+      <ObjectAttribute title="{i18n>payloadStudio.metadata.messageId}" text="{view>/data/metadata/messageId}" />
+      <ObjectAttribute title="{i18n>payloadStudio.metadata.correlationId}" text="{view>/data/metadata/correlationId}" />
+      <ObjectAttribute title="{i18n>payloadStudio.metadata.applicationId}" text="{view>/data/metadata/applicationId}" />
+      <ObjectAttribute title="{i18n>payloadStudio.metadata.integrationFlow}" text="{view>/data/metadata/integrationFlow}" />
+      <ObjectAttribute title="{i18n>payloadStudio.metadata.environment}" text="{view>/data/metadata/environment}" />
+      <ObjectAttribute title="{i18n>payloadStudio.metadata.tenant}" text="{view>/data/metadata/tenantId}" />
+      <ObjectAttribute title="{i18n>payloadStudio.metadata.encoding}" text="{view>/data/metadata/encoding}" />
+      <ObjectAttribute title="{i18n>payloadStudio.metadata.characterSet}" text="{view>/data/metadata/characterSet}" />
+      <ObjectAttribute title="{i18n>payloadStudio.metadata.compression}" text="{view>/data/metadata/compression}" />
+      <ObjectAttribute title="{i18n>payloadStudio.metadata.contentType}" text="{view>/data/metadata/contentType}" />
+      <ObjectAttribute title="{i18n>payloadStudio.metadata.payloadSize}" text="{view>/data/metadata/payloadSizeHuman}" />
+      <ObjectStatus
+        title="{i18n>payloadStudio.metadata.payloadSource}"
+        text="{view>/data/metadata/payloadSource}"
+        state="{ path: 'view>/data/metadata/payloadSource', formatter: '.formatPayloadSourceState' }" />
+      <ObjectAttribute title="{i18n>payloadStudio.metadata.creationTime}" text="{view>/data/metadata/creationTime}" />
+      <ObjectAttribute title="{i18n>payloadStudio.metadata.duration}" text="{view>/data/metadata/processingDurationHuman}" />
+      <ObjectStatus
+        text="{view>/data/metadata/retryStatus}"
+        state="{ path: 'view>/data/metadata/retryStatus', formatter: '.formatRetryStatusState' }"
+        class="sapUiSmallMarginTop" />
+
+      <Title text="{i18n>payloadStudio.statistics.title}" level="H5" class="sapUiSmallMarginTop" />
+      <VBox visible="{= ${view>/statistics} !== null }">
+        <items>
+          <ObjectAttribute title="{i18n>payloadStudio.statistics.size}" text="{view>/statistics/sizeBytes}" />
+          <ObjectAttribute title="{i18n>payloadStudio.statistics.lines}" text="{view>/statistics/lineCount}" />
+          <ObjectAttribute title="{i18n>payloadStudio.statistics.characters}" text="{view>/statistics/characterCount}" />
+          <ObjectAttribute
+            title="{i18n>payloadStudio.statistics.nodes}"
+            text="{view>/statistics/nodeCount}"
+            visible="{= ${view>/statistics/nodeCount} !== undefined }" />
+          <ObjectAttribute
+            title="{i18n>payloadStudio.statistics.elements}"
+            text="{view>/statistics/elementCount}"
+            visible="{= ${view>/statistics/elementCount} !== undefined }" />
+          <ObjectAttribute
+            title="{i18n>payloadStudio.statistics.attributes}"
+            text="{view>/statistics/attributeCount}"
+            visible="{= ${view>/statistics/attributeCount} !== undefined }" />
+          <ObjectAttribute
+            title="{i18n>payloadStudio.statistics.arrays}"
+            text="{view>/statistics/arrayCount}"
+            visible="{= ${view>/statistics/arrayCount} !== undefined }" />
+          <ObjectAttribute
+            title="{i18n>payloadStudio.statistics.objects}"
+            text="{view>/statistics/objectCount}"
+            visible="{= ${view>/statistics/objectCount} !== undefined }" />
+        </items>
+      </VBox>
+
+      <Title text="{i18n>payloadStudio.quickActions.title}" level="H5" class="sapUiSmallMarginTop" />
+      <List items="{view>/quickActions}" noDataText=" ">
+        <StandardListItem title="{view>title}" icon="{view>icon}" type="Active" press=".onQuickActionPress" />
+      </List>
+    </l:VerticalLayout>
+  </ScrollContainer>
+</core:FragmentDefinition>

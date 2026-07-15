@@ -1,0 +1,6 @@
+node_modules/
+dist/
+gen/
+mta_archives/
+package-lock.json
+*.md

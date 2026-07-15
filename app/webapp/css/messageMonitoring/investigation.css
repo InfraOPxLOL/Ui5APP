@@ -1,0 +1,103 @@
+/*
+ * Message Investigation Workspace styles (Phase 9).
+ *
+ * Layout chrome for the top filter bar (quick search | JMS toggle | Advanced Search) above the
+ * resizable Grid | Context | Detail Drawer shell, plus the grid/timeline/related-message
+ * presentation. Motion is subtle and disabled under prefers-reduced-motion (§ Accessibility).
+ */
+
+.investigationWorkspace .sapMPageHeader {
+  z-index: 2;
+}
+
+/* Top filter bar (§ Advanced Search — moved to the top) */
+.investigationTopBar {
+  border-bottom: 1px solid var(--sapList_BorderColor, rgba(127, 127, 127, 0.3));
+}
+.investigationAdvancedPanel {
+  border-bottom: 1px solid var(--sapList_BorderColor, rgba(127, 127, 127, 0.3));
+  max-height: 60vh;
+  overflow: auto;
+}
+.investigationDetailPage {
+  overflow: auto;
+}
+.investigationDetailPageToolbar {
+  border-bottom: 1px solid var(--sapList_BorderColor, rgba(127, 127, 127, 0.3));
+}
+
+/* Panes */
+.investigationContextPane {
+  overflow: hidden;
+  border-inline-start: 1px solid var(--sapList_BorderColor, rgba(127, 127, 127, 0.3));
+}
+.investigationSearchScroll,
+.investigationContextScroll {
+  height: 100%;
+}
+.investigationGridPane {
+  min-width: 0;
+}
+.investigationGridToolbar {
+  border-bottom: 1px solid var(--sapList_BorderColor, rgba(127, 127, 127, 0.3));
+}
+
+/* Advanced Search Panel */
+.investigationSearchLabel {
+  font-weight: 600;
+  display: block;
+  margin-bottom: 0.25rem;
+}
+.investigationSmartFilters {
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+.investigationSearchActions {
+  gap: 0.5rem;
+}
+
+/* Related-message groups (Context Panel + Detail Drawer) */
+.investigationRelatedGroup {
+  padding: 0.25rem 0;
+}
+
+/* Detail Drawer */
+.investigationDrawerPane {
+  border-top: 1px solid var(--sapList_BorderColor, rgba(127, 127, 127, 0.3));
+  overflow: hidden;
+}
+.investigationDrawer {
+  overflow: hidden;
+}
+.investigationDrawerToolbar {
+  min-height: 2.5rem;
+}
+.investigationDrawerTabs {
+  height: calc(100% - 2.5rem);
+  overflow: auto;
+}
+
+/* Timeline */
+.investigationTimeline {
+  padding: 0.5rem;
+}
+
+/* Grid row emphasis for bookmarked/selected rows is handled by native selection styling;
+   keep custom overrides minimal to preserve sap.ui.table's built-in accessibility semantics. */
+
+/* Accessibility: reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .investigationWorkspace * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* Responsive: stack panes on narrow viewports by collapsing side panes by default via JS state;
+   CSS only needs to ensure the grid pane never overflows horizontally. */
+@media (max-width: 900px) {
+  .investigationSearchPane,
+  .investigationContextPane {
+    min-width: 0;
+  }
+}

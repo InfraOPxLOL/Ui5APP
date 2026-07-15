@@ -1,0 +1,73 @@
+<!--
+  Recovery Candidates (§ Recovery Candidates) — recover selected, recover all, bulk selection, smart
+  filters, queue grouping. Every row is a dead-letter/retry queue with parked, recoverable messages.
+-->
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core">
+  <VBox class="sapUiSmallMargin" fitContainer="true">
+    <items>
+      <Toolbar class="recoveryCandidatesToolbar">
+        <SegmentedButton selectedKey="{view>/candidateSmartFilter}" selectionChange=".onCandidateSmartFilterChange">
+          <items>
+            <SegmentedButtonItem key="all" text="{i18n>recovery.candidates.filterAll}" />
+            <SegmentedButtonItem key="ready" text="{i18n>recovery.candidates.filterReady}" />
+            <SegmentedButtonItem key="blocked" text="{i18n>recovery.candidates.filterBlocked}" />
+          </items>
+        </SegmentedButton>
+        <ToggleButton
+          icon="sap-icon://group-2"
+          pressed="{view>/candidateGroupBySource}"
+          tooltip="{i18n>recovery.candidates.groupBySource}"
+          press=".onCandidateGroupByToggle" />
+        <ToolbarSpacer />
+        <Button
+          text="{i18n>recovery.candidates.recoverSelected}"
+          type="Emphasized"
+          icon="sap-icon://synchronize"
+          press=".onRecoverSelectedPress" />
+        <Button
+          text="{i18n>recovery.candidates.recoverAll}"
+          icon="sap-icon://process"
+          press=".onRecoverAllPress" />
+      </Toolbar>
+
+      <Table
+        id="recoveryCandidatesTable"
+        items="{view>/candidates}"
+        mode="MultiSelect"
+        selectionChange=".onCandidateSelectionChange"
+        growing="true"
+        growingThreshold="50"
+        noDataText="{i18n>recovery.candidates.empty}">
+        <columns>
+          <Column><Text text="{i18n>recovery.column.queueName}" /></Column>
+          <Column><Text text="{i18n>recovery.column.sourceQueue}" /></Column>
+          <Column hAlign="End"><Text text="{i18n>recovery.column.messageCount}" /></Column>
+          <Column hAlign="End"><Text text="{i18n>recovery.column.oldestMessage}" /></Column>
+          <Column hAlign="End"><Text text="{i18n>recovery.column.priority}" /></Column>
+          <Column><Text text="{i18n>recovery.column.readiness}" /></Column>
+          <Column><Text text="{i18n>recovery.column.actions}" /></Column>
+        </columns>
+        <items>
+          <ColumnListItem type="Active" press=".onCandidateContextPress">
+            <cells>
+              <Text text="{view>displayName}" />
+              <Text text="{view>sourceQueue}" />
+              <ObjectNumber number="{view>messageCount}" />
+              <Text text="{ path: 'view>oldestMessageAgeMs', formatter: '.formatMessageAge' }" />
+              <Text text="{view>priority}" />
+              <ObjectStatus
+                text="{view>readiness}"
+                icon="{ path: 'view>readiness', formatter: '.formatReadinessIcon' }"
+                state="{ path: 'view>readiness', formatter: '.formatReadinessState' }" />
+              <Button
+                text="{i18n>recovery.candidates.recover}"
+                type="Transparent"
+                icon="sap-icon://synchronize"
+                press=".onRecoverCandidatePress" />
+            </cells>
+          </ColumnListItem>
+        </items>
+      </Table>
+    </items>
+  </VBox>
+</core:FragmentDefinition>

@@ -1,0 +1,15 @@
+{
+  "name": "integration-portal-approuter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "App Router for the Integration Portal: serves the UI5 frontend and reverse-proxies /api to the backend, enforcing XSUAA authentication.",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@sap/approuter": "^20.10.0"
+  },
+  "scripts": {
+    "start": "node node_modules/@sap/approuter/approuter.js"
+  }
+}

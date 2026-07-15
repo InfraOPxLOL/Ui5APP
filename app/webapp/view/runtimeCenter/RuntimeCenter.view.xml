@@ -1,0 +1,140 @@
+<!--
+  Runtime Center (Phase 12) — browse deployed integration flows: the Integration Catalog, and, per
+  flow, Integration Details (Runtime Status, Deploy History, Messages, Queues, Certificates).
+  Consumes only /api/v1/runtime-center, itself composed entirely from the Operations Engine.
+
+  Layout: a sticky Page header (title, refresh) over a horizontal Splitter — the Integration Catalog
+  (left/center) and a collapsible Integration Details panel (right), mirroring the chrome already
+  established by Recovery Center's Candidates table + Context Panel.
+-->
+<mvc:View
+  controllerName="com.middlewareops.integrationportal.controller.runtimeCenter.RuntimeCenter"
+  height="100%"
+  xmlns="sap.m"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns:core="sap.ui.core"
+  xmlns:l="sap.ui.layout">
+  <Page id="runtimeCenterPage" title="{i18n>runtimeCenter.title}" class="runtimeCenterPage">
+    <headerContent>
+      <Button
+        icon="sap-icon://refresh"
+        type="Transparent"
+        tooltip="{i18n>action.refresh}"
+        press=".onRefreshPress" />
+    </headerContent>
+    <content>
+      <l:Splitter orientation="Horizontal" height="100%">
+        <l:contentAreas>
+
+          <!-- Left/center: Integration Catalog -->
+          <VBox fitContainer="true" class="sapUiSmallMargin" busy="{view>/busy}" busyIndicatorDelay="0">
+            <layoutData>
+              <l:SplitterLayoutData size="auto" />
+            </layoutData>
+            <items>
+              <Toolbar>
+                <SearchField
+                  width="16rem"
+                  placeholder="{i18n>runtimeCenter.catalog.searchPlaceholder}"
+                  search=".onCatalogSearch" />
+                <SegmentedButton selectedKey="{view>/catalogStatusFilter}" selectionChange=".onCatalogFilterChange">
+                  <items>
+                    <SegmentedButtonItem key="all" text="{i18n>runtimeCenter.catalog.filterAll}" />
+                    <SegmentedButtonItem key="healthy" text="{i18n>runtimeCenter.catalog.filterHealthy}" />
+                    <SegmentedButtonItem key="warning" text="{i18n>runtimeCenter.catalog.filterWarning}" />
+                    <SegmentedButtonItem key="critical" text="{i18n>runtimeCenter.catalog.filterCritical}" />
+                  </items>
+                </SegmentedButton>
+              </Toolbar>
+              <Table
+                id="runtimeCatalogTable"
+                items="{view>/catalog}"
+                growing="true"
+                growingThreshold="50"
+                noDataText="{i18n>runtimeCenter.catalog.empty}">
+                <columns>
+                  <Column><Text text="{i18n>runtimeCenter.column.name}" /></Column>
+                  <Column><Text text="{i18n>runtimeCenter.column.status}" /></Column>
+                  <Column><Text text="{i18n>runtimeCenter.column.version}" /></Column>
+                  <Column><Text text="{i18n>runtimeCenter.column.health}" /></Column>
+                  <Column hAlign="End"><Text text="{i18n>runtimeCenter.column.deployments}" /></Column>
+                  <Column hAlign="End"><Text text="{i18n>runtimeCenter.column.messages}" /></Column>
+                  <Column hAlign="End"><Text text="{i18n>runtimeCenter.column.successRate}" /></Column>
+                </columns>
+                <items>
+                  <ColumnListItem type="Active" press=".onCatalogRowPress">
+                    <cells>
+                      <Text text="{view>name}" />
+                      <Text text="{view>humanReadableStatus}" />
+                      <Text text="{view>version}" />
+                      <ObjectStatus
+                        text="{view>health}"
+                        icon="{ path: 'view>health', formatter: '.formatHealthIcon' }"
+                        state="{ path: 'view>health', formatter: '.formatHealthState' }" />
+                      <Text text="{view>deploymentCount}" />
+                      <Text text="{view>recentMessageCount}" />
+                      <ObjectNumber number="{view>successRatePct}" unit="%" />
+                    </cells>
+                  </ColumnListItem>
+                </items>
+              </Table>
+            </items>
+          </VBox>
+
+          <!-- Right: Integration Details -->
+          <VBox
+            id="runtimeDetailsPane"
+            fitContainer="true"
+            class="runtimeDetailsPane"
+            busy="{view>/selectedArtifact/busy}"
+            busyIndicatorDelay="0">
+            <layoutData>
+              <l:SplitterLayoutData size="{= ${view>/detailsOpen} ? '38%' : '0%' }" minSize="0" />
+            </layoutData>
+            <items>
+              <Toolbar>
+                <Title text="{view>/selectedArtifact/details/name}" level="H4" />
+                <ToolbarSpacer />
+                <Button
+                  icon="sap-icon://decline"
+                  type="Transparent"
+                  tooltip="{i18n>action.close}"
+                  press=".onCloseDetailsPress" />
+              </Toolbar>
+              <IconTabBar select=".onDetailsTabSelect" expanded="true">
+                <items>
+                  <IconTabFilter key="runtimeStatus" text="{i18n>runtimeCenter.tab.runtimeStatus}" icon="sap-icon://pulse">
+                    <core:Fragment
+                      fragmentName="com.middlewareops.integrationportal.fragment.runtimeCenter.RuntimeStatusTab"
+                      type="XML" />
+                  </IconTabFilter>
+                  <IconTabFilter key="deployHistory" text="{i18n>runtimeCenter.tab.deployHistory}" icon="sap-icon://history">
+                    <core:Fragment
+                      fragmentName="com.middlewareops.integrationportal.fragment.runtimeCenter.DeployHistoryTab"
+                      type="XML" />
+                  </IconTabFilter>
+                  <IconTabFilter key="messages" text="{i18n>runtimeCenter.tab.messages}" icon="sap-icon://email">
+                    <core:Fragment
+                      fragmentName="com.middlewareops.integrationportal.fragment.runtimeCenter.MessagesTab"
+                      type="XML" />
+                  </IconTabFilter>
+                  <IconTabFilter key="queues" text="{i18n>runtimeCenter.tab.queues}" icon="sap-icon://combine">
+                    <core:Fragment
+                      fragmentName="com.middlewareops.integrationportal.fragment.runtimeCenter.QueuesTab"
+                      type="XML" />
+                  </IconTabFilter>
+                  <IconTabFilter key="certificates" text="{i18n>runtimeCenter.tab.certificates}" icon="sap-icon://key">
+                    <core:Fragment
+                      fragmentName="com.middlewareops.integrationportal.fragment.runtimeCenter.CertificatesTab"
+                      type="XML" />
+                  </IconTabFilter>
+                </items>
+              </IconTabBar>
+            </items>
+          </VBox>
+
+        </l:contentAreas>
+      </l:Splitter>
+    </content>
+  </Page>
+</mvc:View>

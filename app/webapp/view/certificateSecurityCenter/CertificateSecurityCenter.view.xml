@@ -1,0 +1,106 @@
+<!--
+  Certificate & Security Center (Phase 13) — certificate health, the Certificate Explorer, Security
+  Materials and per-certificate Details/Timeline. Consumes only /api/v1/certificate-security-center,
+  itself composed entirely from the Operations Engine.
+
+  Layout: a sticky Page header (title, refresh) over a horizontal Splitter — three section tabs
+  (Dashboard, Certificate Explorer, Security Materials) on the left/center, and a collapsible
+  Certificate Details panel (Details/Timeline) on the right, mirroring the chrome already established
+  by Recovery/Runtime Center.
+-->
+<mvc:View
+  controllerName="com.middlewareops.integrationportal.controller.certificateSecurityCenter.CertificateSecurityCenter"
+  height="100%"
+  xmlns="sap.m"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns:core="sap.ui.core"
+  xmlns:l="sap.ui.layout">
+  <Page
+    id="certificateSecurityCenterPage"
+    title="{i18n>certificateSecurityCenter.title}"
+    class="certificateSecurityCenterPage">
+    <headerContent>
+      <Button
+        icon="sap-icon://refresh"
+        type="Transparent"
+        tooltip="{i18n>action.refresh}"
+        press=".onRefreshPress" />
+    </headerContent>
+    <content>
+      <l:Splitter orientation="Horizontal" height="100%">
+        <l:contentAreas>
+
+          <!-- Left/center: section tabs -->
+          <VBox fitContainer="true" busy="{view>/busy}" busyIndicatorDelay="0">
+            <layoutData>
+              <l:SplitterLayoutData size="auto" />
+            </layoutData>
+            <items>
+              <IconTabBar select=".onTabSelect" expanded="true" class="sapUiResponsiveContentPadding">
+                <items>
+                  <IconTabFilter key="dashboard" text="{i18n>tab.dashboard}" icon="sap-icon://business-objects-experience">
+                    <core:Fragment
+                      fragmentName="com.middlewareops.integrationportal.fragment.certificateSecurityCenter.DashboardTab"
+                      type="XML" />
+                  </IconTabFilter>
+                  <IconTabFilter
+                    key="explorer"
+                    text="{i18n>tab.explorer}"
+                    icon="sap-icon://key"
+                    count="{= ${view>/certificates}.length }">
+                    <core:Fragment
+                      fragmentName="com.middlewareops.integrationportal.fragment.certificateSecurityCenter.ExplorerTab"
+                      type="XML" />
+                  </IconTabFilter>
+                  <IconTabFilter key="securityMaterials" text="{i18n>tab.securityMaterials}" icon="sap-icon://locked">
+                    <core:Fragment
+                      fragmentName="com.middlewareops.integrationportal.fragment.certificateSecurityCenter.SecurityMaterialsTab"
+                      type="XML" />
+                  </IconTabFilter>
+                </items>
+              </IconTabBar>
+            </items>
+          </VBox>
+
+          <!-- Right: Certificate Details -->
+          <VBox
+            id="certificateDetailsPane"
+            fitContainer="true"
+            class="certificateDetailsPane"
+            busy="{view>/selectedCertificate/busy}"
+            busyIndicatorDelay="0">
+            <layoutData>
+              <l:SplitterLayoutData size="{= ${view>/detailsOpen} ? '38%' : '0%' }" minSize="0" />
+            </layoutData>
+            <items>
+              <Toolbar>
+                <Title text="{view>/selectedCertificate/certificate/alias}" level="H4" />
+                <ToolbarSpacer />
+                <Button
+                  icon="sap-icon://decline"
+                  type="Transparent"
+                  tooltip="{i18n>action.close}"
+                  press=".onCloseDetailsPress" />
+              </Toolbar>
+              <IconTabBar select=".onDetailsTabSelect" expanded="true">
+                <items>
+                  <IconTabFilter key="details" text="{i18n>details.tab.details}" icon="sap-icon://key">
+                    <core:Fragment
+                      fragmentName="com.middlewareops.integrationportal.fragment.certificateSecurityCenter.CertificateDetailsTab"
+                      type="XML" />
+                  </IconTabFilter>
+                  <IconTabFilter key="timeline" text="{i18n>details.tab.timeline}" icon="sap-icon://history">
+                    <core:Fragment
+                      fragmentName="com.middlewareops.integrationportal.fragment.certificateSecurityCenter.TimelineTab"
+                      type="XML" />
+                  </IconTabFilter>
+                </items>
+              </IconTabBar>
+            </items>
+          </VBox>
+
+        </l:contentAreas>
+      </l:Splitter>
+    </content>
+  </Page>
+</mvc:View>

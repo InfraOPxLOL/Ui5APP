@@ -1,0 +1,199 @@
+<!--
+  Message Investigation Workspace (Phase 9) — the operational investigation tool: a top filter bar
+  (quick search, JMS/Non-JMS toggle, Simple/Advanced Search switch) above the Message Investigation
+  Table, with a right-side Context Panel (quick preview) and an expandable bottom Detail Drawer (full
+  detail, including JMS Retry). Panel collapsed/expanded state is remembered for the session via
+  `PanelLayoutService`.
+-->
+<mvc:View
+  controllerName="com.middlewareops.integrationportal.controller.messageMonitoring.List"
+  height="100%"
+  xmlns="sap.m"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns:core="sap.ui.core"
+  xmlns:l="sap.ui.layout"
+  xmlns:ip="com.middlewareops.integrationportal.library.controls">
+  <Page
+    id="page"
+    title="{i18n>title}"
+    class="integrationPortalModulePage investigationWorkspace">
+    <headerContent>
+      <Select change=".onGroupByChange" tooltip="{i18n>investigation.groupBy.tooltip}" width="10rem">
+        <core:Item key="" text="{i18n>investigation.groupBy.none}" />
+        <core:Item key="integrationFlow" text="{i18n>column.integrationFlow}" />
+        <core:Item key="applicationId" text="{i18n>column.applicationId}" />
+        <core:Item key="messageType" text="{i18n>column.sapMessageType}" />
+        <core:Item key="customStatus" text="{i18n>column.customStatus}" />
+      </Select>
+      <ToggleButton
+        icon="sap-icon://detail-view"
+        pressed="{view>/grid/density}"
+        press=".onDensityChange"
+        tooltip="{i18n>investigation.density.tooltip}" />
+      <Button
+        icon="sap-icon://action-settings"
+        tooltip="{i18n>investigation.columns.tooltip}"
+        press=".onColumnsButtonPress" />
+      <Button
+        icon="sap-icon://refresh"
+        tooltip="{i18n>action.refresh}"
+        press=".onRefreshPress" />
+      <Button
+        icon="sap-icon://excel-attachment"
+        tooltip="{i18n>action.export}"
+        press=".onExportPress" />
+    </headerContent>
+    <content>
+      <VBox height="100%">
+        <items>
+
+          <!-- List mode: top filter bar + grid + context panel + drawer -->
+          <VBox visible="{= !${view>/detailPageOpen} }" height="100%">
+          <layoutData>
+            <FlexItemData growFactor="1" />
+          </layoutData>
+          <items>
+
+          <!-- Top filter bar (§ Advanced Search — moved to the top, CPI/S4-style) -->
+          <Toolbar class="investigationTopBar">
+            <layoutData>
+              <FlexItemData shrinkFactor="0" />
+            </layoutData>
+            <SearchField
+              width="16rem"
+              placeholder="{i18n>investigation.quickSearch}"
+              liveChange=".onSearchExecute"
+              value="{view>/grid/quickSearchTerm}" />
+            <SegmentedButton selectedKey="{view>/jmsFilter}" selectionChange=".onJmsFilterChange">
+              <items>
+                <SegmentedButtonItem key="all" text="{i18n>investigation.jmsFilter.all}" />
+                <SegmentedButtonItem key="jms" text="{i18n>investigation.jmsFilter.jms}" />
+                <SegmentedButtonItem key="nonJms" text="{i18n>investigation.jmsFilter.nonJms}" />
+              </items>
+            </SegmentedButton>
+            <ToggleButton
+              text="{i18n>investigation.search.advanced}"
+              icon="sap-icon://filter"
+              pressed="{view>/advancedSearchOpen}"
+              press=".onToggleAdvancedSearch" />
+            <ToolbarSpacer />
+            <Button
+              text="{i18n>investigation.retrySelected} ({view>/selectedMessageIds/length})"
+              icon="sap-icon://redo"
+              visible="{view>/canRetry}"
+              enabled="{= (${view>/selectedMessageIds} || []).length > 0 }"
+              press=".onRetrySelectedPress" />
+          </Toolbar>
+
+          <!-- Advanced Search Panel, collapsible below the top bar -->
+          <VBox visible="{view>/advancedSearchOpen}" class="investigationAdvancedPanel">
+            <layoutData>
+              <FlexItemData shrinkFactor="0" />
+            </layoutData>
+            <items>
+              <core:Fragment
+                fragmentName="com.middlewareops.integrationportal.fragment.messageMonitoring.AdvancedSearchPanel"
+                type="XML" />
+            </items>
+          </VBox>
+
+          <l:Splitter id="rootSplitter" orientation="Vertical" resize=".onPanelResize">
+            <l:layoutData>
+              <FlexItemData growFactor="1" />
+            </l:layoutData>
+            <l:contentAreas>
+
+              <l:Splitter id="mainSplitter" orientation="Horizontal" height="100%">
+                <l:contentAreas>
+
+                  <!-- Message Investigation Table -->
+                  <VBox
+                    class="investigationGridPane"
+                    fitContainer="true"
+                    busy="{view>/grid/busy}"
+                    busyIndicatorDelay="0">
+                    <layoutData>
+                      <l:SplitterLayoutData size="auto" />
+                    </layoutData>
+                    <items>
+                      <Toolbar class="investigationGridToolbar">
+                        <Title text="{i18n>investigation.grid.title} ({view>/total})" level="H3" />
+                        <ToolbarSpacer />
+                        <Button
+                          icon="{= ${view>/contextCollapsed} ? 'sap-icon://close-command-field' : 'sap-icon://open-command-field' }"
+                          type="Transparent"
+                          tooltip="{i18n>investigation.context.toggle}"
+                          press=".onToggleContextPanel" />
+                      </Toolbar>
+                      <ip:InvestigationGrid
+                        id="grid"
+                        ariaLabelledBy="investigationGridTitle">
+                        <ip:layoutData>
+                          <FlexItemData growFactor="1" />
+                        </ip:layoutData>
+                      </ip:InvestigationGrid>
+                    </items>
+                  </VBox>
+
+                  <!-- Right: Context Panel -->
+                  <VBox id="contextPane" class="investigationContextPane" fitContainer="true">
+                    <layoutData>
+                      <l:SplitterLayoutData
+                        size="{= ${view>/contextCollapsed} ? '0%' : '26%' }"
+                        minSize="0" />
+                    </layoutData>
+                    <items>
+                      <core:Fragment
+                        fragmentName="com.middlewareops.integrationportal.fragment.messageMonitoring.ContextPanel"
+                        type="XML" />
+                    </items>
+                  </VBox>
+
+                </l:contentAreas>
+              </l:Splitter>
+
+              <!-- Bottom: expandable Detail Drawer (full detail, incl. JMS Retry) -->
+              <VBox class="investigationDrawerPane" fitContainer="true">
+                <layoutData>
+                  <l:SplitterLayoutData
+                    size="{= ${view>/drawer/expanded} ? '32%' : '2.5rem' }"
+                    minSize="40" />
+                </layoutData>
+                <items>
+                  <core:Fragment
+                    fragmentName="com.middlewareops.integrationportal.fragment.messageMonitoring.DetailDrawer"
+                    type="XML" />
+                </items>
+              </VBox>
+
+            </l:contentAreas>
+          </l:Splitter>
+
+          </items>
+          </VBox>
+
+          <!-- Detail-page mode (§ JMS Retry / Expand — a dedicated, bookmarkable page) -->
+          <VBox visible="{view>/detailPageOpen}" height="100%" class="investigationDetailPage">
+            <layoutData>
+              <FlexItemData growFactor="1" />
+            </layoutData>
+            <items>
+              <Toolbar class="investigationDetailPageToolbar">
+                <Button
+                  icon="sap-icon://nav-back"
+                  text="{i18n>investigation.detailPage.back}"
+                  type="Transparent"
+                  press=".onBackToList" />
+                <Title text="{i18n>investigation.detailPage.title} — {view>/selectedMessageId}" level="H3" />
+              </Toolbar>
+              <core:Fragment
+                fragmentName="com.middlewareops.integrationportal.fragment.messageMonitoring.DetailDrawer"
+                type="XML" />
+            </items>
+          </VBox>
+
+        </items>
+      </VBox>
+    </content>
+  </Page>
+</mvc:View>

@@ -1,0 +1,24 @@
+<!--
+  Shell tenant selector popover (§11). Lists the selectable tenants from the `shell` model;
+  choosing one switches the tenant through the Shell controller, which broadcasts the change so
+  permissions, navigation and (future) monitoring modules reload.
+-->
+<core:FragmentDefinition
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core">
+  <Popover
+    title="{i18n>shell.tenant.select}"
+    placement="Bottom"
+    contentWidth="20rem">
+    <List
+      items="{shell>/tenants}"
+      mode="SingleSelectMaster">
+      <StandardListItem
+        title="{shell>name}"
+        icon="{shell>icon}"
+        selected="{shell>selected}"
+        type="Active"
+        press=".onTenantSelect" />
+    </List>
+  </Popover>
+</core:FragmentDefinition>

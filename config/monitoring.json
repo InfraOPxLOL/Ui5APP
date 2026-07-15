@@ -1,0 +1,12 @@
+{
+  "defaultTimeWindowHours": 24,
+  "defaultStatusFilter": "FAILED",
+  "maxPageSize": 200,
+  "defaultPageSize": 50,
+  "liveFeedChannels": {
+    "messages": "live.messages",
+    "alerts": "live.alerts",
+    "queues": "live.queues"
+  },
+  "slowProcessingThresholdMs": 30000
+}

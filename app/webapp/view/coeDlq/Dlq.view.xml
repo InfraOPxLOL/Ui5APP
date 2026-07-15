@@ -1,0 +1,107 @@
+<mvc:View
+  controllerName="com.middlewareops.integrationportal.controller.coeDlq.Dlq"
+  height="100%"
+  xmlns="sap.m"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns:l="sap.ui.layout"
+  xmlns:form="sap.ui.layout.form">
+  <Page
+    id="page"
+    title="{i18n>title}"
+    class="integrationPortalModulePage"
+    busy="{view>/busy}"
+    busyIndicatorDelay="0">
+    <headerContent>
+      <Button icon="sap-icon://refresh" tooltip="{i18n>coeDlq.refresh}" press=".onRefresh" />
+    </headerContent>
+    <content>
+      <l:Splitter height="100%">
+        <!-- Master: failed messages -->
+        <Table
+          items="{view>/messages}"
+          mode="SingleSelectMaster"
+          itemPress=".onSelectMessage"
+          growing="true"
+          growingThreshold="100"
+          noDataText="{i18n>coeDlq.noMessages}">
+          <layoutData>
+            <l:SplitterLayoutData size="58%" />
+          </layoutData>
+          <headerToolbar>
+            <Toolbar>
+              <Title text="{i18n>coeDlq.master.title} ({view>/total})" level="H4" />
+            </Toolbar>
+          </headerToolbar>
+          <columns>
+            <Column><Text text="{i18n>coeDlq.col.interface}" /></Column>
+            <Column><Text text="{i18n>coeDlq.col.sender}" /></Column>
+            <Column><Text text="{i18n>coeDlq.col.receiver}" /></Column>
+            <Column><Text text="{i18n>coeDlq.col.messageType}" /></Column>
+            <Column><Text text="{i18n>coeDlq.col.documentId}" /></Column>
+            <Column><Text text="{i18n>coeDlq.col.time}" /></Column>
+          </columns>
+          <items>
+            <ColumnListItem type="Active">
+              <cells>
+                <Text text="{view>interfaceTarget}" />
+                <Text text="{= ${view>sender} || '–' }" />
+                <Text text="{= ${view>receiver} || '–' }" />
+                <Text text="{= ${view>messageType} || '–' }" />
+                <Text text="{= ${view>documentId} || '–' }" />
+                <Text text="{ path: 'view>startTime', formatter: '.formatDateTime' }" />
+              </cells>
+            </ColumnListItem>
+          </items>
+        </Table>
+
+        <!-- Detail: recovery context + replay -->
+        <ScrollContainer height="100%" vertical="true">
+          <layoutData>
+            <l:SplitterLayoutData size="42%" />
+          </layoutData>
+          <VBox class="sapUiSmallMargin" visible="{= ${view>/selected} === null }">
+            <MessageStrip text="{i18n>coeDlq.detail.empty}" type="Information" showIcon="true" />
+          </VBox>
+          <VBox class="sapUiSmallMargin" visible="{= ${view>/selected} !== null }">
+            <Title text="{i18n>coeDlq.detail.title}" level="H4" class="sapUiSmallMarginBottom" />
+            <form:SimpleForm editable="false" layout="ColumnLayout">
+              <form:content>
+                <Label text="{i18n>coeDlq.detail.messageId}" />
+                <Text text="{view>/selected/messageId}" />
+                <Label text="{i18n>coeDlq.detail.agreement}" />
+                <Text text="{view>/selected/agreementPid}" />
+                <Label text="{i18n>coeDlq.detail.resolvedQueue}" />
+                <ObjectStatus
+                  text="{= ${view>/selected/resolvedQueue} || ${i18n>coeDlq.detail.unresolved} }"
+                  state="{= ${view>/selected/resolvedQueue} ? 'Success' : 'Warning' }" />
+              </form:content>
+            </form:SimpleForm>
+
+            <Title text="{i18n>coeDlq.detail.errors}" level="H5" class="sapUiSmallMarginTop" />
+            <List
+              items="{view>/selected/errorDetails}"
+              noDataText="{i18n>coeDlq.detail.noErrors}">
+              <StandardListItem
+                title="{view>text}"
+                description="{view>category}"
+                icon="sap-icon://error" />
+            </List>
+
+            <Button
+              text="{i18n>coeDlq.replay.button}"
+              icon="sap-icon://redo"
+              type="Emphasized"
+              press=".onReplay"
+              class="sapUiSmallMarginTop" />
+            <MessageStrip
+              class="sapUiSmallMarginTop"
+              text="{view>/replayResult/note}"
+              type="Warning"
+              showIcon="true"
+              visible="{= ${view>/replayResult} !== null }" />
+          </VBox>
+        </ScrollContainer>
+      </l:Splitter>
+    </content>
+  </Page>
+</mvc:View>

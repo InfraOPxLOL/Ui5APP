@@ -1,22 +1,36 @@
 {
-  "name": "integrationsuite.ui5app",
-  "version": "0.0.1",
+  "name": "integration-portal",
+  "version": "0.1.0",
   "private": true,
-  "description": "UI5 freestyle application consuming an SAP Integration Suite OData API",
+  "description": "Enterprise operations & observability platform for SAP Integration Suite (stateless). Frontend (SAP UI5 + TypeScript), backend (Node.js + Express), deployable to SAP BTP Cloud Foundry.",
+  "author": "MiddlewareOps",
+  "license": "UNLICENSED",
+  "workspaces": [
+    "approuter",
+    "app",
+    "srv"
+  ],
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
   "scripts": {
-    "start": "fiori run --open \"index.html\"",
-    "start-noflp": "fiori run --config ./ui5.yaml --open \"index.html\"",
-    "build": "ui5 build --clean-dest --dest dist",
-    "deploy": "fiori deploy"
+    "build": "npm run build --workspace=app && npm run build --workspace=srv",
+    "build:app": "npm run build --workspace=app",
+    "build:srv": "npm run build --workspace=srv",
+    "start:srv": "npm run start --workspace=srv",
+    "start:app": "npm run start --workspace=app",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "npm run test --workspaces --if-present",
+    "deploy": "mbt build && cf deploy mta_archives/integration-portal_0.1.0.mtar"
   },
   "devDependencies": {
-    "@sap/ux-ui5-tooling": "^1",
-    "@ui5/cli": "^4",
-    "@sap-ux/ui5-middleware-fe-mockserver": "^2"
-  },
-  "ui5": {
-    "dependencies": [
-      "@sap/ux-ui5-tooling"
-    ]
+    "@eslint/js": "^9.39.4",
+    "eslint": "^9.39.4",
+    "eslint-config-prettier": "^9.1.2",
+    "prettier": "3.3.3",
+    "typescript-eslint": "^8.63.0"
   }
 }

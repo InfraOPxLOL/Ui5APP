@@ -1,0 +1,11 @@
+{
+  "mode": "real",
+  "destinationDiscovery": "static",
+  "tenantAuth": [
+    {
+      "tenantId": "primary",
+      "type": "oauth-client-credentials",
+      "oauthTokenUrl": "https://d0e06a1ftrial.authentication.us10.hana.ondemand.com/oauth/token"
+    }
+  ]
+}

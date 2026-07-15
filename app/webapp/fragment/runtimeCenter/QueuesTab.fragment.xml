@@ -1,0 +1,28 @@
+<!--
+  Integration Details — Queues (§ Integration Details — "Queues"). Tenant-wide (no queue-to-flow
+  mapping exists in this domain model) — see `IntegrationDetails.relatedQueues`'s own doc comment.
+-->
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core">
+  <VBox class="sapUiSmallMargin">
+    <items>
+      <Table items="{view>/selectedArtifact/details/relatedQueues}" noDataText=" ">
+        <columns>
+          <Column><Text text="{i18n>runtimeCenter.column.name}" /></Column>
+          <Column><Text text="{i18n>runtimeCenter.column.status}" /></Column>
+          <Column hAlign="End"><Text text="{i18n>runtimeCenter.column.messages}" /></Column>
+        </columns>
+        <items>
+          <ColumnListItem>
+            <cells>
+              <Text text="{view>displayName}" />
+              <ObjectStatus
+                text="{view>state}"
+                state="{ path: 'view>health', formatter: '.formatHealthState' }" />
+              <ObjectNumber number="{view>messageCount}" />
+            </cells>
+          </ColumnListItem>
+        </items>
+      </Table>
+    </items>
+  </VBox>
+</core:FragmentDefinition>

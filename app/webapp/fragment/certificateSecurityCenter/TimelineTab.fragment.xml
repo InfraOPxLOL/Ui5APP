@@ -1,0 +1,38 @@
+<!--
+  Timeline (§ Timeline) — import, renewal, replacement, expiry. "Import"/"Expiry" are derived from
+  the certificate's real validFrom/validTo; "Flag for Renewal" is the one genuinely mutating action
+  this domain supports (ICertificateProvider is read-only by design — no real renew/replace action
+  exists to wire up).
+-->
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core">
+  <VBox class="sapUiSmallMargin">
+    <items>
+      <Toolbar>
+        <ToolbarSpacer />
+        <Button
+          text="{i18n>timeline.flagForRenewal}"
+          icon="sap-icon://flag"
+          press=".onFlagForRenewalPress" />
+      </Toolbar>
+      <Table items="{view>/selectedCertificate/timeline}" noDataText="{i18n>timeline.empty}">
+        <columns>
+          <Column><Text text="{i18n>column.status}" /></Column>
+          <Column><Text text="{i18n>column.timestamp}" /></Column>
+          <Column><Text text="{i18n>column.actor}" /></Column>
+        </columns>
+        <items>
+          <ColumnListItem>
+            <cells>
+              <ObjectStatus
+                text="{view>kind}"
+                icon="{ path: 'view>kind', formatter: '.formatTimelineEventIcon' }"
+                state="{ path: 'view>kind', formatter: '.formatTimelineEventState' }" />
+              <Text text="{ path: 'view>timestamp', formatter: '.formatDateTime' }" />
+              <Text text="{ path: 'view>actor', formatter: '.formatReservedText' }" />
+            </cells>
+          </ColumnListItem>
+        </items>
+      </Table>
+    </items>
+  </VBox>
+</core:FragmentDefinition>

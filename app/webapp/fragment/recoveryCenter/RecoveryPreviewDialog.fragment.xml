@@ -1,0 +1,108 @@
+<!--
+  Recovery Preview (§ Recovery Preview, § Recovery Validation) — shown before every recovery
+  operation: source/destination queue, message count, estimated duration, validation results,
+  warnings, impact analysis and an explicit confirmation step. Recovery is disabled whenever any
+  validation check fails (§ Recovery Validation — "Disable recovery if validation fails").
+-->
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:l="sap.ui.layout">
+  <Dialog
+    id="recoveryPreviewDialog"
+    title="{i18n>recovery.preview.title}"
+    open="{view>/preview/open}"
+    busy="{view>/preview/busy}"
+    busyIndicatorDelay="0"
+    contentWidth="38rem">
+    <content>
+      <l:VerticalLayout width="100%" class="sapUiSmallMargin">
+
+        <MessageStrip
+          visible="{= !${view>/preview/allPassed} &amp;&amp; ${view>/preview/previews}.length > 0 }"
+          text="{i18n>recovery.preview.validationBlocked}"
+          type="Error"
+          showIcon="true"
+          class="sapUiTinyMarginBottom" />
+
+        <Text
+          text="{i18n>recovery.preview.dryRunNotice}"
+          visible="{view>/preview/dryRun}"
+          class="sapUiTinyMarginBottom" />
+
+        <!-- Impact analysis summary -->
+        <l:Grid defaultSpan="L4 M4 S12" class="sapUiTinyMarginBottom">
+          <VBox class="recoveryStatTile">
+            <Text text="{i18n>recovery.preview.queueCount}" />
+            <Title text="{= ${view>/preview/queueNames}.length }" level="H3" />
+          </VBox>
+          <VBox class="recoveryStatTile">
+            <Text text="{i18n>recovery.preview.messageCount}" />
+            <Title text="{view>/preview/totalMessageCount}" level="H3" />
+          </VBox>
+          <VBox class="recoveryStatTile">
+            <Text text="{i18n>recovery.preview.estimatedDuration}" />
+            <Title text="{ path: 'view>/preview/totalEstimatedDurationMs', formatter: '.formatDuration' }" level="H3" />
+          </VBox>
+        </l:Grid>
+
+        <!-- Per-queue preview + validation -->
+        <List items="{view>/preview/previews}" noDataText=" ">
+          <CustomListItem>
+            <l:VerticalLayout width="100%" class="recoveryPreviewGroup">
+              <HBox justifyContent="SpaceBetween" width="100%">
+                <items>
+                  <Text text="{view>sourceQueue} → {view>destinationQueue}" class="sapUiTinyMarginTop" />
+                  <ObjectNumber
+                    number="{view>messageCount}"
+                    unit="{i18n>recovery.preview.messages}" />
+                </items>
+              </HBox>
+
+              <List items="{view>warnings}" noDataText=" ">
+                <StandardListItem title="{view>}" icon="sap-icon://warning" type="Inactive" />
+              </List>
+
+              <List items="{view>validation/checks}" noDataText=" ">
+                <StandardListItem
+                  title="{view>message}"
+                  icon="{ path: 'view>passed', formatter: '.formatCheckIcon' }"
+                  infoState="{ path: 'view>passed', formatter: '.formatCheckState' }"
+                  info="{view>key}" />
+              </List>
+            </l:VerticalLayout>
+          </CustomListItem>
+        </List>
+
+        <!-- Explicit confirmation -->
+        <HBox alignItems="Center" class="sapUiSmallMarginTop">
+          <items>
+            <Switch state="{view>/preview/dryRun}" change=".onDryRunToggle" />
+            <Label text="{i18n>recovery.preview.dryRunToggle}" class="sapUiTinyMarginBegin" />
+          </items>
+        </HBox>
+
+        <!-- Results, once confirmed -->
+        <List
+          items="{view>/preview/results}"
+          noDataText=" "
+          visible="{= ${view>/preview/results}.length > 0 }"
+          class="sapUiSmallMarginTop">
+          <StandardListItem
+            title="{view>sourceQueue}"
+            description="{view>result}"
+            icon="{ path: 'view>status', formatter: '.formatRecoveryStatusIcon' }"
+            infoState="{ path: 'view>status', formatter: '.formatRecoveryStatusState' }"
+            info="{view>status}" />
+        </List>
+
+      </l:VerticalLayout>
+    </content>
+    <buttons>
+      <Button
+        text="{i18n>recovery.preview.confirm}"
+        type="Emphasized"
+        enabled="{= ${view>/preview/allPassed} &amp;&amp; !${view>/preview/confirming} }"
+        busy="{view>/preview/confirming}"
+        press=".onConfirmRecoveryPress" />
+      <Button text="{i18n>action.cancel}" press=".onClosePreview" />
+    </buttons>
+  </Dialog>
+</core:FragmentDefinition>

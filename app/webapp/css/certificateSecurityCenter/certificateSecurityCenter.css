@@ -1,0 +1,25 @@
+/*
+ * Certificate & Security Center styles (Phase 13).
+ *
+ * The Certificate Explorer and per-certificate Details share the section-tabbed chrome already
+ * established by Recovery/Runtime Center, plus a details side panel for Details/Timeline.
+ */
+
+.certificateSecurityCenterPage {
+  height: 100%;
+}
+
+.certificateStatTile {
+  padding: 0.5rem 0.75rem;
+}
+
+.certificateDetailsPane {
+  overflow: hidden;
+  border-inline-start: 1px solid var(--sapList_BorderColor, rgba(127, 127, 127, 0.3));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .certificateSecurityCenterPage * {
+    transition: none !important;
+  }
+}

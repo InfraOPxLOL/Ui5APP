@@ -1,0 +1,27 @@
+<!-- Integration Details — Messages (§ Integration Details — "Messages"). -->
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core">
+  <VBox class="sapUiSmallMargin">
+    <items>
+      <Table items="{view>/selectedArtifact/details/recentMessages}" noDataText=" ">
+        <columns>
+          <Column><Text text="{i18n>runtimeCenter.column.status}" /></Column>
+          <Column><Text text="{i18n>runtimeCenter.column.timestamp}" /></Column>
+          <Column><Text text="{i18n>runtimeCenter.column.sender}" /></Column>
+          <Column><Text text="{i18n>runtimeCenter.column.receiver}" /></Column>
+        </columns>
+        <items>
+          <ColumnListItem>
+            <cells>
+              <ObjectStatus
+                text="{view>humanReadableStatus}"
+                state="{ path: 'view>severity', formatter: '.formatSeverityState' }" />
+              <Text text="{ path: 'view>startTime', formatter: '.formatDateTime' }" />
+              <Text text="{view>sender}" />
+              <Text text="{view>receiver}" />
+            </cells>
+          </ColumnListItem>
+        </items>
+      </Table>
+    </items>
+  </VBox>
+</core:FragmentDefinition>

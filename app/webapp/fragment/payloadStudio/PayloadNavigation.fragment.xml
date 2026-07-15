@@ -1,0 +1,24 @@
+<!--
+  Payload Navigation (§ Payload Navigation) — the workspace's icon-driven left pane.
+
+  Selecting an editor-slot item (Request/Response/Comparison) switches the center editor; selecting
+  any other item (Attachments/Headers/Properties/Metadata) focuses the corresponding bottom tab.
+  "History" is a documented future item (no payload versioning in the domain model today).
+-->
+<core:FragmentDefinition
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core">
+  <List
+    items="{view>/nav}"
+    mode="SingleSelectMaster"
+    class="payloadStudioNav"
+    ariaLabelledBy="payloadStudioNavTitle">
+    <StandardListItem
+      title="{view>title}"
+      icon="{view>icon}"
+      type="Active"
+      press=".onNavItemPress"
+      highlight="{= ${view>id} === ${view>/editor/activeTarget} ? 'Information' : 'None' }"
+      class="{= ${view>future} ? 'payloadStudioNavFuture' : '' }" />
+  </List>
+</core:FragmentDefinition>

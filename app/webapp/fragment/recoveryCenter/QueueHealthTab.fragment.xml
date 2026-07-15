@@ -1,0 +1,43 @@
+<!--
+  Queue Health (§ Queue Health) — health score, growth trend, consumer status, oldest message,
+  recovery readiness. Same per-queue data as Queue Explorer, presented with a health-scoring emphasis.
+-->
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core">
+  <VBox class="sapUiSmallMargin" fitContainer="true">
+    <items>
+      <Table items="{view>/queueHealth}" noDataText="{i18n>recovery.queueHealth.empty}">
+        <columns>
+          <Column><Text text="{i18n>recovery.column.queueName}" /></Column>
+          <Column><Text text="{i18n>recovery.column.healthScore}" /></Column>
+          <Column><Text text="{i18n>recovery.column.growthTrend}" /></Column>
+          <Column><Text text="{i18n>recovery.column.consumerStatus}" /></Column>
+          <Column hAlign="End"><Text text="{i18n>recovery.column.oldestMessage}" /></Column>
+          <Column><Text text="{i18n>recovery.column.recoveryReadiness}" /></Column>
+        </columns>
+        <items>
+          <ColumnListItem type="Active" press=".onQueueContextPress">
+            <cells>
+              <Text text="{view>displayName}" />
+              <ProgressIndicator
+                percentValue="{view>healthScore}"
+                displayValue="{view>healthScore}"
+                state="{ path: 'view>healthScore', formatter: '.formatHealthScoreState' }" />
+              <ObjectStatus
+                text="{view>growthTrend}"
+                icon="{ path: 'view>growthTrend', formatter: '.formatGrowthTrendIcon' }"
+                state="{ path: 'view>growthTrend', formatter: '.formatGrowthTrendState' }" />
+              <ObjectStatus
+                text="{view>consumerStatus}"
+                state="{ path: 'view>consumerStatus', formatter: '.formatConsumerState' }" />
+              <Text text="{ path: 'view>oldestMessageAgeMs', formatter: '.formatMessageAge' }" />
+              <ObjectStatus
+                text="{view>recoveryReadiness}"
+                icon="{ path: 'view>recoveryReadiness', formatter: '.formatReadinessIcon' }"
+                state="{ path: 'view>recoveryReadiness', formatter: '.formatReadinessState' }" />
+            </cells>
+          </ColumnListItem>
+        </items>
+      </Table>
+    </items>
+  </VBox>
+</core:FragmentDefinition>

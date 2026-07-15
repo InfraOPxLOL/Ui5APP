@@ -1,0 +1,73 @@
+<!--
+  Certificate Details (§ Certificate Explorer — "Certificate details", § Impact Analysis,
+  § Related Navigation). Subject/Fingerprints/Signature Algorithm/Used By/Affected Runtime-APIs-
+  Destinations are honestly reserved extension points — this SDK's data source carries none of them.
+-->
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:l="sap.ui.layout">
+  <VBox class="sapUiSmallMargin">
+    <items>
+
+      <ObjectStatus
+        text="{view>/selectedCertificate/certificate/health}"
+        icon="{ path: 'view>/selectedCertificate/certificate/health', formatter: '.formatHealthIcon' }"
+        state="{ path: 'view>/selectedCertificate/certificate/health', formatter: '.formatHealthState' }"
+        class="sapUiTinyMarginBottom" />
+
+      <Title text="{i18n>details.validity}" level="H5" />
+      <ObjectAttribute title="{i18n>column.issuer}" text="{view>/selectedCertificate/certificate/issuer}" />
+      <ObjectAttribute title="{i18n>column.owner}" text="{view>/selectedCertificate/certificate/owner}" />
+      <ObjectAttribute
+        title="{i18n>column.subject}"
+        text="{ path: 'view>/selectedCertificate/certificate/subject', formatter: '.formatReservedText' }" />
+      <ObjectAttribute
+        title="{i18n>column.validFrom}"
+        text="{ path: 'view>/selectedCertificate/certificate/validFrom', formatter: '.formatDateTime' }" />
+      <ObjectAttribute
+        title="{i18n>column.validTo}"
+        text="{ path: 'view>/selectedCertificate/certificate/validTo', formatter: '.formatDateTime' }" />
+      <ObjectAttribute title="{i18n>column.daysRemaining}" text="{view>/selectedCertificate/certificate/daysRemaining}" />
+      <ObjectAttribute title="{i18n>column.serialNumber}" text="{view>/selectedCertificate/certificate/serialNumber}" />
+      <ObjectAttribute title="{i18n>column.keyType}" text="{view>/selectedCertificate/certificate/keyType}" />
+      <ObjectAttribute
+        title="{i18n>column.selfSigned}"
+        text="{ path: 'view>/selectedCertificate/certificate/selfSigned', formatter: '.formatSelfSignedText' }" />
+      <ObjectStatus
+        text="{view>/selectedCertificate/certificate/weakAlgorithm}"
+        state="{ path: 'view>/selectedCertificate/certificate/weakAlgorithm', formatter: '.formatWeakAlgorithmState' }" />
+      <ObjectNumber
+        number="{view>/selectedCertificate/certificate/riskScore}"
+        state="{ path: 'view>/selectedCertificate/certificate/riskScore', formatter: '.formatRiskScoreState' }" />
+
+      <Title text="{i18n>details.fingerprints}" level="H5" class="sapUiSmallMarginTop" />
+      <ObjectAttribute
+        title="{i18n>column.fingerprint}"
+        text="{ path: 'view>/selectedCertificate/certificate/fingerprint', formatter: '.formatReservedText' }" />
+      <ObjectAttribute
+        title="{i18n>column.signatureAlgorithm}"
+        text="{ path: 'view>/selectedCertificate/certificate/signatureAlgorithm', formatter: '.formatReservedText' }" />
+
+      <Title text="{i18n>details.impactAnalysis}" level="H5" class="sapUiSmallMarginTop" />
+      <MessageStrip
+        text="{i18n>details.impactAnalysisUnavailable}"
+        type="Information"
+        showIcon="true"
+        class="sapUiTinyMarginBottom" />
+      <ObjectAttribute
+        title="{i18n>details.usedByFlows}"
+        text="{= ${view>/selectedCertificate/certificate/usedByIntegrationFlows}.length }" />
+      <ObjectAttribute
+        title="{i18n>details.usedByDestinations}"
+        text="{= ${view>/selectedCertificate/certificate/usedByDestinations}.length }" />
+
+      <Title text="{i18n>related.title}" level="H5" class="sapUiSmallMarginTop" />
+      <HBox wrap="Wrap">
+        <items>
+          <Button text="{i18n>related.openRuntime}" press=".onOpenRuntimePress" class="sapUiTinyMarginEnd sapUiTinyMarginBottom" />
+          <Button text="{i18n>related.openMessages}" press=".onOpenMessagesPress" class="sapUiTinyMarginEnd sapUiTinyMarginBottom" />
+          <Button text="{i18n>related.openPayload}" press=".onOpenPayloadPress" class="sapUiTinyMarginEnd sapUiTinyMarginBottom" />
+        </items>
+      </HBox>
+
+    </items>
+  </VBox>
+</core:FragmentDefinition>

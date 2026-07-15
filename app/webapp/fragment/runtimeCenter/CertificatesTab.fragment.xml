@@ -1,0 +1,27 @@
+<!--
+  Integration Details — Certificates (§ Integration Details — "Certificates"). Tenant-wide certificate
+  watch (no certificate-to-flow mapping exists in this domain model) — see
+  `IntegrationDetails.certificateWatch`'s own doc comment.
+-->
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core">
+  <VBox class="sapUiSmallMargin">
+    <items>
+      <Table items="{view>/selectedArtifact/details/certificateWatch}" noDataText=" ">
+        <columns>
+          <Column><Text text="{i18n>runtimeCenter.column.name}" /></Column>
+          <Column><Text text="{i18n>runtimeCenter.column.status}" /></Column>
+        </columns>
+        <items>
+          <ColumnListItem>
+            <cells>
+              <Text text="{view>alias}" />
+              <ObjectStatus
+                text="{view>daysRemaining}"
+                state="{ path: 'view>health', formatter: '.formatHealthState' }" />
+            </cells>
+          </ColumnListItem>
+        </items>
+      </Table>
+    </items>
+  </VBox>
+</core:FragmentDefinition>

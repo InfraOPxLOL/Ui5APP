@@ -1,0 +1,123 @@
+<!--
+  Advanced Search Panel (§ Advanced Search) — the workspace's left pane.
+
+  Every field two-way binds directly into `view>/criteria` (a `MessageSearchCriteria`); pressing
+  Search re-runs the query from page 1. Smart filters, saved searches and quick filters are metadata-
+  driven from `view>/smartFilters` / `view>/savedSearches` (session-only).
+-->
+<core:FragmentDefinition
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core"
+  xmlns:l="sap.ui.layout">
+  <ScrollContainer height="100%" vertical="true" class="investigationSearchScroll">
+    <l:VerticalLayout width="100%" class="sapUiSmallMargin">
+
+      <Title text="{i18n>investigation.search.title}" level="H4" class="sapUiTinyMarginBottom" />
+
+      <!-- Smart filters -->
+      <Text text="{i18n>investigation.search.smartFilters}" class="investigationSearchLabel" />
+      <FlexBox items="{view>/smartFilters}" wrap="Wrap" class="investigationSmartFilters">
+        <Button
+          text="{view>title}"
+          icon="{view>icon}"
+          type="{= ${view>/activeSmartFilter} === ${view>id} ? 'Emphasized' : 'Default' }"
+          press=".onSmartFilterPress"
+          class="sapUiTinyMarginEnd sapUiTinyMarginBottom">
+          <customData>
+            <core:CustomData key="smartFilter" value="{view>id}" writeToDom="false" />
+          </customData>
+        </Button>
+      </FlexBox>
+
+      <Label text="{i18n>investigation.search.status}" labelFor="critStatus" />
+      <Select id="critStatus" width="100%" selectedKey="{view>/criteria/status}">
+        <core:Item key="" text="{i18n>investigation.search.any}" />
+        <core:Item key="COMPLETED" text="COMPLETED" />
+        <core:Item key="FAILED" text="FAILED" />
+        <core:Item key="PROCESSING" text="PROCESSING" />
+        <core:Item key="RETRY" text="RETRY" />
+        <core:Item key="ESCALATED" text="ESCALATED" />
+      </Select>
+
+      <Label text="{i18n>investigation.search.severity}" labelFor="critSeverity" />
+      <Select id="critSeverity" width="100%" selectedKey="{view>/criteria/severity}">
+        <core:Item key="" text="{i18n>investigation.search.any}" />
+        <core:Item key="info" text="Info" />
+        <core:Item key="warning" text="Warning" />
+        <core:Item key="error" text="Error" />
+        <core:Item key="critical" text="Critical" />
+      </Select>
+
+      <Label text="{i18n>column.applicationId}" labelFor="critAppId" />
+      <Input id="critAppId" width="100%" value="{view>/criteria/applicationId}" />
+
+      <Label text="{i18n>investigation.search.sapSender}" labelFor="critSender" />
+      <Input id="critSender" width="100%" value="{view>/criteria/sender}" />
+
+      <Label text="{i18n>investigation.search.sapReceiver}" labelFor="critReceiver" />
+      <Input id="critReceiver" width="100%" value="{view>/criteria/receiver}" />
+
+      <Label text="{i18n>investigation.search.sapMessageType}" labelFor="critMessageType" />
+      <Input id="critMessageType" width="100%" value="{view>/criteria/messageType}" />
+
+      <Label text="{i18n>column.customStatus}" labelFor="critCustomStatus" />
+      <Input id="critCustomStatus" width="100%" value="{view>/criteria/customStatus}" />
+
+      <Label text="{i18n>column.correlationId}" labelFor="critCorrelationId" />
+      <Input id="critCorrelationId" width="100%" value="{view>/criteria/correlationId}" />
+
+      <Label text="{i18n>column.queue}" labelFor="critQueue" />
+      <Input id="critQueue" width="100%" value="{view>/criteria/queue}" />
+
+      <Label text="{i18n>investigation.search.freeText}" labelFor="critSearch" />
+      <Input id="critSearch" width="100%" value="{view>/criteria/search}" />
+
+      <Label text="{i18n>investigation.search.dateFrom}" labelFor="critDateFrom" />
+      <DateTimePicker id="critDateFrom" width="100%" value="{view>/criteria/dateFrom}" />
+
+      <Label text="{i18n>investigation.search.dateTo}" labelFor="critDateTo" />
+      <DateTimePicker id="critDateTo" width="100%" value="{view>/criteria/dateTo}" />
+
+      <Label text="{i18n>investigation.search.durationMin}" labelFor="critDurationMin" />
+      <StepInput id="critDurationMin" width="100%" min="0" value="{view>/criteria/durationMinMs}" />
+
+      <Label text="{i18n>investigation.search.durationMax}" labelFor="critDurationMax" />
+      <StepInput id="critDurationMax" width="100%" min="0" value="{view>/criteria/durationMaxMs}" />
+
+      <CheckBox text="{i18n>investigation.search.hasAttachments}" selected="{view>/criteria/hasAttachments}" />
+      <CheckBox text="{i18n>investigation.search.hasPayload}" selected="{view>/criteria/hasPayload}" />
+
+      <HBox class="sapUiSmallMarginTop investigationSearchActions">
+        <Button
+          text="{i18n>investigation.search.execute}"
+          type="Emphasized"
+          press=".onSearchExecute"
+          class="sapUiTinyMarginEnd" />
+        <Button text="{i18n>investigation.search.clear}" press=".onSearchClear" />
+      </HBox>
+
+      <!-- Saved searches -->
+      <Title text="{i18n>investigation.search.savedSearches}" level="H5" class="sapUiSmallMarginTop" />
+      <HBox class="sapUiTinyMarginBottom">
+        <Input
+          placeholder="{i18n>investigation.search.saveNamePlaceholder}"
+          value="{view>/newSavedSearchName}"
+          width="70%"
+          class="sapUiTinyMarginEnd" />
+        <Button text="{i18n>investigation.search.save}" press=".onSaveSearch" />
+      </HBox>
+      <List items="{view>/savedSearches}" noDataText="{i18n>investigation.search.noSaved}">
+        <StandardListItem
+          title="{view>name}"
+          type="Active"
+          press=".onLoadSavedSearch"
+          icon="sap-icon://search">
+          <customData>
+            <core:CustomData key="id" value="{view>id}" writeToDom="false" />
+          </customData>
+        </StandardListItem>
+      </List>
+
+    </l:VerticalLayout>
+  </ScrollContainer>
+</core:FragmentDefinition>

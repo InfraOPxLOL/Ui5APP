@@ -1,0 +1,144 @@
+<mvc:View
+  controllerName="com.middlewareops.integrationportal.shell.controller.Shell"
+  displayBlock="true"
+  height="100%"
+  xmlns="sap.m"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns:core="sap.ui.core"
+  xmlns:tnt="sap.tnt">
+  <tnt:ToolPage id="toolPage">
+    <tnt:header>
+      <tnt:ToolHeader>
+        <Button
+          icon="sap-icon://menu2"
+          type="Transparent"
+          press=".onMenuToggle"
+          tooltip="{i18n>shell.menu.toggle}"
+          ariaHasPopup="Menu" />
+        <Button
+          icon="sap-icon://home"
+          text="{i18n>appTitle}"
+          type="Transparent"
+          press=".onHomePress"
+          tooltip="{i18n>shell.home}"
+          class="ipBrandButton" />
+        <Select
+          id="workspaceSelect"
+          selectedKey="{shell>/activeWorkspaceId}"
+          items="{shell>/workspaces}"
+          change=".onWorkspaceSelect"
+          forceSelection="false"
+          autoAdjustWidth="true"
+          tooltip="{i18n>shell.workspace.select}"
+          class="ipWorkspaceSelect">
+          <core:ListItem
+            key="{shell>id}"
+            text="{shell>title}"
+            icon="{shell>icon}" />
+        </Select>
+        <ToolbarSpacer />
+        <SearchField
+          id="globalSearch"
+          width="18rem"
+          placeholder="{i18n>shell.search.placeholder}"
+          search=".onSearch"
+          class="ipGlobalSearch"
+          tooltip="{i18n>shell.search.tooltip}" />
+        <MenuButton
+          icon="sap-icon://action"
+          type="Transparent"
+          text="{i18n>shell.quickActions}"
+          tooltip="{i18n>shell.quickActions}"
+          visible="{= ${shell>/quickActions}.length > 0 }">
+          <menu>
+            <Menu items="{shell>/quickActions}">
+              <MenuItem
+                text="{shell>title}"
+                icon="{shell>icon}"
+                press=".onQuickActionPress" />
+            </Menu>
+          </menu>
+        </MenuButton>
+        <Button
+          id="tenantButton"
+          icon="sap-icon://cloud"
+          text="{shell>/tenantBanner/name}"
+          type="Transparent"
+          press=".onTenantPress"
+          visible="{shell>/tenantBanner/show}"
+          tooltip="{i18n>shell.tenant.select}" />
+        <ObjectStatus
+          text="{shell>/environment/label}"
+          state="Warning"
+          visible="{shell>/environment/show}"
+          class="sapUiSmallMarginBegin ipEnvBanner" />
+        <ObjectStatus
+          text="{shell>/unread}"
+          state="Error"
+          visible="{= ${shell>/unread} > 0 }"
+          class="sapUiTinyMarginBegin" />
+        <Button
+          id="notificationButton"
+          icon="sap-icon://bell"
+          type="Transparent"
+          press=".onNotificationPress"
+          tooltip="{i18n>shell.notifications}"
+          ariaHasPopup="Dialog" />
+        <Button
+          icon="sap-icon://person-placeholder"
+          text="{shell>/user/name}"
+          type="Transparent"
+          press=".onUserPress"
+          tooltip="{i18n>shell.user}"
+          ariaHasPopup="Dialog" />
+      </tnt:ToolHeader>
+    </tnt:header>
+    <tnt:sideContent>
+      <tnt:SideNavigation
+        id="sideNavigation"
+        itemSelect=".onNavItemSelect">
+        <tnt:NavigationList items="{shell>/sidebar}">
+          <tnt:NavigationListItem
+            text="{shell>title}"
+            icon="{shell>icon}"
+            key="{shell>route}" />
+        </tnt:NavigationList>
+        <tnt:fixedItem>
+          <tnt:NavigationList>
+            <tnt:NavigationListItem
+              text="{i18n>shell.home}"
+              icon="sap-icon://home"
+              key="home" />
+          </tnt:NavigationList>
+        </tnt:fixedItem>
+      </tnt:SideNavigation>
+    </tnt:sideContent>
+    <tnt:mainContents>
+      <VBox class="ipMainWrap" height="100%">
+        <Breadcrumbs
+          class="ipBreadcrumbs"
+          links="{shell>/breadcrumbs}">
+          <Link
+            text="{shell>text}"
+            press=".onBreadcrumbPress" />
+        </Breadcrumbs>
+        <NavContainer
+          id="moduleContainer"
+          class="ipModuleContainer"
+          busy="{global>/busy}"
+          busyIndicatorDelay="0">
+          <layoutData>
+            <FlexItemData growFactor="1" />
+          </layoutData>
+        </NavContainer>
+        <HBox
+          class="ipShellFooter"
+          justifyContent="SpaceBetween"
+          alignItems="Center">
+          <Text text="{shell>/branding/companyName} · {shell>/branding/applicationName} · v{shell>/branding/version}" />
+          <Text text="{shell>/user/email}" />
+        </HBox>
+      </VBox>
+    </tnt:mainContents>
+  </tnt:ToolPage>
+</mvc:View>

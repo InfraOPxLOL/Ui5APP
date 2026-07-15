@@ -1,0 +1,18 @@
+<!--
+  Columns popover (§ Message Table — "Column visibility"). Lists every configured column with a
+  visibility toggle; bound to a transient `columns` model built fresh each time the popover opens
+  (`.onColumnsButtonPress`), so it always reflects the grid's current state.
+-->
+<core:FragmentDefinition
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core">
+  <Popover title="{i18n>investigation.columns.title}" contentWidth="18rem">
+    <List items="{columns>/columns}">
+      <StandardListItem title="{columns>label}">
+        <CheckBox
+          selected="{columns>visible}"
+          select=".onColumnVisibilityToggle" />
+      </StandardListItem>
+    </List>
+  </Popover>
+</core:FragmentDefinition>

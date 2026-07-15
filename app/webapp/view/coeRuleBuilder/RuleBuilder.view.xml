@@ -1,0 +1,75 @@
+<mvc:View
+  controllerName="com.middlewareops.integrationportal.controller.coeRuleBuilder.RuleBuilder"
+  height="100%"
+  xmlns="sap.m"
+  xmlns:mvc="sap.ui.core.mvc">
+  <Page
+    id="page"
+    title="{i18n>title}"
+    class="integrationPortalModulePage"
+    busy="{view>/busy}"
+    busyIndicatorDelay="0">
+    <content>
+      <MessageStrip
+        class="sapUiSmallMargin"
+        text="{i18n>coeRuleBuilder.intro}"
+        type="Information"
+        showIcon="true" />
+
+      <Toolbar class="sapUiSmallMarginBeginEnd">
+        <Label text="{i18n>coeRuleBuilder.field.pid}" labelFor="pidInput" />
+        <SearchField
+          id="pidInput"
+          value="{view>/pid}"
+          width="26rem"
+          placeholder="_Maintain_JMS_Agreements"
+          search=".onSearch" />
+        <Button text="{i18n>coeRuleBuilder.search}" type="Emphasized" press=".onSearch" />
+        <ToolbarSpacer />
+        <Button
+          text="{i18n>coeRuleBuilder.newRule}"
+          icon="sap-icon://add"
+          type="Emphasized"
+          press=".onNewRule" />
+      </Toolbar>
+
+      <Table
+        items="{view>/rules}"
+        class="sapUiSmallMargin"
+        growing="true"
+        growingThreshold="100"
+        noDataText="{i18n>coeRuleBuilder.noData}">
+        <columns>
+          <Column><Text text="{i18n>coeRuleBuilder.col.id}" /></Column>
+          <Column><Text text="{i18n>coeRuleBuilder.col.kind}" /></Column>
+          <Column><Text text="{i18n>coeRuleBuilder.col.lastModified}" /></Column>
+          <Column hAlign="End"><Text text="{i18n>coeRuleBuilder.col.actions}" /></Column>
+        </columns>
+        <items>
+          <ColumnListItem>
+            <cells>
+              <Text text="{view>id}" />
+              <ObjectStatus
+                text="{= ${view>kind} || ${i18n>coeRuleBuilder.kind.unrecognized} }"
+                state="{= ${view>kind} ? 'Information' : 'Warning' }"
+                icon="{= ${view>kind} === 'xcast' ? 'sap-icon://workflow-tasks' : (${view>kind} === 'ruleset' ? 'sap-icon://filter-fields' : 'sap-icon://alert') }" />
+              <Text text="{view>lastModifiedBy} · {view>lastModifiedAt}" />
+              <HBox justifyContent="End">
+                <Button
+                  icon="sap-icon://edit"
+                  type="Transparent"
+                  press=".onEditRule"
+                  tooltip="{i18n>coeRuleBuilder.action.edit}" />
+                <Button
+                  icon="sap-icon://delete"
+                  type="Transparent"
+                  press=".onDeleteRule"
+                  tooltip="{i18n>coeRuleBuilder.action.delete}" />
+              </HBox>
+            </cells>
+          </ColumnListItem>
+        </items>
+      </Table>
+    </content>
+  </Page>
+</mvc:View>

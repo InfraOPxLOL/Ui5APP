@@ -1,0 +1,60 @@
+<!--
+  InterfaceSummary cards (§9) — reusable interface (integration-flow) summary tiles.
+
+  Binds `view>/overview/topInterfaces` (InterfaceSummary[]). Each card shows the interface name, its
+  health, message volume, failures/warnings, average runtime and last execution (relative). Pressing
+  a card opens Message Monitoring (`.onInterfacePress`). Reusable by any workspace exposing the same
+  interface shape.
+-->
+<core:FragmentDefinition
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core">
+  <FlexBox
+    items="{view>/overview/topInterfaces}"
+    wrap="Wrap"
+    class="opsInterfaceGrid"
+    renderType="Bare">
+    <GenericTile
+      header="{view>name}"
+      subheader="{view>statusText}"
+      press=".onInterfacePress"
+      frameType="TwoByOne"
+      class="opsInterfaceTile"
+      ariaLabel="{view>name}">
+      <TileContent>
+        <VBox class="opsInterfaceMetrics">
+          <items>
+            <HBox justifyContent="SpaceBetween" alignItems="Center">
+              <items>
+                <ObjectNumber number="{view>messageCount}" unit="{i18n>ops.interface.msgsUnit}" />
+                <ObjectStatus
+                  text="{view>health}"
+                  state="{ path: 'view>health', formatter: '.formatHealthState' }"
+                  icon="{ path: 'view>health', formatter: '.formatHealthIcon' }" />
+              </items>
+            </HBox>
+            <HBox class="opsInterfaceCounters" alignItems="Center">
+              <items>
+                <ObjectStatus
+                  text="{view>failures}"
+                  state="Error"
+                  icon="sap-icon://error"
+                  class="sapUiTinyMarginEnd"
+                  visible="{ path: 'view>failures', formatter: '.formatHasItems' }" />
+                <ObjectStatus
+                  text="{view>warnings}"
+                  state="Warning"
+                  icon="sap-icon://alert"
+                  visible="{ path: 'view>warnings', formatter: '.formatHasItems' }" />
+              </items>
+            </HBox>
+            <Text text="{view>averageRuntimeHuman}" class="opsMuted" />
+            <Text
+              text="{ path: 'view>lastExecution', formatter: '.formatRelativeTime' }"
+              class="opsMuted" />
+          </items>
+        </VBox>
+      </TileContent>
+    </GenericTile>
+  </FlexBox>
+</core:FragmentDefinition>

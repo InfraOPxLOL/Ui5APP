@@ -1,0 +1,68 @@
+<!--
+  Certificate Explorer (§ Certificate Explorer, § Smart Filters) — search, filters, sorting,
+  certificate list (Used By/Expiry/Issuer/Subject/Validity/Fingerprints/Signature Algorithm are shown
+  in the Certificate Details panel once a row is selected).
+-->
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core">
+  <VBox class="sapUiSmallMargin" fitContainer="true">
+    <items>
+      <Toolbar>
+        <SearchField
+          width="16rem"
+          placeholder="{i18n>explorer.searchPlaceholder}"
+          search=".onExplorerSearch" />
+        <SegmentedButton selectedKey="{view>/smartFilter}" selectionChange=".onSmartFilterChange">
+          <items>
+            <SegmentedButtonItem key="all" text="{i18n>smartFilter.all}" />
+            <SegmentedButtonItem key="expiring7" text="{i18n>smartFilter.expiring7}" />
+            <SegmentedButtonItem key="expiring30" text="{i18n>smartFilter.expiring30}" />
+            <SegmentedButtonItem key="expired" text="{i18n>smartFilter.expired}" />
+            <SegmentedButtonItem key="selfSigned" text="{i18n>smartFilter.selfSigned}" />
+            <SegmentedButtonItem key="weakAlgorithm" text="{i18n>smartFilter.weakAlgorithm}" />
+          </items>
+        </SegmentedButton>
+      </Toolbar>
+
+      <Table
+        id="certificateExplorerTable"
+        items="{view>/certificates}"
+        growing="true"
+        growingThreshold="50"
+        noDataText="{i18n>explorer.empty}">
+        <columns>
+          <Column><Text text="{i18n>column.alias}" /></Column>
+          <Column><Text text="{i18n>column.issuer}" /></Column>
+          <Column><Text text="{i18n>column.keyType}" /></Column>
+          <Column hAlign="End"><Text text="{i18n>column.daysRemaining}" /></Column>
+          <Column><Text text="{i18n>column.health}" /></Column>
+          <Column><Text text="{i18n>column.selfSigned}" /></Column>
+          <Column><Text text="{i18n>column.weakAlgorithm}" /></Column>
+          <Column hAlign="End"><Text text="{i18n>column.riskScore}" /></Column>
+        </columns>
+        <items>
+          <ColumnListItem type="Active" press=".onCertificateRowPress">
+            <cells>
+              <Text text="{view>alias}" />
+              <Text text="{view>issuer}" />
+              <Text text="{view>keyType}" />
+              <Text text="{view>daysRemaining}" />
+              <ObjectStatus
+                text="{view>health}"
+                icon="{ path: 'view>health', formatter: '.formatHealthIcon' }"
+                state="{ path: 'view>health', formatter: '.formatHealthState' }" />
+              <ObjectStatus
+                text="{ path: 'view>selfSigned', formatter: '.formatSelfSignedText' }"
+                state="{ path: 'view>selfSigned', formatter: '.formatSelfSignedState' }" />
+              <ObjectStatus
+                text="{view>weakAlgorithm}"
+                state="{ path: 'view>weakAlgorithm', formatter: '.formatWeakAlgorithmState' }" />
+              <ObjectNumber
+                number="{view>riskScore}"
+                state="{ path: 'view>riskScore', formatter: '.formatRiskScoreState' }" />
+            </cells>
+          </ColumnListItem>
+        </items>
+      </Table>
+    </items>
+  </VBox>
+</core:FragmentDefinition>

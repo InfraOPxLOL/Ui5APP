@@ -1,0 +1,13 @@
+{
+  "cors": {
+    "allowedOrigins": []
+  },
+  "rateLimit": {
+    "windowMs": 60000,
+    "maxRequests": 600
+  },
+  "requestBodyLimitKb": 1024,
+  "csrf": {
+    "enabled": true
+  }
+}

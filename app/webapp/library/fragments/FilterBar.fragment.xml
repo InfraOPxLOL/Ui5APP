@@ -1,0 +1,22 @@
+<!--
+  Reusable filter bar shell.
+  Provides the shared, persistent filter/search chrome that sits atop every monitoring list. The
+  concrete filter fields are injected by each module into the `filterItems` aggregation placeholder;
+  the search/clear actions and layout are shared. Combined with FilterBuilder and DeepLinkHelper,
+  the resulting filter state is serialized to the URL for shareable views.
+-->
+<core:FragmentDefinition
+  xmlns="sap.ui.comp.filterbar"
+  xmlns:core="sap.ui.core">
+  <FilterBar
+    id="reusableFilterBar"
+    persistencyKey="integrationPortalFilterBar"
+    showClearOnFB="true"
+    showRestoreButton="true"
+    search=".onFilterSearch"
+    clear=".onFilterClear">
+    <filterGroupItems>
+      <!-- Module-specific FilterGroupItem controls are added here by each module. -->
+    </filterGroupItems>
+  </FilterBar>
+</core:FragmentDefinition>

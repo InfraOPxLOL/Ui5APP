@@ -1,0 +1,344 @@
+<!--
+  Operations Workspace overview (Phase 8) — the command center for Integration Suite operators.
+
+  Consumes only the Operations Overview DTO (view>/overview), composed server-side entirely from the
+  Operations Engine. A sticky DynamicPage title carries the workspace header, search, window select,
+  favorite and live-refresh controls (§1, §6, §7); the pinnable header carries the environment ribbon
+  and quick-insight KPIs (§2, §10); the content is a responsive grid of collapsible/refreshable/
+  fullscreen/exportable sections (§4) built from reusable library fragments (§11).
+-->
+<mvc:View
+  controllerName="com.middlewareops.integrationportal.controller.dashboard.Dashboard"
+  height="100%"
+  xmlns="sap.m"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns:core="sap.ui.core"
+  xmlns:f="sap.f"
+  xmlns:l="sap.ui.layout">
+  <f:DynamicPage
+    id="opsPage"
+    class="opsWorkspace"
+    showFooter="true"
+    preserveHeaderStateOnScroll="false"
+    toggleHeaderOnTitleClick="true"
+    busy="{view>/busy}"
+    busyIndicatorDelay="0">
+
+    <!-- Workspace header + toolbar (sticky) -->
+    <f:title>
+      <f:DynamicPageTitle>
+        <f:heading>
+          <HBox alignItems="Center" class="opsTitleHeading">
+            <core:Icon src="sap-icon://activities" size="1.75rem" class="opsTitleIcon" />
+            <VBox class="sapUiTinyMarginBegin">
+              <Title text="{i18n>ops.title}" level="H2" />
+              <HBox alignItems="Center" class="opsTitleSub">
+                <ObjectStatus text="{view>/environment/environmentLabel}" class="opsTitleEnv" />
+                <ObjectStatus
+                  text="{view>/environment/tenantName}"
+                  icon="sap-icon://cloud"
+                  class="sapUiTinyMarginBegin" />
+              </HBox>
+            </VBox>
+          </HBox>
+        </f:heading>
+        <f:actions>
+          <SearchField
+            id="opsSearch"
+            width="18rem"
+            placeholder="{i18n>ops.search.placeholder}"
+            search=".onSearch"
+            value="{view>/search/query}" />
+          <Select
+            selectedKey="{view>/windowHours}"
+            change=".onWindowChange"
+            tooltip="{i18n>ops.window.tooltip}">
+            <core:Item key="6" text="{i18n>ops.window.6h}" />
+            <core:Item key="24" text="{i18n>ops.window.24h}" />
+            <core:Item key="72" text="{i18n>ops.window.72h}" />
+            <core:Item key="168" text="{i18n>ops.window.7d}" />
+          </Select>
+          <ToggleButton
+            icon="sap-icon://favorite"
+            pressed="{view>/favorite}"
+            press=".onToggleFavorite"
+            tooltip="{i18n>ops.favorite}" />
+          <Button
+            icon="sap-icon://refresh"
+            press=".onRefreshPress"
+            tooltip="{i18n>ops.refresh}" />
+          <Button
+            icon="{= ${view>/refresh/paused} ? 'sap-icon://media-play' : 'sap-icon://media-pause' }"
+            press=".onPauseRefresh"
+            tooltip="{i18n>ops.refresh.pause}" />
+          <Switch
+            state="{view>/refresh/auto}"
+            change=".onToggleAutoRefresh"
+            customTextOn="{i18n>ops.auto.on}"
+            customTextOff="{i18n>ops.auto.off}" />
+        </f:actions>
+        <f:snappedContent>
+          <HBox alignItems="Center" class="opsRefreshIndicator">
+            <BusyIndicator
+              size="1rem"
+              visible="{view>/refresh/refreshing}"
+              class="sapUiTinyMarginEnd" />
+            <Text text="{i18n>ops.updated} {view>/refresh/lastRefreshedText}" />
+          </HBox>
+        </f:snappedContent>
+      </f:DynamicPageTitle>
+    </f:title>
+
+    <!-- Pinnable header: environment ribbon + quick insights -->
+    <f:header>
+      <f:DynamicPageHeader pinnable="true">
+        <VBox class="opsHeaderContent">
+          <core:Fragment
+            fragmentName="com.middlewareops.integrationportal.library.fragments.EnvironmentRibbon"
+            type="XML" />
+          <core:Fragment
+            fragmentName="com.middlewareops.integrationportal.library.fragments.QuickInsightsStrip"
+            type="XML" />
+        </VBox>
+      </f:DynamicPageHeader>
+    </f:header>
+
+    <!-- Content: search results + responsive section grid -->
+    <f:content>
+      <VBox class="opsContent" width="100%">
+        <core:Fragment
+          fragmentName="com.middlewareops.integrationportal.library.fragments.OperationsSearchResults"
+          type="XML" />
+
+        <l:Grid
+          defaultSpan="XL6 L6 M12 S12"
+          hSpacing="1"
+          vSpacing="1"
+          class="opsSectionsGrid">
+          <l:content>
+
+            <!-- Tenant & Runtime Health -->
+            <Panel expandable="true" expanded="true" class="opsSection opsSectionHealth">
+              <headerToolbar>
+                <OverflowToolbar>
+                  <core:Icon src="sap-icon://heartbeat" class="opsSectionIcon" />
+                  <Title text="{i18n>ops.section.health}" level="H3" />
+                  <ToolbarSpacer />
+                  <Button
+                    icon="sap-icon://refresh"
+                    type="Transparent"
+                    press=".onSectionRefresh"
+                    tooltip="{i18n>ops.section.refresh}" />
+                  <Button
+                    icon="sap-icon://full-screen"
+                    type="Transparent"
+                    press=".onSectionFullscreen"
+                    tooltip="{i18n>ops.section.fullscreen}" />
+                </OverflowToolbar>
+              </headerToolbar>
+              <content>
+                <core:Fragment
+                  fragmentName="com.middlewareops.integrationportal.library.fragments.HealthWidgetGrid"
+                  type="XML" />
+              </content>
+              <layoutData>
+                <l:GridData span="XL8 L8 M12 S12" />
+              </layoutData>
+            </Panel>
+
+            <!-- Quick Actions -->
+            <Panel expandable="true" expanded="true" class="opsSection opsSectionActions">
+              <headerToolbar>
+                <OverflowToolbar>
+                  <core:Icon src="sap-icon://action" class="opsSectionIcon" />
+                  <Title id="opsQuickActionsTitle" text="{i18n>ops.section.quickActions}" level="H3" />
+                  <ToolbarSpacer />
+                  <Button
+                    icon="sap-icon://full-screen"
+                    type="Transparent"
+                    press=".onSectionFullscreen"
+                    tooltip="{i18n>ops.section.fullscreen}" />
+                </OverflowToolbar>
+              </headerToolbar>
+              <content>
+                <core:Fragment
+                  fragmentName="com.middlewareops.integrationportal.library.fragments.QuickActionPanel"
+                  type="XML" />
+              </content>
+              <layoutData>
+                <l:GridData span="XL4 L4 M12 S12" />
+              </layoutData>
+            </Panel>
+
+            <!-- Top Active Interfaces -->
+            <Panel expandable="true" expanded="true" class="opsSection opsSectionInterfaces">
+              <headerToolbar>
+                <OverflowToolbar>
+                  <core:Icon src="sap-icon://org-chart" class="opsSectionIcon" />
+                  <Title text="{i18n>ops.section.interfaces}" level="H3" />
+                  <ToolbarSpacer />
+                  <Button
+                    icon="sap-icon://excel-attachment"
+                    type="Transparent"
+                    press=".onSectionExport"
+                    tooltip="{i18n>ops.section.export}">
+                    <customData>
+                      <core:CustomData key="section" value="interfaces" />
+                    </customData>
+                  </Button>
+                  <Button
+                    icon="sap-icon://refresh"
+                    type="Transparent"
+                    press=".onSectionRefresh"
+                    tooltip="{i18n>ops.section.refresh}" />
+                  <Button
+                    icon="sap-icon://full-screen"
+                    type="Transparent"
+                    press=".onSectionFullscreen"
+                    tooltip="{i18n>ops.section.fullscreen}" />
+                </OverflowToolbar>
+              </headerToolbar>
+              <content>
+                <core:Fragment
+                  fragmentName="com.middlewareops.integrationportal.library.fragments.InterfaceSummaryGrid"
+                  type="XML" />
+              </content>
+              <layoutData>
+                <l:GridData span="XL6 L6 M12 S12" />
+              </layoutData>
+            </Panel>
+
+            <!-- Operations Timeline -->
+            <Panel expandable="true" expanded="true" class="opsSection opsSectionTimeline">
+              <headerToolbar>
+                <OverflowToolbar>
+                  <core:Icon src="sap-icon://timesheet" class="opsSectionIcon" />
+                  <Title text="{i18n>ops.section.timeline}" level="H3" />
+                  <ToolbarSpacer />
+                  <Button
+                    icon="sap-icon://excel-attachment"
+                    type="Transparent"
+                    press=".onSectionExport"
+                    tooltip="{i18n>ops.section.export}">
+                    <customData>
+                      <core:CustomData key="section" value="timeline" />
+                    </customData>
+                  </Button>
+                  <Button
+                    icon="sap-icon://refresh"
+                    type="Transparent"
+                    press=".onSectionRefresh"
+                    tooltip="{i18n>ops.section.refresh}" />
+                  <Button
+                    icon="sap-icon://full-screen"
+                    type="Transparent"
+                    press=".onSectionFullscreen"
+                    tooltip="{i18n>ops.section.fullscreen}" />
+                </OverflowToolbar>
+              </headerToolbar>
+              <content>
+                <core:Fragment
+                  fragmentName="com.middlewareops.integrationportal.library.fragments.OperationsTimeline"
+                  type="XML" />
+              </content>
+              <layoutData>
+                <l:GridData span="XL6 L6 M12 S12" />
+              </layoutData>
+            </Panel>
+
+            <!-- Most Recent Failures -->
+            <Panel expandable="true" expanded="true" class="opsSection opsSectionFailures">
+              <headerToolbar>
+                <OverflowToolbar>
+                  <core:Icon src="sap-icon://error" class="opsSectionIcon" />
+                  <Title text="{i18n>ops.section.failures}" level="H3" />
+                  <ToolbarSpacer />
+                  <Button
+                    icon="sap-icon://refresh"
+                    type="Transparent"
+                    press=".onSectionRefresh"
+                    tooltip="{i18n>ops.section.refresh}" />
+                  <Button
+                    icon="sap-icon://full-screen"
+                    type="Transparent"
+                    press=".onSectionFullscreen"
+                    tooltip="{i18n>ops.section.fullscreen}" />
+                </OverflowToolbar>
+              </headerToolbar>
+              <content>
+                <List
+                  items="{view>/overview/recentFailures}"
+                  noDataText="{i18n>ops.failures.empty}"
+                  showSeparators="Inner"
+                  class="opsFailuresList">
+                  <StandardListItem
+                    title="{view>integrationFlow}"
+                    description="{view>sender} → {view>receiver}"
+                    info="{view>processingTimeHuman}"
+                    highlight="{ path: 'view>severity', formatter: '.formatSeverityState' }"
+                    icon="sap-icon://error"
+                    type="Active"
+                    press=".onOpenMessages" />
+                </List>
+              </content>
+              <layoutData>
+                <l:GridData span="XL6 L6 M12 S12" />
+              </layoutData>
+            </Panel>
+
+            <!-- System Status: recent alerts -->
+            <Panel expandable="true" expanded="true" class="opsSection opsSectionStatus">
+              <headerToolbar>
+                <OverflowToolbar>
+                  <core:Icon src="sap-icon://bell" class="opsSectionIcon" />
+                  <Title text="{i18n>ops.section.status}" level="H3" />
+                  <ToolbarSpacer />
+                  <Button
+                    icon="sap-icon://refresh"
+                    type="Transparent"
+                    press=".onSectionRefresh"
+                    tooltip="{i18n>ops.section.refresh}" />
+                  <Button
+                    icon="sap-icon://full-screen"
+                    type="Transparent"
+                    press=".onSectionFullscreen"
+                    tooltip="{i18n>ops.section.fullscreen}" />
+                </OverflowToolbar>
+              </headerToolbar>
+              <content>
+                <List
+                  items="{view>/overview/recentNotifications}"
+                  noDataText="{i18n>ops.status.empty}"
+                  showSeparators="Inner"
+                  class="opsStatusList">
+                  <StandardListItem
+                    title="{view>title}"
+                    description="{view>description}"
+                    info="{ path: 'view>raisedAt', formatter: '.formatRelativeTime' }"
+                    highlight="{ path: 'view>severity', formatter: '.formatSeverityState' }"
+                    icon="sap-icon://bell"
+                    type="Active"
+                    press=".onOpenAlerts" />
+                </List>
+              </content>
+              <layoutData>
+                <l:GridData span="XL6 L6 M12 S12" />
+              </layoutData>
+            </Panel>
+
+          </l:content>
+        </l:Grid>
+      </VBox>
+    </f:content>
+
+    <!-- Workspace footer -->
+    <f:footer>
+      <OverflowToolbar class="opsFooter">
+        <core:Icon src="sap-icon://synchronize" class="sapUiTinyMarginEnd" />
+        <Text text="{i18n>ops.footer.updated} {view>/refresh/lastRefreshedText}" />
+        <ToolbarSpacer />
+        <Text text="{i18n>ops.footer.window}: {view>/windowHours}h" class="opsMuted" />
+      </OverflowToolbar>
+    </f:footer>
+  </f:DynamicPage>
+</mvc:View>

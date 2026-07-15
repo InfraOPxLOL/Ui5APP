@@ -1,0 +1,130 @@
+<!--
+  Recovery Center (Phase 11) — a complete operational workspace for recovering failed integrations
+  parked on JMS dead-letter and retry queues. Consumes only /api/v1/recovery-center, itself composed
+  entirely from the Operations Engine — this view never knows a JMS endpoint or SDK call.
+
+  Layout: a sticky Page header (title, refresh) over an IconTabBar with five sections (Dashboard,
+  Queue Explorer, Recovery Candidates, Queue Health, Recovery History), each built from its own
+  reusable fragment, alongside a collapsible Context Panel (§ Context Panel) in a horizontal Splitter.
+  The Recovery Preview / confirmation dialog (§ Recovery Preview, § Recovery Validation) and the
+  "Save layout" dialog are declared as dependent content on the same view.
+-->
+<mvc:View
+  controllerName="com.middlewareops.integrationportal.controller.recoveryCenter.RecoveryCenter"
+  height="100%"
+  xmlns="sap.m"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns:core="sap.ui.core"
+  xmlns:l="sap.ui.layout">
+  <Page id="recoveryCenterPage" title="{i18n>recovery.title}" class="recoveryCenterPage">
+    <headerContent>
+      <Button
+        icon="sap-icon://refresh"
+        type="Transparent"
+        tooltip="{i18n>action.refresh}"
+        press=".onRefreshPress" />
+    </headerContent>
+    <content>
+      <l:Splitter orientation="Horizontal" height="100%" class="recoveryCenterSplitter">
+        <l:contentAreas>
+
+          <!-- Center: section tabs -->
+          <VBox fitContainer="true" busy="{view>/busy}" busyIndicatorDelay="0">
+            <layoutData>
+              <l:SplitterLayoutData size="auto" />
+            </layoutData>
+            <items>
+              <IconTabBar
+                id="recoveryTabBar"
+                expanded="true"
+                select=".onTabSelect"
+                class="sapUiResponsiveContentPadding recoveryCenterTabBar">
+                <items>
+                  <IconTabFilter
+                    key="dashboard"
+                    text="{i18n>recovery.tab.dashboard}"
+                    icon="sap-icon://business-objects-experience">
+                    <core:Fragment
+                      fragmentName="com.middlewareops.integrationportal.fragment.recoveryCenter.DashboardTab"
+                      type="XML" />
+                  </IconTabFilter>
+                  <IconTabFilter
+                    key="explorer"
+                    text="{i18n>recovery.tab.explorer}"
+                    icon="sap-icon://combine">
+                    <core:Fragment
+                      fragmentName="com.middlewareops.integrationportal.fragment.recoveryCenter.QueueExplorerTab"
+                      type="XML" />
+                  </IconTabFilter>
+                  <IconTabFilter
+                    key="candidates"
+                    text="{i18n>recovery.tab.candidates}"
+                    icon="sap-icon://synchronize"
+                    count="{= ${view>/candidates}.length }">
+                    <core:Fragment
+                      fragmentName="com.middlewareops.integrationportal.fragment.recoveryCenter.CandidatesTab"
+                      type="XML" />
+                  </IconTabFilter>
+                  <IconTabFilter
+                    key="queueHealth"
+                    text="{i18n>recovery.tab.queueHealth}"
+                    icon="sap-icon://pulse">
+                    <core:Fragment
+                      fragmentName="com.middlewareops.integrationportal.fragment.recoveryCenter.QueueHealthTab"
+                      type="XML" />
+                  </IconTabFilter>
+                  <IconTabFilter
+                    key="history"
+                    text="{i18n>recovery.tab.history}"
+                    icon="sap-icon://history">
+                    <core:Fragment
+                      fragmentName="com.middlewareops.integrationportal.fragment.recoveryCenter.HistoryTab"
+                      type="XML" />
+                  </IconTabFilter>
+                </items>
+              </IconTabBar>
+            </items>
+          </VBox>
+
+          <!-- Right: Context Panel -->
+          <VBox id="recoveryContextPane" fitContainer="true" class="recoveryContextPane">
+            <layoutData>
+              <l:SplitterLayoutData
+                size="{= ${view>/contextPanel/open} ? '28%' : '0%' }"
+                minSize="0" />
+            </layoutData>
+            <items>
+              <core:Fragment
+                fragmentName="com.middlewareops.integrationportal.fragment.recoveryCenter.ContextPanel"
+                type="XML" />
+            </items>
+          </VBox>
+
+        </l:contentAreas>
+      </l:Splitter>
+    </content>
+  </Page>
+
+  <core:Fragment
+    fragmentName="com.middlewareops.integrationportal.fragment.recoveryCenter.RecoveryPreviewDialog"
+    type="XML" />
+
+  <Dialog
+    id="saveLayoutDialog"
+    title="{i18n>recovery.explorer.saveLayoutTitle}"
+    open="{view>/saveLayoutDialogOpen}">
+    <content>
+      <VBox class="sapUiSmallMargin">
+        <Label text="{i18n>recovery.explorer.saveLayoutName}" labelFor="layoutNameInput" />
+        <Input id="layoutNameInput" value="{view>/layoutNameDraft}" />
+      </VBox>
+    </content>
+    <buttons>
+      <Button
+        text="{i18n>action.save}"
+        type="Emphasized"
+        press=".onConfirmSaveLayoutPress" />
+      <Button text="{i18n>action.cancel}" press=".onCancelSaveLayoutPress" />
+    </buttons>
+  </Dialog>
+</mvc:View>

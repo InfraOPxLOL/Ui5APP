@@ -1,0 +1,111 @@
+_schema-version: "3.3"
+ID: integration-portal
+version: 0.1.0
+description: Enterprise operations & observability platform for SAP Integration Suite (stateless)
+
+parameters:
+  enable-parallel-deployments: true
+  deploy_mode: html5-repo
+
+build-parameters:
+  before-all:
+    - builder: custom
+      commands:
+        - npm ci
+        - npm run build
+
+modules:
+  # -------------------------------------------------------------------------
+  # Backend: stateless Node.js + Express API (no database binding)
+  # -------------------------------------------------------------------------
+  - name: integration-portal-srv
+    type: nodejs
+    path: srv
+    parameters:
+      buildpack: nodejs_buildpack
+      memory: 256M
+      disk-quota: 512M
+    build-parameters:
+      builder: custom
+      commands:
+        - npm ci
+        - npm run build
+      ignore:
+        - node_modules/
+        - src/
+    provides:
+      - name: srv-api
+        properties:
+          srv-url: ${default-url}
+    requires:
+      - name: integration-portal-xsuaa
+      - name: integration-portal-destination
+
+  # -------------------------------------------------------------------------
+  # App Router: serves UI5 app from HTML5 repo, routes /api/* to backend
+  # -------------------------------------------------------------------------
+  - name: integration-portal-approuter
+    type: approuter.nodejs
+    path: approuter
+    parameters:
+      buildpack: nodejs_buildpack
+      memory: 256M
+      disk-quota: 512M
+    requires:
+      - name: integration-portal-xsuaa
+      - name: integration-portal-destination
+      - name: integration-portal-html5-repo-runtime
+      - name: srv-api
+        group: destinations
+        properties:
+          name: srv-api
+          url: ~{srv-url}
+          forwardAuthToken: true
+
+  # -------------------------------------------------------------------------
+  # UI5 frontend deployed to the HTML5 Application Repository
+  # -------------------------------------------------------------------------
+  - name: integration-portal-app-content
+    type: com.sap.application.content
+    path: app
+    parameters:
+      build-result: dist
+    build-parameters:
+      build-result: dist
+      builder: custom
+      commands:
+        - npm ci
+        - npm run build
+      supported-platforms: []
+    requires:
+      - name: integration-portal-html5-repo-host
+        parameters:
+          content-target: true
+
+resources:
+  - name: integration-portal-xsuaa
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: xsuaa
+      service-plan: application
+      path: ./xs-security.json
+      config:
+        xsappname: integration-portal-${org}-${space}
+
+  - name: integration-portal-destination
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: destination
+      service-plan: lite
+
+  - name: integration-portal-html5-repo-host
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: html5-apps-repo
+      service-plan: app-host
+
+  - name: integration-portal-html5-repo-runtime
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: html5-apps-repo
+      service-plan: app-runtime

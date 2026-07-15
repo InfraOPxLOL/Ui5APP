@@ -1,0 +1,223 @@
+<mvc:View
+  controllerName="com.middlewareops.integrationportal.controller.coeRegistry.Registry"
+  height="100%"
+  xmlns="sap.m"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns:core="sap.ui.core"
+  xmlns:l="sap.ui.layout"
+  xmlns:form="sap.ui.layout.form">
+  <Page
+    id="page"
+    title="{i18n>title}"
+    class="integrationPortalModulePage"
+    busy="{view>/busy}"
+    busyIndicatorDelay="0">
+    <content>
+      <l:Grid defaultSpan="XL4 L4 M12 S12" class="sapUiResponsiveMargin">
+
+        <!-- Box 1: JMS Agreements — read-only sender/receiver pair lookup -->
+        <Panel headerText="{i18n>coeRegistry.box.jms}" class="sapUiResponsiveMargin">
+          <content>
+            <VBox class="sapUiSmallMargin">
+              <form:SimpleForm editable="true" layout="ColumnLayout" columnsL="1" columnsM="1" columnsXL="1">
+                <form:content>
+                  <Label text="{i18n>coeRegistry.field.sndprn}" />
+                  <Input
+                    value="{view>/jms/sndprn}"
+                    valueState="{= ${view>/jms/sndprn} === '' ? 'Error' : 'None' }"
+                    placeholder="SENDER_SYS" />
+                  <Label text="{i18n>coeRegistry.field.rcvprn}" />
+                  <Input
+                    value="{view>/jms/rcvprn}"
+                    valueState="{= ${view>/jms/rcvprn} === '' ? 'Error' : 'None' }"
+                    placeholder="RECEIVER_SYS" />
+                  <Label text="{i18n>coeRegistry.lookup.mestypOptional}" />
+                  <Input value="{view>/jms/mestyp}" placeholder="ORDERS" />
+                </form:content>
+              </form:SimpleForm>
+              <Button
+                text="{i18n>coeRegistry.action.lookup}"
+                icon="sap-icon://search"
+                type="Emphasized"
+                press=".onLookupJms"
+                class="sapUiSmallMarginTop sapUiSmallMarginBottom" />
+
+              <MessageStrip
+                text="{i18n>coeRegistry.lookup.none}"
+                type="Information"
+                showIcon="true"
+                visible="{= ${view>/jms/result} !== null &amp;&amp; ${view>/jms/result/kind} === 'none' }" />
+
+              <ObjectStatus
+                title="{i18n>coeRegistry.lookup.target}"
+                text="{view>/jms/result/targetPid}"
+                state="Success"
+                icon="sap-icon://sys-enter-2"
+                visible="{= ${view>/jms/result} !== null &amp;&amp; ${view>/jms/result/kind} === 'normal' }" />
+
+              <VBox visible="{= ${view>/jms/result} !== null &amp;&amp; ${view>/jms/result/kind} === 'ruleset' }">
+                <MessageStrip
+                  text="{i18n>coeRegistry.lookup.rulesetHint}"
+                  type="Warning"
+                  showIcon="true"
+                  class="sapUiTinyMarginBottom" />
+                <List items="{view>/jms/result/candidates}" noDataText=" ">
+                  <StandardListItem
+                    title="{view>targetPid}"
+                    info="{= ${view>ruleAuthored} ? ${i18n>coeRegistry.lookup.ruleAuthored} : ${i18n>coeRegistry.lookup.ruleMissing} }"
+                    infoState="{= ${view>ruleAuthored} ? 'Success' : 'Warning' }"
+                    icon="{= ${view>ruleAuthored} ? 'sap-icon://sys-enter-2' : 'sap-icon://alert' }" />
+                </List>
+              </VBox>
+            </VBox>
+          </content>
+        </Panel>
+
+        <!-- Box 2: Router Agreements — same read-only lookup, against _Maintain_Router_Agreements -->
+        <Panel headerText="{i18n>coeRegistry.box.router}" class="sapUiResponsiveMargin">
+          <content>
+            <VBox class="sapUiSmallMargin">
+              <form:SimpleForm editable="true" layout="ColumnLayout" columnsL="1" columnsM="1" columnsXL="1">
+                <form:content>
+                  <Label text="{i18n>coeRegistry.field.sndprn}" />
+                  <Input
+                    value="{view>/router/sndprn}"
+                    valueState="{= ${view>/router/sndprn} === '' ? 'Error' : 'None' }"
+                    placeholder="SENDER_SYS" />
+                  <Label text="{i18n>coeRegistry.field.rcvprn}" />
+                  <Input
+                    value="{view>/router/rcvprn}"
+                    valueState="{= ${view>/router/rcvprn} === '' ? 'Error' : 'None' }"
+                    placeholder="RECEIVER_SYS" />
+                  <Label text="{i18n>coeRegistry.lookup.mestypOptional}" />
+                  <Input value="{view>/router/mestyp}" placeholder="ORDERS" />
+                </form:content>
+              </form:SimpleForm>
+              <Button
+                text="{i18n>coeRegistry.action.lookup}"
+                icon="sap-icon://search"
+                type="Emphasized"
+                press=".onLookupRouter"
+                class="sapUiSmallMarginTop sapUiSmallMarginBottom" />
+
+              <MessageStrip
+                text="{i18n>coeRegistry.lookup.none}"
+                type="Information"
+                showIcon="true"
+                visible="{= ${view>/router/result} !== null &amp;&amp; ${view>/router/result/kind} === 'none' }" />
+
+              <ObjectStatus
+                title="{i18n>coeRegistry.lookup.target}"
+                text="{view>/router/result/targetPid}"
+                state="Success"
+                icon="sap-icon://sys-enter-2"
+                visible="{= ${view>/router/result} !== null &amp;&amp; ${view>/router/result/kind} === 'normal' }" />
+
+              <VBox visible="{= ${view>/router/result} !== null &amp;&amp; ${view>/router/result/kind} === 'ruleset' }">
+                <MessageStrip
+                  text="{i18n>coeRegistry.lookup.rulesetHint}"
+                  type="Warning"
+                  showIcon="true"
+                  class="sapUiTinyMarginBottom" />
+                <List items="{view>/router/result/candidates}" noDataText=" ">
+                  <StandardListItem
+                    title="{view>targetPid}"
+                    info="{= ${view>ruleAuthored} ? ${i18n>coeRegistry.lookup.ruleAuthored} : ${i18n>coeRegistry.lookup.ruleMissing} }"
+                    infoState="{= ${view>ruleAuthored} ? 'Success' : 'Warning' }"
+                    icon="{= ${view>ruleAuthored} ? 'sap-icon://sys-enter-2' : 'sap-icon://alert' }" />
+                </List>
+              </VBox>
+            </VBox>
+          </content>
+        </Panel>
+
+        <!-- Box 3: General Search — PID-scoped listing/edit/delete, plus a reverse "present in" lookup -->
+        <Panel headerText="{i18n>coeRegistry.box.general}" class="sapUiResponsiveMargin">
+          <content>
+            <VBox class="sapUiSmallMargin">
+              <SegmentedButton selectedKey="{view>/general/mode}">
+                <items>
+                  <SegmentedButtonItem key="byPid" text="{i18n>coeRegistry.general.byPid}" />
+                  <SegmentedButtonItem key="presentIn" text="{i18n>coeRegistry.general.presentIn}" />
+                </items>
+              </SegmentedButton>
+
+              <!-- Mode: By Partner ID -->
+              <VBox visible="{= ${view>/general/mode} === 'byPid' }" class="sapUiSmallMarginTop">
+                <Label text="{i18n>coeRegistry.field.pid}" labelFor="generalPidInput" />
+                <SearchField
+                  id="generalPidInput"
+                  value="{view>/general/pid}"
+                  placeholder="PID_SALESFORCE_CORE"
+                  search=".onSearch"
+                  class="sapUiTinyMarginTop sapUiTinyMarginBottom" />
+                <Button text="{i18n>coeRegistry.search}" type="Emphasized" press=".onSearch" />
+                <Table
+                  items="{view>/general/parameters}"
+                  class="sapUiSmallMarginTop"
+                  growing="true"
+                  growingThreshold="100"
+                  noDataText="{i18n>coeRegistry.noData}">
+                  <columns>
+                    <Column><Text text="{i18n>coeRegistry.col.id}" /></Column>
+                    <Column><Text text="{i18n>coeRegistry.col.value}" /></Column>
+                    <Column hAlign="End"><Text text="{i18n>coeRegistry.col.actions}" /></Column>
+                  </columns>
+                  <items>
+                    <ColumnListItem>
+                      <cells>
+                        <Text text="{view>id}" />
+                        <Input value="{view>value}" />
+                        <HBox justifyContent="End">
+                          <Button
+                            icon="sap-icon://save"
+                            tooltip="{i18n>coeRegistry.action.save}"
+                            type="Transparent"
+                            press=".onSaveParameter" />
+                          <Button
+                            icon="sap-icon://delete"
+                            tooltip="{i18n>coeRegistry.action.delete}"
+                            type="Transparent"
+                            press=".onDeleteParameter" />
+                        </HBox>
+                      </cells>
+                    </ColumnListItem>
+                  </items>
+                </Table>
+              </VBox>
+
+              <!-- Mode: Present In (reverse lookup) -->
+              <VBox visible="{= ${view>/general/mode} === 'presentIn' }" class="sapUiSmallMarginTop">
+                <Label text="{i18n>coeRegistry.field.targetPid}" labelFor="presentInInput" />
+                <SearchField
+                  id="presentInInput"
+                  value="{view>/general/presentInPid}"
+                  placeholder="PID_SALESFORCE_CORE"
+                  search=".onPresentInSearch"
+                  class="sapUiTinyMarginTop sapUiTinyMarginBottom" />
+                <Button text="{i18n>coeRegistry.search}" type="Emphasized" press=".onPresentInSearch" />
+                <MessageStrip
+                  class="sapUiSmallMarginTop"
+                  text="{i18n>coeRegistry.presentIn.hint}"
+                  type="Information"
+                  showIcon="true" />
+                <List
+                  items="{view>/general/presentInEntries}"
+                  class="sapUiSmallMarginTop"
+                  noDataText="{= ${view>/general/presentInSearched} ? ${i18n>coeRegistry.presentIn.empty} : ${i18n>coeRegistry.presentIn.noData} }">
+                  <StandardListItem
+                    title="{view>storePid}"
+                    description="{view>id}"
+                    info="{view>value}"
+                    infoState="{= ${view>isRuleset} ? 'Warning' : 'None' }"
+                    icon="{= ${view>isRuleset} ? 'sap-icon://chain-link' : 'sap-icon://connected' }" />
+                </List>
+              </VBox>
+            </VBox>
+          </content>
+        </Panel>
+
+      </l:Grid>
+    </content>
+  </Page>
+</mvc:View>

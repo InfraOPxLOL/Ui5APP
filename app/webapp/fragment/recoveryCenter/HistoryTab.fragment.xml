@@ -1,0 +1,69 @@
+<!--
+  Recovery History (§ Recovery History) — start time, end time, duration, status, operator, result.
+  Session only; future persistence ready (backed by RecoveryStateStore server-side).
+-->
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core">
+  <VBox class="sapUiSmallMargin" fitContainer="true">
+    <items>
+      <Toolbar class="recoveryHistoryToolbar">
+        <Title text="{i18n>recovery.tab.history} ({view>/history/total})" level="H3" />
+        <ToolbarSpacer />
+        <Button
+          icon="sap-icon://navigation-left-arrow"
+          type="Transparent"
+          tooltip="{i18n>recovery.history.previous}"
+          press=".onHistoryPreviousPress" />
+        <Button
+          icon="sap-icon://navigation-right-arrow"
+          type="Transparent"
+          tooltip="{i18n>recovery.history.next}"
+          press=".onHistoryNextPress" />
+      </Toolbar>
+
+      <Table items="{view>/history/items}" noDataText="{i18n>recovery.history.empty}">
+        <columns>
+          <Column><Text text="{i18n>recovery.column.sourceQueue}" /></Column>
+          <Column><Text text="{i18n>recovery.column.startTime}" /></Column>
+          <Column><Text text="{i18n>recovery.column.endTime}" /></Column>
+          <Column hAlign="End"><Text text="{i18n>recovery.column.duration}" /></Column>
+          <Column><Text text="{i18n>recovery.column.status}" /></Column>
+          <Column><Text text="{i18n>recovery.column.operator}" /></Column>
+          <Column><Text text="{i18n>recovery.column.result}" /></Column>
+          <Column><Text text="{i18n>recovery.column.actions}" /></Column>
+        </columns>
+        <items>
+          <ColumnListItem>
+            <cells>
+              <Text text="{view>sourceQueue}" />
+              <Text text="{ path: 'view>startTime', formatter: '.formatDateTime' }" />
+              <Text text="{ path: 'view>endTime', formatter: '.formatDateTime' }" />
+              <Text text="{ path: 'view>durationMs', formatter: '.formatDuration' }" />
+              <ObjectStatus
+                text="{view>status}"
+                icon="{ path: 'view>status', formatter: '.formatRecoveryStatusIcon' }"
+                state="{ path: 'view>status', formatter: '.formatRecoveryStatusState' }" />
+              <Text text="{view>operator}" />
+              <Text text="{view>result}" maxLines="2" />
+              <HBox>
+                <items>
+                  <Button
+                    icon="sap-icon://cancel"
+                    type="Transparent"
+                    tooltip="{i18n>recovery.history.cancel}"
+                    enabled="{= ${view>status} === 'running' }"
+                    press=".onCancelRecoveryPress" />
+                  <Button
+                    icon="sap-icon://redo"
+                    type="Transparent"
+                    tooltip="{i18n>recovery.history.retry}"
+                    enabled="{= ${view>status} === 'failed' || ${view>status} === 'cancelled' }"
+                    press=".onRetryRecoveryPress" />
+                </items>
+              </HBox>
+            </cells>
+          </ColumnListItem>
+        </items>
+      </Table>
+    </items>
+  </VBox>
+</core:FragmentDefinition>

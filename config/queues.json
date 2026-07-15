@@ -1,0 +1,37 @@
+{
+  "queues": [
+    {
+      "name": "INTEGRATION.ORDERS.IN",
+      "displayName": "Orders Inbound",
+      "description": "Inbound sales order messages awaiting processing.",
+      "deadLetterQueue": "INTEGRATION.ORDERS.DLQ",
+      "retryQueue": "INTEGRATION.ORDERS.RETRY",
+      "priority": 1,
+      "enabled": true,
+      "retryStrategy": "exponential-backoff",
+      "maxRetries": 5
+    },
+    {
+      "name": "INTEGRATION.INVOICES.IN",
+      "displayName": "Invoices Inbound",
+      "description": "Inbound supplier invoice messages awaiting processing.",
+      "deadLetterQueue": "INTEGRATION.INVOICES.DLQ",
+      "retryQueue": "INTEGRATION.INVOICES.RETRY",
+      "priority": 2,
+      "enabled": true,
+      "retryStrategy": "fixed-interval",
+      "maxRetries": 3
+    },
+    {
+      "name": "INTEGRATION.EVENTS.OUT",
+      "displayName": "Events Outbound",
+      "description": "Outbound business events fanned out to subscribers.",
+      "deadLetterQueue": "INTEGRATION.EVENTS.DLQ",
+      "retryQueue": "INTEGRATION.EVENTS.RETRY",
+      "priority": 3,
+      "enabled": false,
+      "retryStrategy": "manual",
+      "maxRetries": 0
+    }
+  ]
+}

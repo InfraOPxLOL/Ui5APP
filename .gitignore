@@ -1,8 +1,27 @@
+# Dependencies
 node_modules/
+
+# Build output
 dist/
+gen/
+mta_archives/
+*.mtar
+.mta/
+
+# Local, developer-only configuration overrides (see config/README.md)
+config/*.local.json
 .env
 .env.*
+
+# UI5 tooling
+.ui5/
+
+# Logs
 *.log
+npm-debug.log*
+
+# OS / editor
 .DS_Store
-.scp/
+Thumbs.db
 .che/
+.scp/

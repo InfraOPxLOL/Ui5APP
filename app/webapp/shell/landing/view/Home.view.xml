@@ -1,0 +1,198 @@
+<mvc:View
+  controllerName="com.middlewareops.integrationportal.shell.landing.controller.Home"
+  displayBlock="true"
+  height="100%"
+  xmlns="sap.m"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns:core="sap.ui.core"
+  xmlns:f="sap.f"
+  xmlns:layout="sap.ui.layout">
+  <Page
+    showHeader="false"
+    class="ipHomePage"
+    busy="{= !${home>/loaded} }"
+    busyIndicatorDelay="0">
+    <content>
+      <!-- Hero -->
+      <VBox class="ipHero" justifyContent="Center">
+        <FlexBox
+          class="ipHeroTop"
+          wrap="Wrap"
+          alignItems="Center"
+          justifyContent="SpaceBetween">
+          <VBox>
+            <Title
+              text="{home>/welcome}"
+              level="H1"
+              wrapping="true"
+              class="ipHeroTitle" />
+            <Text text="{home>/subtitle}" class="ipHeroSubtitle" />
+          </VBox>
+          <HBox class="ipHeroChips" wrap="Wrap" alignItems="Center">
+            <ObjectStatus
+              icon="sap-icon://cloud"
+              text="{home>/tenant/name}"
+              visible="{home>/tenant/show}"
+              class="ipChip"
+              tooltip="{i18n>home.tenant.tooltip}" />
+            <ObjectStatus
+              icon="sap-icon://building"
+              text="{home>/environment/label}"
+              state="Warning"
+              visible="{home>/environment/show}"
+              class="ipChip"
+              tooltip="{i18n>home.environment.tooltip}" />
+            <ObjectStatus
+              icon="sap-icon://sys-monitor"
+              text="{home>/health/text}"
+              state="{home>/health/state}"
+              class="ipChip" />
+          </HBox>
+        </FlexBox>
+      </VBox>
+
+      <!-- System announcements -->
+      <VBox
+        class="ipSection"
+        visible="{= ${home>/announcements}.length > 0 }"
+        items="{home>/announcements}">
+        <MessageStrip
+          class="ipAnnouncement"
+          text="{home>text}"
+          showIcon="true"
+          type="Warning" />
+      </VBox>
+
+      <!-- Quick actions -->
+      <VBox class="ipSection" visible="{= ${home>/quickActions}.length > 0 }">
+        <Title
+          text="{i18n>home.section.quickActions}"
+          level="H2"
+          class="ipSectionTitle" />
+        <FlexBox class="ipActionRow" wrap="Wrap" items="{home>/quickActions}">
+          <Button
+            text="{home>title}"
+            icon="{home>icon}"
+            press=".onQuickActionPress"
+            class="ipActionButton"
+            ariaHasPopup="Menu" />
+        </FlexBox>
+      </VBox>
+
+      <!-- Favorite workspaces -->
+      <VBox class="ipSection" visible="{= ${home>/favoriteWorkspaces}.length > 0 }">
+        <Title
+          text="{i18n>home.section.favorites}"
+          level="H2"
+          class="ipSectionTitle" />
+        <FlexBox class="ipCardGrid" wrap="Wrap" items="{home>/favoriteWorkspaces}">
+          <VBox class="ipCard" width="20rem">
+            <HBox class="ipCardHead" alignItems="Center" justifyContent="SpaceBetween">
+              <HBox alignItems="Center">
+                <core:Icon src="{home>icon}" class="ipCardIcon" color="{home>accent}" />
+                <Link
+                  text="{home>title}"
+                  press=".onWorkspaceCardPress"
+                  class="ipCardTitle" />
+              </HBox>
+              <ToggleButton
+                icon="sap-icon://favorite"
+                pressed="{home>favorite}"
+                type="Transparent"
+                press=".onToggleFavoriteWorkspace"
+                tooltip="{i18n>home.card.favorite}" />
+            </HBox>
+            <Text text="{home>description}" class="ipCardDesc" />
+            <HBox class="ipCardFoot" alignItems="Center" justifyContent="SpaceBetween">
+              <ObjectStatus text="{home>status}" state="Information" />
+              <Button
+                text="{i18n>home.card.open}"
+                type="Emphasized"
+                press=".onWorkspaceCardPress"
+                icon="sap-icon://arrow-right" />
+            </HBox>
+          </VBox>
+        </FlexBox>
+      </VBox>
+
+      <!-- Available workspaces -->
+      <VBox class="ipSection">
+        <Title
+          text="{i18n>home.section.workspaces}"
+          level="H2"
+          class="ipSectionTitle" />
+        <FlexBox class="ipCardGrid" wrap="Wrap" items="{home>/availableWorkspaces}">
+          <VBox class="ipCard ipCardLarge" width="22rem">
+            <HBox class="ipCardHead" alignItems="Center" justifyContent="SpaceBetween">
+              <HBox alignItems="Center">
+                <core:Icon src="{home>icon}" class="ipCardIcon" color="{home>accent}" />
+                <Link
+                  text="{home>title}"
+                  press=".onWorkspaceCardPress"
+                  class="ipCardTitle" />
+              </HBox>
+              <ToggleButton
+                icon="sap-icon://favorite"
+                pressed="{home>favorite}"
+                type="Transparent"
+                press=".onToggleFavoriteWorkspace"
+                tooltip="{i18n>home.card.favorite}" />
+            </HBox>
+            <Text text="{home>description}" class="ipCardDesc" />
+            <HBox class="ipCardFoot" alignItems="Center" justifyContent="SpaceBetween">
+              <ObjectStatus text="{home>status}" state="Information" />
+              <Button
+                text="{i18n>home.card.open}"
+                type="Emphasized"
+                press=".onWorkspaceCardPress"
+                icon="sap-icon://arrow-right" />
+            </HBox>
+          </VBox>
+        </FlexBox>
+      </VBox>
+
+      <!-- Recent workspaces & modules -->
+      <layout:Grid
+        class="ipSection"
+        defaultSpan="XL6 L6 M12 S12"
+        hSpacing="1"
+        vSpacing="1">
+        <VBox visible="{= ${home>/recentWorkspaces}.length > 0 }">
+          <Title
+            text="{i18n>home.section.recentWorkspaces}"
+            level="H2"
+            class="ipSectionTitle" />
+          <List items="{home>/recentWorkspaces}" class="ipRecentList">
+            <StandardListItem
+              title="{home>title}"
+              description="{home>description}"
+              icon="{home>icon}"
+              type="Active"
+              press=".onWorkspaceCardPress" />
+          </List>
+        </VBox>
+        <VBox visible="{= ${home>/recentModules}.length > 0 }">
+          <Title
+            text="{i18n>home.section.recentModules}"
+            level="H2"
+            class="ipSectionTitle" />
+          <List items="{home>/recentModules}" class="ipRecentList">
+            <StandardListItem
+              title="{home>title}"
+              description="{home>workspaceTitle}"
+              icon="{home>icon}"
+              type="Active"
+              press=".onModuleCardPress" />
+          </List>
+        </VBox>
+      </layout:Grid>
+
+      <!-- Footer branding -->
+      <VBox class="ipHomeFooter" alignItems="Center">
+        <Text
+          class="ipFooterText"
+          text="{home>/branding/companyName} · {home>/branding/applicationName} · v{home>/version} · {home>/theme/activeTheme}" />
+      </VBox>
+    </content>
+  </Page>
+</mvc:View>

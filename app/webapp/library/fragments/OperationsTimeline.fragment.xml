@@ -1,0 +1,60 @@
+<!--
+  TimelineWidget (§8) — reusable operations timeline.
+
+  Binds `view>/overview/timeline` (TimelineEvent[]). A SegmentedButton filters by event kind
+  (`.onTimelineFilterChange`, applied to the `opsTimelineList` binding). Each row shows a kind icon,
+  title/description, a severity status and relative time; pressing opens the relevant module
+  (`.onTimelinePress`). Reusable by any workspace exposing the same timeline shape.
+-->
+<core:FragmentDefinition
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core">
+  <VBox class="opsTimeline">
+    <items>
+      <SegmentedButton
+        selectedKey="{view>/timelineFilter}"
+        selectionChange=".onTimelineFilterChange"
+        class="opsTimelineFilter">
+        <items>
+          <SegmentedButtonItem key="all" text="{i18n>ops.timeline.all}" />
+          <SegmentedButtonItem key="failure" text="{i18n>ops.timeline.failures}" />
+          <SegmentedButtonItem key="recovery" text="{i18n>ops.timeline.recoveries}" />
+          <SegmentedButtonItem key="deployment" text="{i18n>ops.timeline.deployments}" />
+          <SegmentedButtonItem key="alert" text="{i18n>ops.timeline.alerts}" />
+        </items>
+      </SegmentedButton>
+      <List
+        id="opsTimelineList"
+        items="{view>/overview/timeline}"
+        noDataText="{i18n>ops.timeline.empty}"
+        showSeparators="Inner"
+        class="opsTimelineList">
+        <CustomListItem type="Active" press=".onTimelinePress" class="opsTimelineItem">
+          <HBox alignItems="Center" class="opsTimelineRow" width="100%">
+            <items>
+              <core:Icon
+                src="{ path: 'view>kind', formatter: '.formatTimelineIcon' }"
+                class="opsTimelineIcon" />
+              <VBox class="opsTimelineText">
+                <items>
+                  <Text text="{view>title}" class="opsTimelineTitle" maxLines="1" />
+                  <Text text="{view>description}" class="opsMuted" maxLines="1" />
+                </items>
+              </VBox>
+              <VBox class="opsTimelineMeta" alignItems="End">
+                <items>
+                  <ObjectStatus
+                    text="{view>kind}"
+                    state="{ path: 'view>severity', formatter: '.formatSeverityState' }" />
+                  <Text
+                    text="{ path: 'view>timestamp', formatter: '.formatRelativeTime' }"
+                    class="opsMuted" />
+                </items>
+              </VBox>
+            </items>
+          </HBox>
+        </CustomListItem>
+      </List>
+    </items>
+  </VBox>
+</core:FragmentDefinition>

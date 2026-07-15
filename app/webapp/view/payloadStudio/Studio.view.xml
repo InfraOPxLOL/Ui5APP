@@ -1,0 +1,200 @@
+<!--
+  Payload Studio (Phase 10) — a professional payload investigation environment, always opened from
+  the Message Investigation Workspace. Layout: Payload Navigation (left) | Payload Editor (center) |
+  Metadata Panel (right), with an expandable bottom panel (Properties/Attachments/Headers/
+  Validation). Every pane is part of a resizable `sap.ui.layout.Splitter`; pane state is remembered
+  for the session via `PayloadLayoutService`.
+-->
+<mvc:View
+  controllerName="com.middlewareops.integrationportal.controller.payloadStudio.Studio"
+  height="100%"
+  xmlns="sap.m"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns:core="sap.ui.core"
+  xmlns:l="sap.ui.layout"
+  xmlns:codeeditor="sap.ui.codeeditor">
+  <Page
+    id="page"
+    title="{i18n>title}"
+    class="integrationPortalModulePage payloadStudioWorkspace"
+    busy="{view>/busy}"
+    busyIndicatorDelay="0">
+    <headerContent>
+      <Button icon="sap-icon://refresh" tooltip="{i18n>action.refresh}" press=".onRefreshPress" />
+    </headerContent>
+    <content>
+      <l:Splitter orientation="Vertical" height="100%">
+        <l:contentAreas>
+
+          <l:Splitter orientation="Horizontal" height="100%">
+            <l:contentAreas>
+
+              <!-- Left: Payload Navigation -->
+              <VBox class="payloadStudioNavPane" fitContainer="true">
+                <layoutData>
+                  <l:SplitterLayoutData size="{= ${view>/layout/navCollapsed} ? '0%' : '14%' }" minSize="0" />
+                </layoutData>
+                <items>
+                  <Toolbar class="payloadStudioNavToolbar">
+                    <Title id="payloadStudioNavTitle" text="{i18n>payloadStudio.nav.title}" level="H4" />
+                  </Toolbar>
+                  <core:Fragment
+                    fragmentName="com.middlewareops.integrationportal.fragment.payloadStudio.PayloadNavigation"
+                    type="XML" />
+                </items>
+              </VBox>
+
+              <!-- Center: Payload Editor -->
+              <VBox class="payloadStudioEditorPane" fitContainer="true">
+                <layoutData>
+                  <l:SplitterLayoutData size="auto" />
+                </layoutData>
+                <items>
+                  <Toolbar class="payloadStudioEditorToolbar">
+                    <Button
+                      icon="{= ${view>/layout/navCollapsed} ? 'sap-icon://open-command-field' : 'sap-icon://close-command-field' }"
+                      type="Transparent"
+                      press=".onToggleNavPanel"
+                      tooltip="{i18n>payloadStudio.nav.toggle}" />
+                    <SegmentedButton selectedKey="{view>/editor/viewMode}" select=".onViewModeChange">
+                      <items>
+                        <SegmentedButtonItem key="pretty" text="{i18n>payloadStudio.editor.pretty}" />
+                        <SegmentedButtonItem key="raw" text="{i18n>payloadStudio.editor.raw}" />
+                        <SegmentedButtonItem key="tree" text="{i18n>payloadStudio.editor.tree}" />
+                      </items>
+                    </SegmentedButton>
+                    <ToolbarSpacer />
+                    <SearchField
+                      width="14rem"
+                      placeholder="{i18n>payloadStudio.search.placeholder}"
+                      value="{view>/search/query}"
+                      liveChange=".onSearchExecute" />
+                    <ToggleButton text="Aa" pressed="{view>/search/caseSensitive}" press=".onSearchOptionToggle" tooltip="{i18n>payloadStudio.search.caseSensitive}" />
+                    <ToggleButton text="{i18n>payloadStudio.search.wholeWordShort}" pressed="{view>/search/wholeWord}" press=".onSearchOptionToggle" tooltip="{i18n>payloadStudio.search.wholeWord}" />
+                    <ToggleButton text=".*" pressed="{view>/search/regex}" press=".onSearchOptionToggle" tooltip="{i18n>payloadStudio.search.regex}" />
+                    <Button icon="sap-icon://slim-arrow-up" press=".onFindPrevious" tooltip="{i18n>payloadStudio.search.previous}" />
+                    <Button icon="sap-icon://slim-arrow-down" press=".onFindNext" tooltip="{i18n>payloadStudio.search.next}" />
+                    <Text
+                      text="{= ${view>/search/matchCount} > 0 ? (${view>/search/activeMatchIndex} + 1) + ' / ' + ${view>/search/matchCount} : ${i18n>payloadStudio.search.noMatches} }"
+                      class="payloadStudioSearchStats sapUiTinyMarginBeginEnd" />
+                    <ToggleButton icon="sap-icon://wrap-text" pressed="{view>/editor/wordWrap}" press=".onWordWrapToggle" tooltip="{i18n>payloadStudio.editor.wordWrap}" />
+                    <ToggleButton icon="sap-icon://palette" pressed="{= ${view>/editor/colorTheme} === 'tomorrow_night' }" press=".onThemeToggle" tooltip="{i18n>payloadStudio.editor.theme}" />
+                    <ToggleButton icon="sap-icon://full-screen" pressed="{view>/editor/fullscreen}" press=".onFullscreenToggle" tooltip="{i18n>payloadStudio.editor.fullscreen}" />
+                    <Button
+                      icon="{= ${view>/layout/metadataCollapsed} ? 'sap-icon://close-command-field' : 'sap-icon://open-command-field' }"
+                      type="Transparent"
+                      press=".onToggleMetadataPanel"
+                      tooltip="{i18n>payloadStudio.metadata.toggle}" />
+                  </Toolbar>
+
+                  <!-- Request / Response text editor -->
+                  <codeeditor:CodeEditor
+                    visible="{= ${view>/editor/activeTarget} !== 'comparison' &amp;&amp; ${view>/editor/displayIsBinary} === false }"
+                    value="{view>/editor/displayText}"
+                    type="{view>/editor/displayFormat}"
+                    editable="false"
+                    lineNumbers="true"
+                    syntaxHints="true"
+                    colorTheme="{view>/editor/colorTheme}"
+                    height="100%"
+                    class="payloadStudioCodeEditor" />
+
+                  <!-- Binary payload notice -->
+                  <MessageStrip
+                    visible="{= ${view>/editor/activeTarget} !== 'comparison' &amp;&amp; ${view>/editor/displayIsBinary} === true }"
+                    text="{i18n>payloadStudio.editor.binary}"
+                    type="Information"
+                    showIcon="true"
+                    class="sapUiMediumMargin" />
+
+                  <!-- Comparison mode -->
+                  <VBox
+                    visible="{= ${view>/editor/activeTarget} === 'comparison' }"
+                    height="100%"
+                    class="payloadStudioComparison">
+                    <items>
+                      <Toolbar>
+                        <Title text="{i18n>payloadStudio.comparison.title}" level="H5" />
+                        <ToolbarSpacer />
+                        <CheckBox
+                          text="{i18n>payloadStudio.comparison.ignoreWhitespace}"
+                          selected="{view>/comparison/ignoreWhitespace}"
+                          select=".onIgnoreWhitespaceToggle" />
+                      </Toolbar>
+                      <MessageStrip
+                        visible="{= ${view>/data/responsePayload} === undefined }"
+                        text="{i18n>payloadStudio.comparison.noResponse}"
+                        type="Information"
+                        showIcon="true"
+                        class="sapUiMediumMargin" />
+                      <MessageStrip
+                        visible="{= ${view>/comparison/result} !== null &amp;&amp; ${view>/comparison/result/truncated} === true }"
+                        text="{i18n>payloadStudio.comparison.truncated}"
+                        type="Warning"
+                        showIcon="true"
+                        class="sapUiSmallMargin" />
+                      <ObjectStatus
+                        visible="{= ${view>/comparison/result} !== null }"
+                        text="{= '+' + ${view>/comparison/result/summary/addedLines} + ' / -' + ${view>/comparison/result/summary/removedLines} }"
+                        state="{= ${view>/comparison/result/summary/identical} === true ? 'Success' : 'Warning' }"
+                        class="sapUiSmallMargin" />
+                      <Table
+                        items="{view>/comparison/result/lines}"
+                        growing="true"
+                        growingThreshold="200"
+                        class="payloadStudioDiffTable">
+                        <columns>
+                          <Column width="4rem"><Text text="{i18n>payloadStudio.comparison.leftLine}" /></Column>
+                          <Column width="4rem"><Text text="{i18n>payloadStudio.comparison.rightLine}" /></Column>
+                          <Column><Text text="{i18n>payloadStudio.comparison.text}" /></Column>
+                        </columns>
+                        <items>
+                          <ColumnListItem
+                            highlight="{ path: 'view>kind', formatter: '.formatDiffLineState' }">
+                            <cells>
+                              <Text text="{view>leftLine}" />
+                              <Text text="{view>rightLine}" />
+                              <Text text="{view>text}" wrapping="false" class="payloadStudioDiffText" />
+                            </cells>
+                          </ColumnListItem>
+                        </items>
+                      </Table>
+                    </items>
+                  </VBox>
+                </items>
+              </VBox>
+
+              <!-- Right: Metadata Panel -->
+              <VBox class="payloadStudioMetadataPane" fitContainer="true">
+                <layoutData>
+                  <l:SplitterLayoutData size="{= ${view>/layout/metadataCollapsed} ? '0%' : '20%' }" minSize="0" />
+                </layoutData>
+                <items>
+                  <core:Fragment
+                    fragmentName="com.middlewareops.integrationportal.fragment.payloadStudio.MetadataPanel"
+                    type="XML" />
+                </items>
+              </VBox>
+
+            </l:contentAreas>
+          </l:Splitter>
+
+          <!-- Bottom: Properties / Attachments / Headers / Validation -->
+          <VBox class="payloadStudioBottomPane" fitContainer="true">
+            <layoutData>
+              <l:SplitterLayoutData
+                size="{= ${view>/layout/bottomPanelExpanded} ? '28%' : '2.5rem' }"
+                minSize="40" />
+            </layoutData>
+            <items>
+              <core:Fragment
+                fragmentName="com.middlewareops.integrationportal.fragment.payloadStudio.BottomPanel"
+                type="XML" />
+            </items>
+          </VBox>
+
+        </l:contentAreas>
+      </l:Splitter>
+    </content>
+  </Page>
+</mvc:View>

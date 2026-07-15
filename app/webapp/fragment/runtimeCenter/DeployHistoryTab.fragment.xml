@@ -1,0 +1,28 @@
+<!-- Deployment Timeline (§ Deployment Timeline) — version history, deployments, runtime events. -->
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core">
+  <VBox class="sapUiSmallMargin">
+    <items>
+      <Table items="{view>/selectedArtifact/timeline}" noDataText="{i18n>runtimeCenter.timeline.empty}">
+        <columns>
+          <Column><Text text="{i18n>runtimeCenter.column.status}" /></Column>
+          <Column><Text text="{i18n>runtimeCenter.column.version}" /></Column>
+          <Column><Text text="{i18n>runtimeCenter.column.timestamp}" /></Column>
+          <Column><Text text="{i18n>runtimeCenter.column.actor}" /></Column>
+        </columns>
+        <items>
+          <ColumnListItem>
+            <cells>
+              <ObjectStatus
+                text="{view>kind}"
+                icon="{ path: 'view>kind', formatter: '.formatDeploymentEventIcon' }"
+                state="{ path: 'view>kind', formatter: '.formatDeploymentEventState' }" />
+              <Text text="{view>version}" />
+              <Text text="{ path: 'view>timestamp', formatter: '.formatDateTime' }" />
+              <Text text="{view>actor}" />
+            </cells>
+          </ColumnListItem>
+        </items>
+      </Table>
+    </items>
+  </VBox>
+</core:FragmentDefinition>

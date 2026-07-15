@@ -1,0 +1,95 @@
+<mvc:View
+  controllerName="com.middlewareops.integrationportal.controller.coeAdmin.AdminSettings"
+  height="100%"
+  xmlns="sap.m"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns:core="sap.ui.core"
+  xmlns:form="sap.ui.layout.form">
+  <Page
+    id="page"
+    title="{i18n>title}"
+    class="integrationPortalModulePage"
+    busy="{view>/busy}"
+    busyIndicatorDelay="0">
+    <headerContent>
+      <Button
+        text="{i18n>action.edit}"
+        icon="sap-icon://edit"
+        type="Emphasized"
+        visible="{= !${view>/editing} }"
+        press=".onEdit" />
+      <Button
+        text="{i18n>action.save}"
+        icon="sap-icon://save"
+        type="Emphasized"
+        visible="{view>/editing}"
+        press=".onSave" />
+      <Button
+        text="{i18n>action.cancel}"
+        icon="sap-icon://decline"
+        visible="{view>/editing}"
+        press=".onCancel" />
+      <Button
+        icon="sap-icon://refresh"
+        tooltip="{i18n>action.refresh}"
+        visible="{= !${view>/editing} }"
+        press=".onRefresh" />
+    </headerContent>
+    <content>
+      <MessageStrip
+        class="sapUiMediumMargin"
+        text="{i18n>coeAdmin.info}"
+        type="Information"
+        showIcon="true" />
+      <form:SimpleForm
+        editable="true"
+        layout="ColumnLayout"
+        title="{i18n>coeAdmin.section.global}"
+        class="sapUiSmallMarginBeginEnd">
+        <form:content>
+          <Label text="{i18n>coeAdmin.field.environment}" tooltip="{i18n>coeAdmin.field.environment.tooltip}" />
+          <ComboBox
+            selectedKey="{view>/draft/environment}"
+            enabled="{view>/editing}"
+            items="{view>/environments}">
+            <core:Item key="{view>}" text="{view>}" />
+          </ComboBox>
+
+          <Label text="{i18n>coeAdmin.field.retries}" tooltip="{i18n>coeAdmin.field.retries.tooltip}" />
+          <StepInput
+            value="{view>/draft/defaultRetries}"
+            min="1"
+            max="10"
+            step="1"
+            editable="{view>/editing}"
+            width="8rem" />
+
+          <Label text="{i18n>coeAdmin.field.mailbox}" tooltip="{i18n>coeAdmin.field.mailbox.tooltip}" />
+          <Input
+            value="{view>/draft/defaultExceptionTo}"
+            type="Email"
+            editable="{view>/editing}"
+            valueState="{view>/valueState/defaultExceptionTo}"
+            valueStateText="{i18n>coeAdmin.validation.email}"
+            liveChange=".onMailboxChange"
+            placeholder="{i18n>coeAdmin.field.mailbox.placeholder}" />
+
+          <Label text="{i18n>coeAdmin.field.egress}" tooltip="{i18n>coeAdmin.field.egress.tooltip}" />
+          <Input
+            value="{view>/draft/defaultEgressUri}"
+            editable="{view>/editing}"
+            valueState="{view>/valueState/defaultEgressUri}"
+            valueStateText="{i18n>coeAdmin.validation.egress}"
+            liveChange=".onEgressChange"
+            placeholder="{i18n>coeAdmin.field.egress.placeholder}" />
+        </form:content>
+      </form:SimpleForm>
+
+      <VBox class="sapUiSmallMarginBeginEnd" visible="{= ${view>/settings/lastModifiedAt} !== undefined }">
+        <Text
+          class="sapUiTinyMarginTop"
+          text="{i18n>coeAdmin.lastModified} {view>/settings/lastModifiedBy} · { path: 'view>/settings/lastModifiedAt', formatter: '.formatDateTime' }" />
+      </VBox>
+    </content>
+  </Page>
+</mvc:View>

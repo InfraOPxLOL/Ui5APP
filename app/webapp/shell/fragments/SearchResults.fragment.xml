@@ -1,0 +1,37 @@
+<!--
+  Global-search results popover (§14). Renders the provider-grouped results the Shell controller
+  aggregated (headings already translated). Framework only: with no search provider registered yet
+  the list shows its empty state.
+-->
+<core:FragmentDefinition
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core">
+  <Popover
+    title="{i18n>shell.search.results}"
+    placement="Bottom"
+    contentWidth="28rem"
+    contentHeight="26rem">
+    <List
+      items="{shell>/search/groups}"
+      noDataText="{i18n>shell.search.empty}">
+      <CustomListItem>
+        <VBox class="sapUiSmallMarginBegin sapUiSmallMarginTopBottom">
+          <HBox alignItems="Center">
+            <core:Icon src="{shell>icon}" class="sapUiTinyMarginEnd" />
+            <Title text="{shell>title}" level="H5" />
+          </HBox>
+          <List
+            items="{shell>items}"
+            showSeparators="None">
+            <StandardListItem
+              title="{shell>title}"
+              description="{shell>description}"
+              icon="{shell>icon}"
+              type="Active"
+              press=".onSearchResultPress" />
+          </List>
+        </VBox>
+      </CustomListItem>
+    </List>
+  </Popover>
+</core:FragmentDefinition>

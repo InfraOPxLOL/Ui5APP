@@ -1,0 +1,104 @@
+<!--
+  OperationsSearchResults (§6) — aggregated workspace search results.
+
+  Binds `view>/search/result` (OperationsSearchResponse | null), populated by `.onSearch`. Groups
+  matches from every operational domain (messages, queues, certificates, runtime) under tabs; each
+  hit opens its module. Hidden until a search runs. Reusable by any workspace exposing the same
+  search-result shape.
+-->
+<core:FragmentDefinition
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core">
+  <Panel
+    visible="{= ${view>/search/result} !== null }"
+    class="opsSearchResults"
+    busy="{view>/search/busy}"
+    busyIndicatorDelay="0">
+    <headerToolbar>
+      <OverflowToolbar>
+        <core:Icon src="sap-icon://search" class="opsSectionIcon" />
+        <Title
+          text="{i18n>ops.search.results} ({= ${view>/search/result/totalHits} })"
+          level="H3" />
+        <ToolbarSpacer />
+        <Button
+          icon="sap-icon://decline"
+          type="Transparent"
+          press=".onClearSearch"
+          tooltip="{i18n>ops.search.clear}" />
+      </OverflowToolbar>
+    </headerToolbar>
+    <content>
+      <IconTabBar expanded="true" class="opsSearchTabs">
+        <items>
+          <IconTabFilter
+            key="messages"
+            icon="sap-icon://message-information"
+            text="{i18n>ops.search.messages}"
+            count="{= ${view>/search/result/messages}.length }">
+            <List
+              items="{view>/search/result/messages}"
+              noDataText="{i18n>ops.search.none}">
+              <StandardListItem
+                title="{view>integrationFlow}"
+                description="{view>sender} → {view>receiver}"
+                info="{view>humanReadableStatus}"
+                infoState="{ path: 'view>severity', formatter: '.formatSeverityState' }"
+                type="Active"
+                press=".onOpenMessages" />
+            </List>
+          </IconTabFilter>
+          <IconTabFilter
+            key="queues"
+            icon="sap-icon://combine"
+            text="{i18n>ops.search.queues}"
+            count="{= ${view>/search/result/queues}.length }">
+            <List items="{view>/search/result/queues}" noDataText="{i18n>ops.search.none}">
+              <StandardListItem
+                title="{view>displayName}"
+                description="{view>queueName}"
+                info="{view>state}"
+                infoState="{ path: 'view>health', formatter: '.formatHealthState' }"
+                type="Active"
+                press=".onOpenQueues" />
+            </List>
+          </IconTabFilter>
+          <IconTabFilter
+            key="certificates"
+            icon="sap-icon://key"
+            text="{i18n>ops.search.certificates}"
+            count="{= ${view>/search/result/certificates}.length }">
+            <List
+              items="{view>/search/result/certificates}"
+              noDataText="{i18n>ops.search.none}">
+              <StandardListItem
+                title="{view>alias}"
+                description="{view>owner}"
+                info="{view>daysRemaining} {i18n>ops.search.daysLeft}"
+                infoState="{ path: 'view>health', formatter: '.formatHealthState' }"
+                type="Active"
+                press=".onOpenCertificates" />
+            </List>
+          </IconTabFilter>
+          <IconTabFilter
+            key="runtime"
+            icon="sap-icon://pulse"
+            text="{i18n>ops.search.runtime}"
+            count="{= ${view>/search/result/runtimeArtifacts}.length }">
+            <List
+              items="{view>/search/result/runtimeArtifacts}"
+              noDataText="{i18n>ops.search.none}">
+              <StandardListItem
+                title="{view>name}"
+                description="{view>type}"
+                info="{view>humanReadableStatus}"
+                infoState="{ path: 'view>health', formatter: '.formatHealthState' }"
+                type="Active"
+                press=".onOpenRuntime" />
+            </List>
+          </IconTabFilter>
+        </items>
+      </IconTabBar>
+    </content>
+  </Panel>
+</core:FragmentDefinition>

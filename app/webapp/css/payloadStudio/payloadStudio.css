@@ -1,0 +1,97 @@
+/*
+ * Payload Studio styles (Phase 10).
+ *
+ * A professional, IDE-like chrome for the resizable 4-pane workspace (Payload Navigation | Payload
+ * Editor | Metadata Panel | bottom Properties/Attachments/Headers/Validation panel). Motion is
+ * subtle and disabled under prefers-reduced-motion (§ Accessibility).
+ */
+
+.payloadStudioWorkspace .sapMPageHeader {
+  z-index: 2;
+}
+
+/* Panes */
+.payloadStudioNavPane {
+  overflow: hidden;
+  border-inline-end: 1px solid var(--sapList_BorderColor, rgba(127, 127, 127, 0.3));
+  background: var(--sapList_Background, transparent);
+}
+.payloadStudioMetadataPane {
+  overflow: hidden;
+  border-inline-start: 1px solid var(--sapList_BorderColor, rgba(127, 127, 127, 0.3));
+}
+.payloadStudioMetadataScroll {
+  height: 100%;
+}
+.payloadStudioEditorPane {
+  min-width: 0;
+  overflow: hidden;
+}
+.payloadStudioEditorToolbar {
+  border-bottom: 1px solid var(--sapList_BorderColor, rgba(127, 127, 127, 0.3));
+  flex-wrap: wrap;
+}
+.payloadStudioSearchStats {
+  min-width: 3.5rem;
+  text-align: center;
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Navigation */
+.payloadStudioNav .sapMSLI {
+  transition: background-color 0.12s ease;
+}
+.payloadStudioNavFuture {
+  opacity: 0.55;
+}
+
+/* Code editor fills its pane */
+.payloadStudioCodeEditor {
+  height: 100%;
+}
+
+/* Comparison */
+.payloadStudioComparison {
+  overflow: hidden;
+}
+.payloadStudioDiffTable {
+  overflow: auto;
+}
+.payloadStudioDiffText {
+  font-family: var(--sapFontFamily-Mono, "SF Mono", Consolas, monospace);
+  font-size: 0.8125rem;
+  white-space: pre;
+}
+
+/* Bottom panel */
+.payloadStudioBottomPane {
+  border-top: 1px solid var(--sapList_BorderColor, rgba(127, 127, 127, 0.3));
+  overflow: hidden;
+}
+.payloadStudioBottom {
+  overflow: hidden;
+}
+.payloadStudioBottomToolbar {
+  min-height: 2.5rem;
+}
+.payloadStudioBottomTabs {
+  height: calc(100% - 2.5rem);
+  overflow: auto;
+}
+
+/* Accessibility: reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .payloadStudioWorkspace * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .payloadStudioNavPane,
+  .payloadStudioMetadataPane {
+    min-width: 0;
+  }
+}

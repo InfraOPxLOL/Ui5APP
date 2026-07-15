@@ -1,0 +1,24 @@
+<!--
+  QuickActionPanel (§5) — metadata-driven operational quick actions.
+
+  Binds `view>/quickActions` (resolved from OPERATIONS_QUICK_ACTIONS by the controller). Each action
+  navigates to a route or raises a shell command via `.onQuickAction`. Adding an action is a metadata
+  change only. Reusable by any workspace that populates `view>/quickActions`.
+-->
+<core:FragmentDefinition
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core">
+  <List
+    items="{view>/quickActions}"
+    showSeparators="None"
+    class="opsQuickActionList"
+    ariaLabelledBy="opsQuickActionsTitle">
+    <StandardListItem
+      title="{view>title}"
+      icon="{view>icon}"
+      iconInset="false"
+      type="Active"
+      press=".onQuickAction"
+      class="opsQuickActionItem" />
+  </List>
+</core:FragmentDefinition>

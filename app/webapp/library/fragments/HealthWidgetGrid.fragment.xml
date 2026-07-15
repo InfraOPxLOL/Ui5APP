@@ -1,0 +1,32 @@
+<!--
+  HealthWidget grid (§3) — reusable health widgets.
+
+  Binds `view>/overview/health` (HealthWidget[]). Each widget is a pressable numeric tile showing the
+  health headline (value/total), a status line, an icon coloured by health, and the recommended
+  action as its footer. Pressing a widget drills into its module (`.onHealthWidgetPress`). Reusable
+  by any workspace exposing the same health shape.
+-->
+<core:FragmentDefinition
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core">
+  <FlexBox
+    items="{view>/overview/health}"
+    wrap="Wrap"
+    class="opsHealthGrid"
+    renderType="Bare">
+    <GenericTile
+      header="{ path: 'view>titleKey', formatter: '.formatI18n' }"
+      subheader="{view>statusText}"
+      press=".onHealthWidgetPress"
+      class="opsHealthTile"
+      ariaLabel="{view>statusText}">
+      <TileContent unit="{view>total}" footer="{view>recommendedAction}">
+        <NumericContent
+          value="{view>value}"
+          icon="{ path: 'view>health', formatter: '.formatHealthIcon' }"
+          valueColor="{ path: 'view>health', formatter: '.formatHealthValueColor' }"
+          withMargin="false" />
+      </TileContent>
+    </GenericTile>
+  </FlexBox>
+</core:FragmentDefinition>

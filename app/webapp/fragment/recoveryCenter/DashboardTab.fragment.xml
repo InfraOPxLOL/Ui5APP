@@ -1,0 +1,87 @@
+<!--
+  Recovery Dashboard (§ Recovery Dashboard) — recovery candidates, queue health, DLQ overview,
+  recovery statistics and recent recoveries in one composed view (GET /recovery-center/dashboard).
+-->
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:l="sap.ui.layout">
+  <l:Grid defaultSpan="L6 M6 S12" class="sapUiSmallMargin recoveryDashboardGrid">
+
+    <!-- Recovery statistics -->
+    <Panel headerText="{i18n>recovery.dashboard.statistics}" class="sapUiTinyMarginBottom">
+      <content>
+        <l:Grid defaultSpan="L3 M3 S6">
+          <VBox class="recoveryStatTile">
+            <Text text="{i18n>recovery.statistics.total}" />
+            <Title text="{view>/statistics/totalRecoveries}" level="H2" />
+          </VBox>
+          <VBox class="recoveryStatTile">
+            <Text text="{i18n>recovery.statistics.successRate}" />
+            <Title text="{view>/statistics/successRatePct}%" level="H2" />
+          </VBox>
+          <VBox class="recoveryStatTile">
+            <Text text="{i18n>recovery.statistics.avgDuration}" />
+            <Title text="{ path: 'view>/statistics/averageDurationMs', formatter: '.formatDuration' }" level="H2" />
+          </VBox>
+          <VBox class="recoveryStatTile">
+            <Text text="{i18n>recovery.statistics.last24h}" />
+            <Title text="{view>/statistics/messagesRecoveredLast24h}" level="H2" />
+          </VBox>
+        </l:Grid>
+      </content>
+    </Panel>
+
+    <!-- DLQ overview -->
+    <Panel headerText="{i18n>recovery.dashboard.dlqOverview}" class="sapUiTinyMarginBottom">
+      <content>
+        <Table items="{view>/dlqOverview}" noDataText="{i18n>recovery.dashboard.dlqOverviewEmpty}">
+          <columns>
+            <Column><Text text="{i18n>recovery.column.dlqName}" /></Column>
+            <Column><Text text="{i18n>recovery.column.sourceQueue}" /></Column>
+            <Column hAlign="End"><Text text="{i18n>recovery.column.messageCount}" /></Column>
+            <Column hAlign="End"><Text text="{i18n>recovery.column.oldestMessage}" /></Column>
+          </columns>
+          <items>
+            <ColumnListItem>
+              <cells>
+                <Text text="{view>dlqName}" />
+                <Text text="{view>sourceQueue}" />
+                <ObjectNumber number="{view>messageCount}" />
+                <Text text="{ path: 'view>oldestMessageAgeMs', formatter: '.formatMessageAge' }" />
+              </cells>
+            </ColumnListItem>
+          </items>
+        </Table>
+      </content>
+    </Panel>
+
+    <!-- Recovery candidates (compact) -->
+    <Panel headerText="{i18n>recovery.dashboard.candidates}" class="sapUiTinyMarginBottom">
+      <content>
+        <List items="{view>/candidates}" noDataText="{i18n>recovery.candidates.empty}">
+          <StandardListItem
+            title="{view>displayName}"
+            description="{i18n>recovery.column.sourceQueue}: {view>sourceQueue}"
+            info="{view>messageCount}"
+            infoState="{ path: 'view>readiness', formatter: '.formatReadinessState' }"
+            type="Active"
+            press=".onCandidateContextPress" />
+        </List>
+      </content>
+    </Panel>
+
+    <!-- Recent recoveries -->
+    <Panel headerText="{i18n>recovery.dashboard.recentRecoveries}" class="sapUiTinyMarginBottom">
+      <content>
+        <List
+          items="{view>/dashboard/recentRecoveries}"
+          noDataText="{i18n>recovery.history.empty}">
+          <StandardListItem
+            title="{view>sourceQueue}"
+            description="{ path: 'view>startTime', formatter: '.formatRelative' }"
+            info="{view>result}"
+            infoState="{ path: 'view>status', formatter: '.formatRecoveryStatusState' }" />
+        </List>
+      </content>
+    </Panel>
+
+  </l:Grid>
+</core:FragmentDefinition>

@@ -1,0 +1,116 @@
+<!--
+  Context Panel (§ Context Panel) — queue metadata, related messages, runtime status, queue strategy,
+  recent activity and quick actions for whichever candidate/queue was last selected.
+-->
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:l="sap.ui.layout">
+  <ScrollContainer height="100%" vertical="true" class="recoveryContextScroll">
+    <l:VerticalLayout width="100%" class="sapUiSmallMargin">
+
+      <Toolbar>
+        <Title text="{i18n>recovery.contextPanel.title}" level="H4" />
+        <ToolbarSpacer />
+        <Button
+          icon="sap-icon://decline"
+          type="Transparent"
+          tooltip="{i18n>action.close}"
+          press=".onCloseContextPanelPress" />
+      </Toolbar>
+
+      <MessageStrip
+        visible="{= ${view>/contextPanel/candidate} === null &amp;&amp; ${view>/contextPanel/queue} === null }"
+        text="{i18n>recovery.contextPanel.empty}"
+        type="Information"
+        showIcon="true" />
+
+      <!-- Candidate metadata -->
+      <VBox visible="{= ${view>/contextPanel/candidate} !== null }" width="100%">
+        <items>
+          <Title text="{i18n>recovery.contextPanel.metadata}" level="H5" />
+          <ObjectAttribute title="{i18n>recovery.column.queueName}" text="{view>/contextPanel/candidate/queueName}" />
+          <ObjectAttribute title="{i18n>recovery.column.sourceQueue}" text="{view>/contextPanel/candidate/sourceQueue}" />
+          <ObjectAttribute title="{i18n>recovery.column.priority}" text="{view>/contextPanel/candidate/priority}" />
+          <ObjectStatus
+            text="{view>/contextPanel/candidate/readiness}"
+            icon="{ path: 'view>/contextPanel/candidate/readiness', formatter: '.formatReadinessIcon' }"
+            state="{ path: 'view>/contextPanel/candidate/readiness', formatter: '.formatReadinessState' }" />
+          <Text
+            text="{view>/contextPanel/candidate/blockedReason}"
+            visible="{= ${view>/contextPanel/candidate/blockedReason} !== undefined }"
+            class="sapUiTinyMarginTop" />
+
+          <Title text="{i18n>recovery.contextPanel.strategy}" level="H5" class="sapUiSmallMarginTop" />
+          <ObjectAttribute title="{i18n>recovery.contextPanel.retryStrategy}" text="{view>/contextPanel/candidate/retryStrategy}" />
+          <ObjectAttribute title="{i18n>recovery.contextPanel.maxRetries}" text="{view>/contextPanel/candidate/maxRetries}" />
+
+          <Title text="{i18n>recovery.contextPanel.related}" level="H5" class="sapUiSmallMarginTop" />
+          <ObjectAttribute
+            title="{i18n>recovery.column.messageCount}"
+            text="{view>/contextPanel/candidate/messageCount}" />
+          <ObjectAttribute
+            title="{i18n>recovery.column.oldestMessage}"
+            text="{ path: 'view>/contextPanel/candidate/oldestMessageAgeMs', formatter: '.formatMessageAge' }" />
+        </items>
+      </VBox>
+
+      <!-- Queue metadata -->
+      <VBox visible="{= ${view>/contextPanel/queue} !== null }" width="100%">
+        <items>
+          <Title text="{i18n>recovery.contextPanel.metadata}" level="H5" />
+          <ObjectAttribute title="{i18n>recovery.column.queueName}" text="{view>/contextPanel/queue/queueName}" />
+          <ObjectAttribute title="{i18n>recovery.column.messageCount}" text="{view>/contextPanel/queue/messageCount}" />
+          <ObjectStatus
+            text="{view>/contextPanel/queue/recoveryReadiness}"
+            icon="{ path: 'view>/contextPanel/queue/recoveryReadiness', formatter: '.formatReadinessIcon' }"
+            state="{ path: 'view>/contextPanel/queue/recoveryReadiness', formatter: '.formatReadinessState' }" />
+
+          <Title text="{i18n>recovery.contextPanel.recentActivity}" level="H5" class="sapUiSmallMarginTop" />
+          <ObjectAttribute
+            title="{i18n>recovery.column.growthTrend}"
+            text="{view>/contextPanel/queue/growthTrend}" />
+          <ObjectAttribute
+            title="{i18n>recovery.column.consumerStatus}"
+            text="{view>/contextPanel/queue/consumerStatus}" />
+          <ObjectAttribute
+            title="{i18n>recovery.column.oldestMessage}"
+            text="{ path: 'view>/contextPanel/queue/oldestMessageAgeMs', formatter: '.formatMessageAge' }" />
+          <ObjectAttribute
+            title="{i18n>recovery.column.newestMessage}"
+            text="{ path: 'view>/contextPanel/queue/newestMessageAgeMs', formatter: '.formatMessageAge' }" />
+        </items>
+      </VBox>
+
+      <!-- Quick actions -->
+      <Title
+        text="{i18n>recovery.contextPanel.quickActions}"
+        level="H5"
+        class="sapUiSmallMarginTop"
+        visible="{= ${view>/contextPanel/candidate} !== null || ${view>/contextPanel/queue} !== null }" />
+      <List
+        visible="{= ${view>/contextPanel/candidate} !== null || ${view>/contextPanel/queue} !== null }"
+        noDataText=" ">
+        <StandardListItem
+          title="{i18n>recovery.contextPanel.actionRecover}"
+          icon="sap-icon://synchronize"
+          type="Active"
+          visible="{= ${view>/contextPanel/candidate} !== null }"
+          press=".onContextRecoverPress" />
+        <StandardListItem
+          title="{i18n>recovery.contextPanel.actionCopyName}"
+          icon="sap-icon://copy"
+          type="Active"
+          press=".onContextCopyQueueNamePress" />
+        <StandardListItem
+          title="{i18n>recovery.contextPanel.actionOpenMessages}"
+          icon="sap-icon://email"
+          type="Active"
+          press=".onOpenMessageMonitoringPress" />
+        <StandardListItem
+          title="{i18n>recovery.contextPanel.actionOpenRuntime}"
+          icon="sap-icon://pulse"
+          type="Active"
+          press=".onOpenLiveMonitoringPress" />
+      </List>
+
+    </l:VerticalLayout>
+  </ScrollContainer>
+</core:FragmentDefinition>

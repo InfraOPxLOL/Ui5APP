@@ -1,0 +1,170 @@
+<mvc:View
+  controllerName="com.middlewareops.integrationportal.controller.coePartnerDashboard.PartnerDashboard"
+  height="100%"
+  xmlns="sap.m"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns:core="sap.ui.core"
+  xmlns:l="sap.ui.layout">
+  <Page
+    id="page"
+    title="{i18n>title}"
+    class="integrationPortalModulePage"
+    busy="{view>/busy}"
+    busyIndicatorDelay="0">
+    <headerContent>
+      <Button icon="sap-icon://refresh" type="Transparent" tooltip="{i18n>action.refresh}" press=".onRefresh" />
+    </headerContent>
+    <content>
+      <l:Splitter orientation="Horizontal" height="100%">
+        <l:contentAreas>
+
+          <!-- Master: every Partner ID discoverable from the two agreement registries -->
+          <VBox fitContainer="true" class="sapUiSmallMargin">
+            <layoutData>
+              <l:SplitterLayoutData size="26%" />
+            </layoutData>
+            <items>
+              <SearchField placeholder="{i18n>partnerDashboard.master.search}" search=".onSearchPartners" class="sapUiTinyMarginBottom" />
+              <List
+                id="partnerList"
+                mode="SingleSelectMaster"
+                items="{view>/partners}"
+                selectionChange=".onSelectPartner"
+                noDataText="{= ${view>/partnersLoaded} ? ${i18n>partnerDashboard.master.empty} : ${i18n>partnerDashboard.master.loading} }">
+                <StandardListItem
+                  title="{view>pid}"
+                  info="{= ${view>jmsAgreementCount} + ' ' + ${i18n>partnerDashboard.master.jmsCount} + ' · ' + ${view>routerAgreementCount} + ' ' + ${i18n>partnerDashboard.master.routerCount} }"
+                  icon="sap-icon://master-detail" />
+              </List>
+            </items>
+          </VBox>
+
+          <!-- Detail: reverse-engineered configuration for the selected partner -->
+          <VBox fitContainer="true" class="sapUiSmallMargin" busy="{view>/detailBusy}" busyIndicatorDelay="0">
+            <layoutData>
+              <l:SplitterLayoutData size="auto" />
+            </layoutData>
+            <items>
+              <MessageStrip
+                text="{i18n>partnerDashboard.detail.noneSelected}"
+                type="Information"
+                showIcon="true"
+                visible="{= ${view>/detail} === null }" />
+
+              <VBox visible="{= ${view>/detail} !== null }">
+                <Title text="{view>/detail/pid}" level="H3" class="sapUiSmallMarginBottom" />
+
+                <IconTabBar expandable="false" class="sapUiTinyMarginTop">
+                  <items>
+
+                    <!-- Referenced By -->
+                    <IconTabFilter
+                      text="{i18n>partnerDashboard.tab.referencedBy}"
+                      icon="sap-icon://chain-link"
+                      count="{= ${view>/detail/referencedBy}.length }">
+                      <List items="{view>/detail/referencedBy}" noDataText="{i18n>partnerDashboard.referencedBy.empty}">
+                        <StandardListItem
+                          title="{view>id}"
+                          description="{view>storePid}"
+                          info="{= ${view>isRuleset} ? (${view>ruleAuthored} ? ${i18n>partnerDashboard.referencedBy.ruleAuthored} : ${i18n>partnerDashboard.referencedBy.ruleMissing}) : ${view>value} }"
+                          infoState="{= !${view>isRuleset} ? 'None' : (${view>ruleAuthored} ? 'Success' : 'Warning') }"
+                          icon="{= ${view>isRuleset} ? 'sap-icon://alert' : 'sap-icon://connected' }" />
+                      </List>
+                    </IconTabFilter>
+
+                    <!-- JMS Routes -->
+                    <IconTabFilter
+                      text="{i18n>partnerDashboard.tab.jmsRoutes}"
+                      icon="sap-icon://combine"
+                      count="{= ${view>/detail/jmsRoutes}.length }">
+                      <Table items="{view>/detail/jmsRoutes}" noDataText="{i18n>partnerDashboard.jmsRoutes.empty}">
+                        <columns>
+                          <Column><Text text="{i18n>partnerDashboard.field.sndprn}" /></Column>
+                          <Column><Text text="{i18n>partnerDashboard.field.rcvprn}" /></Column>
+                          <Column><Text text="{i18n>partnerDashboard.field.mestyp}" /></Column>
+                          <Column><Text text="{i18n>partnerDashboard.col.queue}" /></Column>
+                          <Column><Text text="{i18n>partnerDashboard.col.endpoint}" /></Column>
+                          <Column hAlign="End"><Text text="{i18n>partnerDashboard.col.actions}" /></Column>
+                        </columns>
+                        <items>
+                          <ColumnListItem>
+                            <cells>
+                              <Text text="{view>sndprn}" />
+                              <Text text="{view>rcvprn}" />
+                              <Text text="{view>mestyp}" />
+                              <Text text="{view>queue}" />
+                              <Text text="{view>endpointUri}" />
+                              <Button
+                                icon="sap-icon://edit"
+                                tooltip="{i18n>partnerDashboard.action.editRoute}"
+                                type="Transparent"
+                                press=".onEditJmsRoute" />
+                            </cells>
+                          </ColumnListItem>
+                        </items>
+                      </Table>
+                    </IconTabFilter>
+
+                    <!-- Router Routes -->
+                    <IconTabFilter
+                      text="{i18n>partnerDashboard.tab.routerRoutes}"
+                      icon="sap-icon://chain-link"
+                      count="{= ${view>/detail/routerRoutes}.length }">
+                      <Table items="{view>/detail/routerRoutes}" noDataText="{i18n>partnerDashboard.routerRoutes.empty}">
+                        <columns>
+                          <Column><Text text="{i18n>partnerDashboard.field.sndprn}" /></Column>
+                          <Column><Text text="{i18n>partnerDashboard.field.rcvprn}" /></Column>
+                          <Column><Text text="{i18n>partnerDashboard.field.mestyp}" /></Column>
+                          <Column><Text text="{i18n>partnerDashboard.col.finalTarget}" /></Column>
+                          <Column hAlign="End"><Text text="{i18n>partnerDashboard.col.actions}" /></Column>
+                        </columns>
+                        <items>
+                          <ColumnListItem>
+                            <cells>
+                              <Text text="{view>sndprn}" />
+                              <Text text="{view>rcvprn}" />
+                              <Text text="{view>mestyp}" />
+                              <Text text="{view>finalTargetPid}" />
+                              <Button
+                                icon="sap-icon://edit"
+                                tooltip="{i18n>partnerDashboard.action.editRoute}"
+                                type="Transparent"
+                                press=".onEditRouterRoute" />
+                            </cells>
+                          </ColumnListItem>
+                        </items>
+                      </Table>
+                    </IconTabFilter>
+
+                    <!-- Other Parameters -->
+                    <IconTabFilter
+                      text="{i18n>partnerDashboard.tab.other}"
+                      icon="sap-icon://list"
+                      count="{= ${view>/detail/otherParameters}.length }">
+                      <Table items="{view>/detail/otherParameters}" noDataText="{i18n>partnerDashboard.other.empty}">
+                        <columns>
+                          <Column><Text text="{i18n>partnerDashboard.col.parameter}" /></Column>
+                          <Column><Text text="{i18n>partnerDashboard.col.value}" /></Column>
+                        </columns>
+                        <items>
+                          <ColumnListItem>
+                            <cells>
+                              <Text text="{view>id}" />
+                              <Text text="{view>value}" />
+                            </cells>
+                          </ColumnListItem>
+                        </items>
+                      </Table>
+                    </IconTabFilter>
+
+                  </items>
+                </IconTabBar>
+              </VBox>
+            </items>
+          </VBox>
+
+        </l:contentAreas>
+      </l:Splitter>
+    </content>
+  </Page>
+</mvc:View>

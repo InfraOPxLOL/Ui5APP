@@ -1,0 +1,29 @@
+<!--
+  QuickInsightsStrip / SummaryWidget (§2) — a wrap of compact KPI chips.
+
+  Binds `view>/overview/quickInsights` (QuickInsight[]). Each chip resolves its dynamic i18n label
+  via the controller's `.formatI18n` and colours its value by severity. Reusable by any workspace
+  that provides the same insight shape.
+-->
+<core:FragmentDefinition
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core">
+  <FlexBox
+    items="{view>/overview/quickInsights}"
+    wrap="Wrap"
+    class="opsInsights"
+    renderType="Bare">
+    <VBox class="opsInsightChip">
+      <items>
+        <ObjectStatus
+          text="{view>value}"
+          state="{ path: 'view>severity', formatter: '.formatSeverityState' }"
+          class="opsInsightValue" />
+        <Text
+          text="{ path: 'view>labelKey', formatter: '.formatI18n' }"
+          class="opsInsightLabel" />
+        <Text text="{view>hint}" class="opsInsightHint" maxLines="2" />
+      </items>
+    </VBox>
+  </FlexBox>
+</core:FragmentDefinition>

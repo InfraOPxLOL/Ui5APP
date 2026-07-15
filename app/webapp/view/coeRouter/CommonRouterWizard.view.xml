@@ -1,0 +1,210 @@
+<mvc:View
+  controllerName="com.middlewareops.integrationportal.controller.coeRouter.CommonRouterWizard"
+  height="100%"
+  xmlns="sap.m"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns:core="sap.ui.core"
+  xmlns:form="sap.ui.layout.form">
+  <Page
+    id="page"
+    title="{i18n>hub.routerOnly.title}"
+    showNavButton="true"
+    navButtonPress=".onNavBackToHub"
+    navButtonTooltip="{i18n>hub.flow.back}"
+    class="integrationPortalModulePage"
+    busy="{view>/busy}"
+    busyIndicatorDelay="0">
+    <content>
+      <Wizard
+        id="wizard"
+        class="sapUiResponsiveMargin"
+        width="auto"
+        finishButtonText="{i18n>commonRouter.deploy.button}"
+        complete=".onDeploy">
+
+        <!-- Step 1: Ingress — IDoc control record parsing, or direct manual entry -->
+        <WizardStep
+          title="{i18n>coeRouter.step.ingress}"
+          icon="sap-icon://document-text"
+          validated="{view>/idocParsed}">
+          <VBox class="sapUiSmallMargin">
+            <MessageStrip
+              text="{i18n>commonRouter.intro}"
+              type="Information"
+              showIcon="true"
+              class="sapUiSmallMarginBottom" />
+            <Label text="{i18n>coeRouter.ingress.paste}" labelFor="idocInput" />
+            <TextArea
+              id="idocInput"
+              value="{view>/idoc/raw}"
+              rows="10"
+              width="100%"
+              growing="false"
+              placeholder="{i18n>coeRouter.ingress.placeholder}" />
+            <Button
+              text="{i18n>coeRouter.ingress.parse}"
+              icon="sap-icon://synchronize"
+              type="Emphasized"
+              press=".onParseIdoc"
+              class="sapUiSmallMarginTop" />
+            <MessageStrip
+              class="sapUiSmallMarginTop"
+              text="{view>/parseError}"
+              type="Error"
+              showIcon="true"
+              visible="{= ${view>/parseError} !== '' }" />
+
+            <form:SimpleForm
+              editable="true"
+              layout="ColumnLayout"
+              title="{i18n>coeRouter.ingress.extracted}"
+              class="sapUiSmallMarginTop">
+              <form:content>
+                <Label text="{i18n>coeRouter.field.sndprn}" />
+                <Input
+                  value="{view>/idoc/sndprn}"
+                  liveChange=".onIdentifierEdited"
+                  valueState="{= ${view>/idoc/sndprn} === '' ? 'Error' : 'None' }"
+                  placeholder="SENDER_SYS" />
+                <Label text="{i18n>coeRouter.field.rcvprn}" />
+                <Input
+                  value="{view>/idoc/rcvprn}"
+                  liveChange=".onIdentifierEdited"
+                  valueState="{= ${view>/idoc/rcvprn} === '' ? 'Error' : 'None' }"
+                  placeholder="RECEIVER_SYS" />
+                <Label text="{i18n>coeRouter.field.mestyp}" />
+                <Input
+                  value="{view>/idoc/mestyp}"
+                  liveChange=".onIdentifierEdited"
+                  valueState="{= ${view>/idoc/mestyp} === '' ? 'Error' : 'None' }"
+                  placeholder="ORDERS" />
+                <Label text="{i18n>coeRouter.field.idoctyp}" />
+                <Input value="{view>/idoc/idoctyp}" liveChange=".onIdentifierEdited" placeholder="ORDERS05" />
+                <Label text="{i18n>coeRouter.field.sndpor}" />
+                <Input value="{view>/idoc/sndpor}" liveChange=".onIdentifierEdited" placeholder="SAPPRD" />
+                <Label text="{i18n>coeRouter.field.rcvpor}" />
+                <Input value="{view>/idoc/rcvpor}" liveChange=".onIdentifierEdited" placeholder="A000000123" />
+                <Label text="{i18n>coeRouter.field.routeKey}" />
+                <ObjectStatus text="{view>/idoc/routeKey}" state="Information" />
+              </form:content>
+            </form:SimpleForm>
+            <MessageStrip
+              class="sapUiSmallMarginTop"
+              text="{i18n>coeRouter.ingress.manualHint}"
+              type="Information"
+              showIcon="true" />
+          </VBox>
+        </WizardStep>
+
+        <!-- Step 2: Common Router agreement check + config -->
+        <WizardStep
+          title="{i18n>commonRouter.step.router}"
+          icon="sap-icon://chain-link"
+          validated="{= ${view>/collision} !== null &amp;&amp; ${view>/router/finalTargetPid} !== '' }">
+          <VBox class="sapUiSmallMargin">
+            <MessageStrip
+              text="{i18n>commonRouter.router.info}"
+              type="Information"
+              showIcon="true"
+              class="sapUiSmallMarginBottom" />
+            <form:SimpleForm editable="true" layout="ColumnLayout" title="{i18n>commonRouter.router.title}">
+              <form:content>
+                <Label text="{i18n>commonRouter.field.routerPid}" />
+                <Input
+                  value="{view>/router/routerPid}"
+                  valueState="{= ${view>/router/routerPid} === '' ? 'Error' : 'None' }"
+                  placeholder="Common_Router_Package" />
+                <Label text="{i18n>commonRouter.field.finalTargetPid}" />
+                <Input
+                  value="{view>/router/finalTargetPid}"
+                  valueState="{= ${view>/router/finalTargetPid} === '' ? 'Error' : 'None' }"
+                  placeholder="PID_SALESFORCE_CORE" />
+                <Label text="{i18n>coeRouter.field.routeKey}" />
+                <Text text="{view>/idoc/routeKey}" />
+              </form:content>
+            </form:SimpleForm>
+            <Button
+              text="{i18n>commonRouter.router.check}"
+              icon="sap-icon://search"
+              type="Emphasized"
+              press=".onCheckAgreement"
+              class="sapUiSmallMarginTop" />
+            <MessageStrip
+              class="sapUiSmallMarginTop"
+              text="{i18n>commonRouter.agreement.normal}"
+              type="Success"
+              showIcon="true"
+              visible="{= ${view>/collision} !== null &amp;&amp; ${view>/collision/track} === 'normal' }" />
+            <MessageStrip
+              class="sapUiSmallMarginTop"
+              text="{= ${i18n>commonRouter.agreement.ruleset} + ' ' + (${view>/collision/existingTargetPid} || '') }"
+              type="Warning"
+              showIcon="true"
+              visible="{= ${view>/collision} !== null &amp;&amp; ${view>/collision/track} === 'ruleset' }" />
+          </VBox>
+        </WizardStep>
+
+        <!-- Step 3: Review & Deploy -->
+        <WizardStep title="{i18n>coeRouter.step.review}" icon="sap-icon://sys-enter-2" validated="true">
+          <VBox class="sapUiSmallMargin">
+            <form:SimpleForm editable="false" layout="ColumnLayout" title="{i18n>coeRouter.review.title}">
+              <form:content>
+                <Label text="{i18n>commonRouter.field.routerPid}" />
+                <Text text="{view>/router/routerPid}" />
+                <Label text="{i18n>commonRouter.field.finalTargetPid}" />
+                <Text text="{view>/router/finalTargetPid}" />
+                <Label text="{i18n>coeRouter.field.routeKey}" />
+                <Text text="{view>/idoc/routeKey}" />
+                <Label text="{i18n>coeRouter.review.track}" />
+                <Text text="{view>/collision/track}" />
+              </form:content>
+            </form:SimpleForm>
+            <MessageStrip
+              class="sapUiSmallMarginTop"
+              text="{i18n>commonRouter.review.hint}"
+              type="Information"
+              showIcon="true" />
+
+            <VBox visible="{= ${view>/deployResult} !== null }" class="sapUiSmallMarginTop">
+              <Title text="{i18n>coeRouter.review.result}" level="H4" class="sapUiSmallMarginBottom" />
+              <List items="{view>/deployResult/created}" noDataText="{i18n>coeRouter.review.noResult}">
+                <StandardListItem
+                  title="{view>pid} · {view>id}"
+                  info="{view>status}"
+                  infoState="{= ${view>status} === 'ok' ? 'Success' : 'Error' }"
+                  description="{view>error}"
+                  icon="{= ${view>status} === 'ok' ? 'sap-icon://sys-enter-2' : 'sap-icon://error' }" />
+              </List>
+              <VBox
+                visible="{= !!${view>/deployResult/rulesetFollowUps} &amp;&amp; ${view>/deployResult/rulesetFollowUps}.length > 0 }"
+                class="sapUiMediumMarginTop">
+                <Title text="{i18n>coeRouter.review.warnings}" level="H4" class="sapUiSmallMarginBottom" />
+                <VBox items="{view>/deployResult/rulesetFollowUps}">
+                  <HBox
+                    class="sapUiSmallMarginBottom"
+                    alignItems="Center"
+                    wrap="Wrap"
+                    justifyContent="SpaceBetween">
+                    <HBox alignItems="Center" wrap="Wrap">
+                      <core:Icon src="sap-icon://warning" color="Critical" class="sapUiTinyMarginEnd" />
+                      <Text text="{i18n>coeRouter.review.followUpHint}" class="sapUiTinyMarginEnd" />
+                      <ObjectStatus text="{view>ruleName}" state="Warning" class="sapUiTinyMarginEnd" />
+                      <Text text="{i18n>coeRouter.review.followUpUnder}" class="sapUiTinyMarginEnd" />
+                      <ObjectStatus text="{view>storePid}" state="Information" />
+                    </HBox>
+                    <Button
+                      text="{i18n>coeRouter.review.openRuleBuilder}"
+                      type="Emphasized"
+                      icon="sap-icon://arrow-right"
+                      iconFirst="false"
+                      press=".onOpenRuleBuilder" />
+                  </HBox>
+                </VBox>
+              </VBox>
+            </VBox>
+          </VBox>
+        </WizardStep>
+      </Wizard>
+    </content>
+  </Page>
+</mvc:View>

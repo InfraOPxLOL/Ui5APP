@@ -1,0 +1,30 @@
+<!--
+  Security Materials (§ Security Materials) — OAuth Credentials, Keystore, Trust Store, SSH Keys,
+  PGP Keys. Only Keystore is backed by real data today; the other four categories honestly report
+  their unavailability and the reserved extension point, rather than fabricating rows.
+-->
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core">
+  <VBox class="sapUiSmallMargin">
+    <items>
+      <Table items="{view>/securityMaterials}" noDataText=" ">
+        <columns>
+          <Column><Text text="{i18n>column.category}" /></Column>
+          <Column><Text text="{i18n>column.status}" /></Column>
+          <Column hAlign="End"><Text text="{i18n>column.count}" /></Column>
+        </columns>
+        <items>
+          <ColumnListItem>
+            <cells>
+              <Text text="{view>category}" />
+              <ObjectStatus
+                text="{= ${view>available} ? ${i18n>securityMaterials.available} : ${view>reason} }"
+                icon="{ path: 'view>available', formatter: '.formatAvailabilityIcon' }"
+                state="{ path: 'view>available', formatter: '.formatAvailabilityState' }" />
+              <Text text="{= ${view>available} ? ${view>count} : '—' }" />
+            </cells>
+          </ColumnListItem>
+        </items>
+      </Table>
+    </items>
+  </VBox>
+</core:FragmentDefinition>
