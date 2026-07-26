@@ -32,12 +32,21 @@ validated at boot — see [config/README.md](config/README.md)). See §11/§16 o
 
 ## Getting started
 
+**New machine? Follow [`SETUP.md`](SETUP.md)** — the full clone-and-run guide (prerequisites, the
+gitignored `.env` you must recreate, mock vs. real mode, and common gotchas).
+
+Quick version for active development (no build step needed — `start:dev` runs TypeScript directly):
+
 ```bash
-npm install          # installs all workspaces
-npm run build        # builds frontend (dist/) and backend (gen/)
-npm run start:srv    # runs the backend locally
-npm run start:app    # runs the UI5 dev server locally
+npm install                    # installs all workspaces
+# create .env at repo root (see SETUP.md) — or set connectivity.json mode:"mock" to skip it
+cd srv && npm run start:dev    # backend on :4004 (tsx watch, auto-restart)
+npm run start:app              # frontend on :8080 (from repo root)
+# open http://localhost:8080/index.html#/dashboard
 ```
+
+> `npm run start:srv` runs the **compiled** `gen/` output (gitignored) — it fails on a fresh clone.
+> Use `start:dev` for local dev, or `npm run build` first if you specifically want the compiled path.
 
 ## Deployment (SAP BTP, Cloud Foundry)
 
