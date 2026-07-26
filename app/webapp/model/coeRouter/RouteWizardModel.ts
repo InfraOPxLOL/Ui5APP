@@ -1,5 +1,6 @@
 import JSONModel from "sap/ui/model/json/JSONModel";
 import { QUEUE_REGIONS, type RegionOption } from "../../controller/coeRouter/queueBuilder";
+import { blankEditor, type EditorState } from "../coeRuleBuilder/RuleEditorState";
 import type {
   RouteAgreementCheck,
   RouteDeployResult,
@@ -55,6 +56,10 @@ export interface RouteWizardState {
   deployResult: RouteDeployResult | null;
   priorities: string[];
   regions: RegionOption[];
+  /** Whether the developer is authoring a disambiguation rule in the Rule step (auto-on for a ruleset collision). */
+  ruleStepEnabled: boolean;
+  /** The shared rule editor's working state (hosted by `RuleEditorHostController` at `/ruleEditor`). */
+  ruleEditor: EditorState;
 }
 
 /**
@@ -94,6 +99,8 @@ export default class RouteWizardModel extends JSONModel {
       deployResult: null,
       priorities: ["P1", "P2", "P3"],
       regions: [...QUEUE_REGIONS],
+      ruleStepEnabled: false,
+      ruleEditor: blankEditor(""),
     };
     super(initial);
   }

@@ -44,6 +44,26 @@ export default class ErrorHandler {
     });
   }
 
+  /**
+   * Turns the backend's zod-issue `details` array into a concise, human-readable field hint so an
+   * opaque "Request validation failed" becomes "…failed: rule.targetRouting.routeKey — String must
+   * contain at least 1 character(s)". Defensive: returns "" for anything not shaped like zod issues,
+   * and reports only the first issue (the field the user should fix first).
+   */
+  private static validationHint(details: unknown): string {
+    if (!Array.isArray(details) || details.length === 0) {
+      return "";
+    }
+    const first = details[0] as { path?: unknown; message?: unknown };
+    const path =
+      Array.isArray(first.path) && first.path.length > 0 ? first.path.join(".") : undefined;
+    const message = typeof first.message === "string" ? first.message : undefined;
+    if (path === undefined && message === undefined) {
+      return "";
+    }
+    return `: ${[path, message].filter((part) => part !== undefined).join(" — ")}`;
+  }
+
   private normalize(error: unknown): AppError {
     if (error instanceof AppError) {
       return error;
@@ -54,6 +74,11 @@ export default class ErrorHandler {
 
   private present(error: AppError): void {
     const suffix = error.correlationId !== "n/a" ? ` (Ref: ${error.correlationId})` : "";
+    if (error.kind === "VALIDATION") {
+      const hint = ErrorHandler.validationHint(error.details);
+      MessageToast.show(error.message + hint + suffix, { duration: 6000 });
+      return;
+    }
     switch (error.kind) {
       case "AUTH":
         MessageBox.error(error.message + suffix, {
@@ -68,7 +93,6 @@ export default class ErrorHandler {
       case "UNKNOWN":
         MessageBox.error(error.message + suffix, { title: "Unexpected error" });
         break;
-      case "VALIDATION":
       case "NETWORK":
       case "AUTHORIZATION":
       case "BACKEND":

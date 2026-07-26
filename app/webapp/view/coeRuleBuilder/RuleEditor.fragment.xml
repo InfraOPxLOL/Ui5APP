@@ -1,15 +1,15 @@
 <!--
-  The CoE Visual Rule Builder's editor dialog — shared shell for both rule kinds (Agreement Ruleset /
-  X-Cast Endpoint Resolver) with a Visual / Raw JSON toggle. Everything binds to the owning view's
-  `view` model at `/editor/*` (inherited via addDependent — no fragment-local model).
+  The CoE Visual Rule Builder's editor dialog — the standalone Rule Builder's chrome (title + Save /
+  Cancel) around the shared `RuleEditorContent` fragment, which carries the actual editor body (bound
+  to `view>/ruleEditor/*`, handlers on `RuleEditorHostController`). The route-creation wizards embed
+  the same content fragment directly as a step instead of this dialog.
 -->
 <core:FragmentDefinition
   xmlns="sap.m"
-  xmlns:core="sap.ui.core"
-  xmlns:form="sap.ui.layout.form">
+  xmlns:core="sap.ui.core">
   <Dialog
     id="editorDialog"
-    title="{= ${view>/editor/isNew} ? ${i18n>coeRuleBuilder.editor.newTitle} : ${i18n>coeRuleBuilder.editor.editTitle} }"
+    title="{= ${view>/ruleEditor/isNew} ? ${i18n>coeRuleBuilder.editor.newTitle} : ${i18n>coeRuleBuilder.editor.editTitle} }"
     contentWidth="50rem"
     contentHeight="42rem"
     resizable="true"
@@ -18,197 +18,9 @@
     busy="{view>/busy}"
     busyIndicatorDelay="0">
     <content>
-      <VBox class="sapUiSmallMargin">
-        <form:SimpleForm editable="true" layout="ColumnLayout">
-          <form:content>
-            <Label text="{i18n>coeRuleBuilder.field.ruleId}" />
-            <Input
-              value="{view>/editor/id}"
-              enabled="{view>/editor/isNew}"
-              valueState="{= ${view>/editor/id} === '' ? 'Error' : 'None' }"
-              placeholder="Rule1" />
-            <Label text="{i18n>coeRuleBuilder.field.kind}" />
-            <SegmentedButton
-              selectedKey="{view>/editor/kind}"
-              enabled="{view>/editor/isNew}"
-              selectionChange=".onKindChange">
-              <items>
-                <SegmentedButtonItem key="ruleset" text="{i18n>coeRuleBuilder.kind.ruleset}" />
-                <SegmentedButtonItem key="xcast" text="{i18n>coeRuleBuilder.kind.xcast}" />
-              </items>
-            </SegmentedButton>
-            <Label text="{i18n>coeRuleBuilder.field.mode}" />
-            <SegmentedButton selectedKey="{view>/editor/mode}" selectionChange=".onModeChange">
-              <items>
-                <SegmentedButtonItem key="visual" text="{i18n>coeRuleBuilder.mode.visual}" />
-                <SegmentedButtonItem key="raw" text="{i18n>coeRuleBuilder.mode.raw}" />
-              </items>
-            </SegmentedButton>
-          </form:content>
-        </form:SimpleForm>
-
-        <!-- Raw JSON mode: shared by both kinds -->
-        <VBox visible="{= ${view>/editor/mode} === 'raw' }" class="sapUiSmallMarginTop">
-          <MessageStrip
-            text="{view>/editor/rawError}"
-            type="Error"
-            showIcon="true"
-            visible="{= ${view>/editor/rawError} !== '' }"
-            class="sapUiTinyMarginBottom" />
-          <TextArea
-            value="{view>/editor/rawJson}"
-            rows="18"
-            width="100%"
-            fontFamily="Monospace" />
-        </VBox>
-
-        <!-- Visual mode: Agreement Ruleset editor -->
-        <VBox
-          visible="{= ${view>/editor/mode} === 'visual' &amp;&amp; ${view>/editor/kind} === 'ruleset' }"
-          class="sapUiSmallMarginTop">
-          <Title text="{i18n>coeRuleBuilder.ruleset.queries}" level="H5" class="sapUiTinyMarginBottom" />
-          <Table items="{view>/editor/ruleset/identifyingQueries}" noDataText=" ">
-            <columns>
-              <Column width="9rem"><Text text="{i18n>coeRuleBuilder.ruleset.col.type}" /></Column>
-              <Column><Text text="{i18n>coeRuleBuilder.ruleset.col.expression}" /></Column>
-              <Column><Text text="{i18n>coeRuleBuilder.ruleset.col.expectedValue}" /></Column>
-              <Column width="3rem" />
-            </columns>
-            <items>
-              <ColumnListItem>
-                <cells>
-                  <Select selectedKey="{view>type}">
-                    <core:Item key="property" text="{i18n>coeRuleBuilder.ruleset.type.property}" />
-                    <core:Item key="xpath" text="{i18n>coeRuleBuilder.ruleset.type.xpath}" />
-                  </Select>
-                  <Input value="{view>expression}" placeholder="MESTYP" />
-                  <Input value="{view>expectedValue}" placeholder="ORDERS" />
-                  <Button icon="sap-icon://less" type="Transparent" press=".onRemoveQuery" />
-                </cells>
-              </ColumnListItem>
-            </items>
-          </Table>
-          <Button
-            text="{i18n>coeRuleBuilder.ruleset.addQuery}"
-            icon="sap-icon://add"
-            type="Transparent"
-            press=".onAddQuery"
-            class="sapUiTinyMarginTop" />
-
-          <Title
-            text="{i18n>coeRuleBuilder.ruleset.targetRouting}"
-            level="H5"
-            class="sapUiSmallMarginTop sapUiTinyMarginBottom" />
-          <form:SimpleForm editable="true" layout="ColumnLayout">
-            <form:content>
-              <Label text="{i18n>coeRuleBuilder.ruleset.field.targetPid}" />
-              <Input value="{view>/editor/ruleset/targetRouting/targetPid}" placeholder="PID_SALESFORCE_CORE" />
-              <Label text="{i18n>coeRuleBuilder.ruleset.field.routeKey}" />
-              <Input
-                value="{view>/editor/ruleset/targetRouting/routeKey}"
-                placeholder=".ORDERS05.ORDERS.SAPPRD.SENDER_SYS.A000000123.RECEIVER_SYS" />
-            </form:content>
-          </form:SimpleForm>
-        </VBox>
-
-        <!-- Visual mode: X-Cast Endpoint Resolver editor (flattened if/else-if/else tree) -->
-        <VBox
-          visible="{= ${view>/editor/mode} === 'visual' &amp;&amp; ${view>/editor/kind} === 'xcast' }"
-          class="sapUiSmallMarginTop">
-          <List items="{view>/editor/xcast/rows}" noDataText=" ">
-            <CustomListItem>
-              <HBox class="sapUiTinyMargin" alignItems="Center" wrap="Wrap">
-                <core:Icon src="sap-icon://none" width="{= ${view>depth} * 1.5 + 'rem'}" />
-
-                <!-- Condition row (if / else if) -->
-                <HBox alignItems="Center" wrap="Wrap" visible="{= ${view>node/nodeType} === 'condition' }">
-                  <ObjectStatus
-                    text="{= ${view>node/conditionType} === 'if' ? 'IF' : 'ELSE IF' }"
-                    state="Information"
-                    class="sapUiTinyMarginEnd" />
-                  <Select selectedKey="{view>node/condition/filterType}" width="10rem" class="sapUiTinyMarginEnd">
-                    <core:Item key="property" text="{i18n>coeRuleBuilder.xcast.filter.property}" />
-                    <core:Item key="xpath_exists" text="{i18n>coeRuleBuilder.xcast.filter.xpathExists}" />
-                  </Select>
-                  <Input
-                    value="{view>node/condition/expression}"
-                    width="12rem"
-                    placeholder="{i18n>coeRuleBuilder.xcast.expressionPlaceholder}"
-                    class="sapUiTinyMarginEnd" />
-                  <Input value="{view>node/condition/expectedValue}" width="9rem" placeholder="NA" class="sapUiTinyMarginEnd" />
-                  <Button
-                    text="{i18n>coeRuleBuilder.xcast.thenOutput}"
-                    type="Transparent"
-                    press=".onThenAsOutput"
-                    class="sapUiTinyMarginEnd" />
-                  <Button
-                    text="{i18n>coeRuleBuilder.xcast.thenCondition}"
-                    type="Transparent"
-                    press=".onThenAsCondition"
-                    class="sapUiTinyMarginEnd" />
-                  <Button
-                    text="{i18n>coeRuleBuilder.xcast.addElseIf}"
-                    icon="sap-icon://add"
-                    type="Transparent"
-                    visible="{= !${view>node/next} }"
-                    press=".onAddElseIf"
-                    class="sapUiTinyMarginEnd" />
-                  <Button
-                    text="{i18n>coeRuleBuilder.xcast.addElse}"
-                    icon="sap-icon://add"
-                    type="Transparent"
-                    visible="{= !${view>node/next} }"
-                    press=".onAddElse"
-                    class="sapUiTinyMarginEnd" />
-                  <Button
-                    icon="sap-icon://delete"
-                    type="Transparent"
-                    visible="{view>canRemove}"
-                    tooltip="{i18n>coeRuleBuilder.xcast.removeBranch}"
-                    press=".onRemoveBranch" />
-                </HBox>
-
-                <!-- Else (fallback) row -->
-                <HBox alignItems="Center" wrap="Wrap" visible="{= ${view>node/nodeType} === 'else' }">
-                  <ObjectStatus text="ELSE" state="Warning" class="sapUiTinyMarginEnd" />
-                  <Text text="{i18n>coeRuleBuilder.xcast.fallbackHint}" class="sapUiTinyMarginEnd" />
-                  <Button
-                    text="{i18n>coeRuleBuilder.xcast.thenOutput}"
-                    type="Transparent"
-                    press=".onThenAsOutput"
-                    class="sapUiTinyMarginEnd" />
-                  <Button
-                    text="{i18n>coeRuleBuilder.xcast.thenCondition}"
-                    type="Transparent"
-                    press=".onThenAsCondition"
-                    class="sapUiTinyMarginEnd" />
-                  <Button
-                    icon="sap-icon://delete"
-                    type="Transparent"
-                    visible="{view>canRemove}"
-                    tooltip="{i18n>coeRuleBuilder.xcast.removeBranch}"
-                    press=".onRemoveBranch" />
-                </HBox>
-
-                <!-- Output row -->
-                <HBox alignItems="Center" wrap="Wrap" visible="{= ${view>node/nodeType} === 'output' }">
-                  <core:Icon src="sap-icon://arrow-right" class="sapUiTinyMarginEnd" />
-                  <Select selectedKey="{view>node/routingType}" width="10rem" class="sapUiTinyMarginEnd">
-                    <core:Item key="JMS" text="JMS" />
-                    <core:Item key="ProcessDirect" text="ProcessDirect" />
-                    <core:Item key="Terminate" text="Terminate" />
-                  </Select>
-                  <Input
-                    value="{view>node/target}"
-                    width="16rem"
-                    enabled="{= ${view>node/routingType} !== 'Terminate' }"
-                    placeholder="{i18n>coeRuleBuilder.xcast.targetPlaceholder}" />
-                </HBox>
-              </HBox>
-            </CustomListItem>
-          </List>
-        </VBox>
-      </VBox>
+      <core:Fragment
+        fragmentName="com.middlewareops.integrationportal.view.coeRuleBuilder.RuleEditorContent"
+        type="XML" />
     </content>
     <beginButton>
       <Button text="{i18n>coeRuleBuilder.editor.save}" type="Emphasized" press=".onSave" />

@@ -1,10 +1,11 @@
 import CreationFlowController from "./CreationFlowController";
 import { buildRouteKey, parseIdocControlRecord } from "./idocParser";
 import type { RouteWizardPrefillState } from "./RouteDeepLink";
-import JSONModel from "sap/ui/model/json/JSONModel";
 import MessageBox from "sap/m/MessageBox";
 import MessageToast from "sap/m/MessageToast";
 import CoeRouterService from "../../service/coeRouter/CoeRouterService";
+import RuleBuilderService from "../../service/coeRuleBuilder/RuleBuilderService";
+import { blankEditor } from "../../model/coeRuleBuilder/RuleEditorState";
 import CommonRouterModel, { type RouterTargetState } from "../../model/coeRouter/CommonRouterModel";
 import type { IdocState } from "../../model/coeRouter/RouteWizardModel";
 import type {
@@ -22,6 +23,7 @@ import type {
  */
 export default class CommonRouterWizardController extends CreationFlowController {
   private readonly service = new CoeRouterService();
+  private readonly ruleService = new RuleBuilderService();
   private checkAbort: AbortController | undefined;
 
   /** Lifecycle hook: installs the view model. */
@@ -118,6 +120,7 @@ export default class CommonRouterWizardController extends CreationFlowController
       );
       model.setProperty("/collision", check);
       if (check.track === "ruleset") {
+        this.seedRuleStep(check);
         MessageBox.warning(
           this.getText("commonRouter.check.rulesetDetected", [
             check.existingTargetPid ?? "",
@@ -153,19 +156,63 @@ export default class CommonRouterWizardController extends CreationFlowController
 
   private async deploy(): Promise<void> {
     const model = this.model();
+    const ruleEnabled = model.getProperty("/ruleStepEnabled") as boolean;
+    if (ruleEnabled) {
+      const resolved = this.resolveRuleForSave();
+      if (resolved.problem !== undefined) {
+        MessageToast.show(resolved.problem);
+        return;
+      }
+    }
     model.setProperty("/busy", true);
     try {
       const result = await this.service.deployCommonRouter(this.buildDeployRequest());
       model.setProperty("/deployResult", result);
+      const ruleSaved = ruleEnabled ? await this.saveDisambiguationRule() : true;
       MessageToast.show(
         this.getText(
-          result.allSucceeded ? "commonRouter.deploy.success" : "commonRouter.deploy.partial",
+          result.allSucceeded && ruleSaved
+            ? "commonRouter.deploy.success"
+            : "commonRouter.deploy.partial",
         ),
       );
     } catch (error) {
       this.getErrorHandler().handle(error);
     } finally {
       model.setProperty("/busy", false);
+    }
+  }
+
+  /**
+   * Seeds the Rule step for a Common Router ruleset collision: registry PID = the router agreement
+   * store; rule name + target-routing = the final target this route resolves to.
+   */
+  private seedRuleStep(check: RouteAgreementCheck): void {
+    const model = this.model();
+    const router = model.getProperty("/router") as RouterTargetState;
+    const idoc = model.getProperty("/idoc") as IdocState;
+    const candidate = router.finalTargetPid.trim();
+    const editor = blankEditor(check.agreementStorePid);
+    editor.id = candidate;
+    editor.ruleset.targetRouting = { targetPid: candidate, routeKey: idoc.routeKey };
+    model.setProperty("/ruleEditor", editor);
+    model.setProperty("/ruleStepEnabled", true);
+    this.refreshXCastRows();
+  }
+
+  /** Saves the authored disambiguation rule after the router deploy created its `RULESET_` entry. */
+  private async saveDisambiguationRule(): Promise<boolean> {
+    const resolved = this.resolveRuleForSave();
+    if (resolved.rule === undefined) {
+      return false;
+    }
+    const editor = this.currentEditor();
+    try {
+      await this.ruleService.save({ pid: editor.pid, id: editor.id.trim(), rule: resolved.rule });
+      return true;
+    } catch (error) {
+      this.getErrorHandler().handle(error);
+      return false;
     }
   }
 
@@ -189,9 +236,5 @@ export default class CommonRouterWizardController extends CreationFlowController
       track: collision?.track ?? "normal",
       rulesetKey: collision?.rulesetKey,
     };
-  }
-
-  private model(): JSONModel {
-    return this.getModel("view") as JSONModel;
   }
 }

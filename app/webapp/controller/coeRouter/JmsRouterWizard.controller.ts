@@ -2,10 +2,11 @@ import CreationFlowController from "./CreationFlowController";
 import { buildRouteKey, parseIdocControlRecord } from "./idocParser";
 import { buildQueueName } from "./queueBuilder";
 import type { RouteWizardPrefillState } from "./RouteDeepLink";
-import JSONModel from "sap/ui/model/json/JSONModel";
 import MessageBox from "sap/m/MessageBox";
 import MessageToast from "sap/m/MessageToast";
 import CoeRouterService from "../../service/coeRouter/CoeRouterService";
+import RuleBuilderService from "../../service/coeRuleBuilder/RuleBuilderService";
+import { blankEditor } from "../../model/coeRuleBuilder/RuleEditorState";
 import JmsRouterModel, { type CombinedRouterState } from "../../model/coeRouter/JmsRouterModel";
 import type { AdvancedState, IdocState, TargetState } from "../../model/coeRouter/RouteWizardModel";
 import type {
@@ -24,6 +25,7 @@ import type {
  */
 export default class JmsRouterWizardController extends CreationFlowController {
   private readonly service = new CoeRouterService();
+  private readonly ruleService = new RuleBuilderService();
   private checkAbort: AbortController | undefined;
 
   /** Lifecycle hook: installs the view model. */
@@ -162,6 +164,7 @@ export default class JmsRouterWizardController extends CreationFlowController {
           );
         }
         lines.push(this.getText("jmsRouter.check.rulesetDetected.suffix"));
+        this.seedRuleStep(check);
         MessageBox.warning(lines.join(" "), {
           title: this.getText("coeRouter.check.rulesetDetected.title"),
         });
@@ -193,17 +196,65 @@ export default class JmsRouterWizardController extends CreationFlowController {
 
   private async deploy(): Promise<void> {
     const model = this.model();
+    const ruleEnabled = model.getProperty("/ruleStepEnabled") as boolean;
+    if (ruleEnabled) {
+      const resolved = this.resolveRuleForSave();
+      if (resolved.problem !== undefined) {
+        MessageToast.show(resolved.problem);
+        return;
+      }
+    }
     model.setProperty("/busy", true);
     try {
       const result = await this.service.deployJmsAndRouter(this.buildDeployRequest());
       model.setProperty("/deployResult", result);
+      const ruleSaved = ruleEnabled ? await this.saveDisambiguationRule() : true;
       MessageToast.show(
-        this.getText(result.allSucceeded ? "jmsRouter.deploy.success" : "jmsRouter.deploy.partial"),
+        this.getText(
+          result.allSucceeded && ruleSaved ? "jmsRouter.deploy.success" : "jmsRouter.deploy.partial",
+        ),
       );
     } catch (error) {
       this.getErrorHandler().handle(error);
     } finally {
       model.setProperty("/busy", false);
+    }
+  }
+
+  /**
+   * Seeds the Rule step from whichever leg escalated to a ruleset (JMS preferred when both did):
+   * registry PID = that leg's agreement store; rule name + target-routing = the candidate this route
+   * adds (the JMS `targetPid`, or the Common Router `routerPid`).
+   */
+  private seedRuleStep(check: CombinedAgreementCheck): void {
+    const model = this.model();
+    const target = model.getProperty("/target") as TargetState;
+    const router = model.getProperty("/router") as CombinedRouterState;
+    const idoc = model.getProperty("/idoc") as IdocState;
+    const jmsLeg = check.jms.track === "ruleset";
+    const leg = jmsLeg ? check.jms : check.router;
+    const candidate = (jmsLeg ? target.targetPid : router.routerPid).trim();
+    const editor = blankEditor(leg.agreementStorePid);
+    editor.id = candidate;
+    editor.ruleset.targetRouting = { targetPid: candidate, routeKey: idoc.routeKey };
+    model.setProperty("/ruleEditor", editor);
+    model.setProperty("/ruleStepEnabled", true);
+    this.refreshXCastRows();
+  }
+
+  /** Saves the authored disambiguation rule after the combined deploy created its `RULESET_` entry. */
+  private async saveDisambiguationRule(): Promise<boolean> {
+    const resolved = this.resolveRuleForSave();
+    if (resolved.rule === undefined) {
+      return false;
+    }
+    const editor = this.currentEditor();
+    try {
+      await this.ruleService.save({ pid: editor.pid, id: editor.id.trim(), rule: resolved.rule });
+      return true;
+    } catch (error) {
+      this.getErrorHandler().handle(error);
+      return false;
     }
   }
 
@@ -244,9 +295,5 @@ export default class JmsRouterWizardController extends CreationFlowController {
   private static optimizationChanged(advanced: AdvancedState): boolean {
     const o = advanced.optimization;
     return o.sync || o.forceCacheRefresh || o.priority !== "P2";
-  }
-
-  private model(): JSONModel {
-    return this.getModel("view") as JSONModel;
   }
 }

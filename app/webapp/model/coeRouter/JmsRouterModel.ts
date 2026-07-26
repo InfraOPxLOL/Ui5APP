@@ -1,6 +1,7 @@
 import JSONModel from "sap/ui/model/json/JSONModel";
 import type { IdocState, TargetState, AdvancedState, QueueBuilderState } from "./RouteWizardModel";
 import { QUEUE_REGIONS, type RegionOption } from "../../controller/coeRouter/queueBuilder";
+import { blankEditor, type EditorState } from "../coeRuleBuilder/RuleEditorState";
 import type {
   CombinedAgreementCheck,
   RouteDeployResult,
@@ -26,6 +27,8 @@ export interface JmsRouterState {
   deployResult: RouteDeployResult | null;
   priorities: string[];
   regions: RegionOption[];
+  ruleStepEnabled: boolean;
+  ruleEditor: EditorState;
 }
 
 /**
@@ -68,6 +71,8 @@ export default class JmsRouterModel extends JSONModel {
       deployResult: null,
       priorities: ["P1", "P2", "P3"],
       regions: [...QUEUE_REGIONS],
+      ruleStepEnabled: false,
+      ruleEditor: blankEditor(""),
     };
     super(initial);
   }

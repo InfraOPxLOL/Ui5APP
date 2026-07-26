@@ -144,7 +144,32 @@
           </VBox>
         </WizardStep>
 
-        <!-- Step 3: Review & Deploy -->
+        <!-- Step 3: Disambiguation Rule (author a Binary Parameter rule for a ruleset collision) -->
+        <WizardStep title="{i18n>coeRouter.step.rule}" icon="sap-icon://tree" validated="true">
+          <VBox class="sapUiSmallMargin">
+            <MessageStrip
+              text="{= ${view>/collision/track} === 'ruleset' ? ${i18n>coeRouter.rule.needed} : ${i18n>coeRouter.rule.optional} }"
+              type="{= ${view>/collision/track} === 'ruleset' ? 'Warning' : 'Information' }"
+              showIcon="true"
+              class="sapUiSmallMarginBottom" />
+            <HBox alignItems="Center" class="sapUiSmallMarginBottom">
+              <Switch state="{view>/ruleStepEnabled}" />
+              <Label text="{i18n>coeRouter.rule.authorNow}" class="sapUiSmallMarginBegin" />
+            </HBox>
+            <VBox visible="{view>/ruleStepEnabled}">
+              <MessageStrip
+                text="{= ${i18n>coeRouter.rule.storeHint} + ' ' + ${view>/ruleEditor/pid} }"
+                type="Information"
+                showIcon="true"
+                class="sapUiTinyMarginBottom" />
+              <core:Fragment
+                fragmentName="com.middlewareops.integrationportal.view.coeRuleBuilder.RuleEditorContent"
+                type="XML" />
+            </VBox>
+          </VBox>
+        </WizardStep>
+
+        <!-- Step 4: Review & Deploy -->
         <WizardStep title="{i18n>coeRouter.step.review}" icon="sap-icon://sys-enter-2" validated="true">
           <VBox class="sapUiSmallMargin">
             <form:SimpleForm editable="false" layout="ColumnLayout" title="{i18n>coeRouter.review.title}">

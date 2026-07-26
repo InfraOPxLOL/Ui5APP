@@ -1,4 +1,4 @@
-import BaseController from "../../core/base/BaseController";
+import RuleEditorHostController from "../coeRuleBuilder/RuleEditorHost.controller";
 import NavContainer from "sap/m/NavContainer";
 import type ManagedObject from "sap/ui/base/ManagedObject";
 import type Event from "sap/ui/base/Event";
@@ -12,9 +12,13 @@ import type { RulesetFollowUp } from "../../service/coeRouter/CoeRouterTypes";
  * returns to the hub launcher; this base finds the enclosing NavContainer without the flow needing to
  * know the hub's control ids.
  *
+ * Extends {@link RuleEditorHostController} so every flow inherits the shared CoE rule editor used by
+ * the "Disambiguation Rule" wizard step (bound to `view>/ruleEditor`) — the same editor the standalone
+ * Rule Builder hosts — without duplicating any of its field/structural logic.
+ *
  * @namespace com.middlewareops.integrationportal.controller.coeRouter
  */
-export default abstract class CreationFlowController extends BaseController {
+export default abstract class CreationFlowController extends RuleEditorHostController {
   /** Navigates back to the Creation Hub launcher page (the NavContainer's initial page). */
   public onNavBackToHub(): void {
     this.findNavContainer()?.back();

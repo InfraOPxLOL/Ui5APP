@@ -2,10 +2,11 @@ import CreationFlowController from "./CreationFlowController";
 import { buildRouteKey, parseIdocControlRecord } from "./idocParser";
 import { buildQueueName } from "./queueBuilder";
 import type { RouteWizardPrefillState } from "./RouteDeepLink";
-import JSONModel from "sap/ui/model/json/JSONModel";
 import MessageBox from "sap/m/MessageBox";
 import MessageToast from "sap/m/MessageToast";
 import CoeRouterService from "../../service/coeRouter/CoeRouterService";
+import RuleBuilderService from "../../service/coeRuleBuilder/RuleBuilderService";
+import { blankEditor } from "../../model/coeRuleBuilder/RuleEditorState";
 import RouteWizardModel, {
   type AdvancedState,
   type IdocState,
@@ -30,6 +31,7 @@ import type {
  */
 export default class RouteWizardController extends CreationFlowController {
   private readonly service = new CoeRouterService();
+  private readonly ruleService = new RuleBuilderService();
   private checkAbort: AbortController | undefined;
 
   /** Lifecycle hook: installs the view model. */
@@ -151,6 +153,7 @@ export default class RouteWizardController extends CreationFlowController {
       );
       model.setProperty("/collision", check);
       if (check.track === "ruleset") {
+        this.seedRuleStep(check);
         MessageBox.warning(
           this.getText("coeRouter.check.rulesetDetected", [
             check.existingTargetPid ?? "",
@@ -186,17 +189,67 @@ export default class RouteWizardController extends CreationFlowController {
 
   private async deploy(): Promise<void> {
     const model = this.model();
+    const ruleEnabled = model.getProperty("/ruleStepEnabled") as boolean;
+    // Validate the disambiguation rule (if any) up front, so we never half-deploy the route and then
+    // fail on a bad rule — the specific message comes from the shared editor validator.
+    if (ruleEnabled) {
+      const resolved = this.resolveRuleForSave();
+      if (resolved.problem !== undefined) {
+        MessageToast.show(resolved.problem);
+        return;
+      }
+    }
     model.setProperty("/busy", true);
     try {
       const result = await this.service.deployRoute(this.buildDeployRequest());
       model.setProperty("/deployResult", result);
+      const ruleSaved = ruleEnabled ? await this.saveDisambiguationRule() : true;
       MessageToast.show(
-        this.getText(result.allSucceeded ? "coeRouter.deploy.success" : "coeRouter.deploy.partial"),
+        this.getText(
+          result.allSucceeded && ruleSaved ? "coeRouter.deploy.success" : "coeRouter.deploy.partial",
+        ),
       );
     } catch (error) {
       this.getErrorHandler().handle(error);
     } finally {
       model.setProperty("/busy", false);
+    }
+  }
+
+  /**
+   * Seeds the Rule step with a blank Agreement-Ruleset rule pre-filled from the detected ruleset
+   * collision: registry PID = the agreement store the `RULESET_` entry lives in; rule name +
+   * target-routing = the new candidate this route is adding. The developer can refine it, switch to an
+   * X-Cast rule, or turn the step off entirely.
+   */
+  private seedRuleStep(check: RouteAgreementCheck): void {
+    const model = this.model();
+    const target = model.getProperty("/target") as TargetState;
+    const idoc = model.getProperty("/idoc") as IdocState;
+    const editor = blankEditor(check.agreementStorePid);
+    editor.id = target.targetPid.trim();
+    editor.ruleset.targetRouting = {
+      targetPid: target.targetPid.trim(),
+      routeKey: idoc.routeKey,
+    };
+    model.setProperty("/ruleEditor", editor);
+    model.setProperty("/ruleStepEnabled", true);
+    this.refreshXCastRows();
+  }
+
+  /** Saves the authored disambiguation rule after the route deploy created its `RULESET_` entry. */
+  private async saveDisambiguationRule(): Promise<boolean> {
+    const resolved = this.resolveRuleForSave();
+    if (resolved.rule === undefined) {
+      return false;
+    }
+    const editor = this.currentEditor();
+    try {
+      await this.ruleService.save({ pid: editor.pid, id: editor.id.trim(), rule: resolved.rule });
+      return true;
+    } catch (error) {
+      this.getErrorHandler().handle(error);
+      return false;
     }
   }
 
@@ -233,9 +286,5 @@ export default class RouteWizardController extends CreationFlowController {
   private static optimizationChanged(advanced: AdvancedState): boolean {
     const o = advanced.optimization;
     return o.sync || o.forceCacheRefresh || o.priority !== "P2";
-  }
-
-  private model(): JSONModel {
-    return this.getModel("view") as JSONModel;
   }
 }

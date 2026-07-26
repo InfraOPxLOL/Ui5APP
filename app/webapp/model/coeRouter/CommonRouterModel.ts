@@ -1,5 +1,6 @@
 import JSONModel from "sap/ui/model/json/JSONModel";
 import type { IdocState } from "./RouteWizardModel";
+import { blankEditor, type EditorState } from "../coeRuleBuilder/RuleEditorState";
 import type {
   RouteAgreementCheck,
   RouteDeployResult,
@@ -22,6 +23,8 @@ export interface CommonRouterState {
   router: RouterTargetState;
   collision: RouteAgreementCheck | null;
   deployResult: RouteDeployResult | null;
+  ruleStepEnabled: boolean;
+  ruleEditor: EditorState;
 }
 
 /**
@@ -50,6 +53,8 @@ export default class CommonRouterModel extends JSONModel {
       router: { routerPid: "", finalTargetPid: "" },
       collision: null,
       deployResult: null,
+      ruleStepEnabled: false,
+      ruleEditor: blankEditor(""),
     };
     super(initial);
   }

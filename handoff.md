@@ -1,10 +1,13 @@
 # Handoff — Integration Portal
 
-**Last updated:** 2026-07-15
+**Last updated:** 2026-07-22
 **Author of this handoff:** Claude (agentic session), for whoever picks this up next (human or AI).
-**Supersedes:** the previous handoff dated 2026-07-11 — that version predates the entire CoE Framework
-build described in §4.7 below. Sections 1, 3–7 are rewritten to reflect the current state; §4.1–§4.6
-are preserved as historical record of the original Operations Platform build.
+**Supersedes:** the 2026-07-15 handoff. That version ended with the CoE Framework backlog "empty";
+**this session (2026-07-22) reopened both threads** — it heavily reworked **Message Monitoring** (real
+JMS retry + layout + routed detail page, the first real chunk of the old Thread-B Operations roadmap)
+**and** extended the CoE **Rule Builder + Route Creation wizards** (Thread A). All new work is in §4.8;
+§4.1–§4.7 are preserved as historical record. Test counts, §5 "what failed", and §6 "what's next" are
+updated to current state.
 
 > ⚠️ **Read this first: nothing in this repo is committed to git beyond the bare initial scaffold.**
 > `git log` shows exactly one commit (`b573cef`, "Initial commit: SAPUI5 freestyle app scaffold").
@@ -40,29 +43,35 @@ Two architectural principles, honored throughout every module described in this 
 - The original **Operations Platform** (13 build phases — architecture → SDK → live connectivity →
   Operations Engine → Application Shell → Operations Workspace → Message Investigation → Payload
   Studio → Recovery Center → Runtime Center → Certificate & Security Center) is **functionally
-  complete**: every workspace exists and either shows real tenant data or an honestly-labeled
-  placeholder. A feature-completion roadmap for the remaining placeholder screens was scoped (§6) but
-  **not started** — work was redirected to a second initiative instead.
+  complete**. The old Thread-B roadmap (§6) is still mostly untouched, **except Message Monitoring,
+  which this session reworked into a genuine JMS-retry + top-filter tool with a routed detail page**
+  (§4.8-A) — the first roadmap item actually delivered.
 - A second, later initiative — the **Universal CoE Framework** (6 modules layered on top of the same
   platform: Global Settings, Route Creation, Parameter Registry, DLQ & Recovery, Rule Builder, Partner
-  Dashboard) — was scoped, built, and iterated across multiple sessions. As of this handoff, **its
-  entire backlog is shipped and verified live against the real tenant** (§4.7). This was the primary
-  focus of the session this handoff was written at the end of.
+  Dashboard) — was scoped, built, and iterated across multiple sessions. Its original backlog shipped
+  in the 2026-07-15 session; **this session extended it** with two Rule Builder bug fixes and a new
+  inline "Disambiguation Rule" step in all three route-creation wizards (§4.8-B).
 
-**What's next is genuinely open** — see §6. Neither the original Phase 2–9 roadmap nor any new CoE
-work has been explicitly queued by the user as of this writing.
+**What's next is genuinely open** — see §6. The user has been driving feature-by-feature this session
+(Message Monitoring retry, then Rule Builder fixes, then the wizard rule step), each confirmed via
+`AskUserQuestion`/plan-mode at the point of ambiguity.
 
 ---
 
 ## 2. Current state of the UI
 
-**Both dev servers are up and verified healthy right now** (restarted and confirmed as the last action
-before writing this document):
+**Both dev servers were up and used for live verification throughout this session:**
 
 | Server | Port | Verified |
 |---|---|---|
-| Backend (`srv`, `npm run start:dev`, tsx watch) | `:4004` | `GET /api/v1/coe-admin` → `200`, real tenant data flowing (confirmed in logs: `partnerDirectory.getStringParameter` calls against `.SYS_JMS_FRAMEWORK` all `200`) |
-| Frontend (`app`, `ui5 serve`) | `:8080` | `GET /index.html` → `200` |
+| Backend (`srv`, `npm run start:dev`, tsx watch) | `:4004` | Real tenant data flowing; all §4.8 features live-verified against it and test artifacts cleaned up |
+| Frontend (`app`, `ui5 serve`) | `:8080` | `GET /index.html` → `200`. **Note:** the user has also run a second `ui5 serve` on `:8081` in their own browser — if a fix "isn't taking", confirm which port they're on and hard-refresh (SPA; already-loaded JS doesn't hot-swap). Also: `ui5 serve` fetches the SAPUI5 framework live from `https://ui5.sap.com` (per `ui5.yaml`), so "local" dev still needs internet. |
+
+**Fresh-clone setup** (a `.env` at repo root is the one gitignored thing you must recreate — it holds
+the trial tenant's OAuth secret): `npm install` → create `.env` with `CPI_PRIMARY_CLIENT_ID`/
+`CPI_PRIMARY_CLIENT_SECRET`/`JMS_QUEUE_DISCOVERY_MODE=Fetch_All` → `cd srv && npm run start:dev`
+(tsx-watch, no build needed) + `npm run start:app`. Node ≥ 20 / npm ≥ 10; no Java/CF CLI needed for
+local dev. Set `config/connectivity.json` `mode: "mock"` to run with seeded data and no `.env` at all.
 
 **⚠️ Known gotcha if you restart the backend after editing `config/*.json`:** `ConfigService`
 (`srv/src/config/ConfigService.ts`) reads every `config/*.json` file once at process boot and
@@ -96,19 +105,23 @@ Stop-Process -Id <pid> -Force
 
 | Fully live | Partially live | Still placeholder |
 |---|---|---|
-| Dashboard, Message Monitoring, Payload Studio, Recovery Center, Runtime Center | Message Replay (no real retry count), JMS Queues (Purge action not wired to a button), Certificate & Security Center (Security Materials mostly unavailable), Administration (connectivity status always "UNKNOWN") | Alerts, Audit Trail, Roles, Integration Advisor, Analytics, API Monitoring |
+| Dashboard, **Message Monitoring** (now incl. real JMS retry — §4.8-A), Payload Studio, Recovery Center, Runtime Center | Message Replay (no real retry count), JMS Queues (Purge action not wired to a button), Certificate & Security Center (Security Materials mostly unavailable), Administration (connectivity status always "UNKNOWN") | Alerts, Audit Trail, Roles, Integration Advisor, Analytics, API Monitoring |
 | **All 6 CoE Framework modules** (Global Settings, Route Creation + its 3 wizards, Parameter Registry, DLQ & Recovery, Rule Builder, Partner Dashboard) | | |
 
-The Operations Platform's placeholder/partial screens are unchanged from the previous handoff — none
-of that roadmap (§6, old Phases 2–9) has been touched. All movement since 2026-07-11 has been on the
-CoE Framework side.
+The remaining Operations Platform placeholder/partial screens are unchanged. This session's movement
+was **Message Monitoring** (Thread B) plus **Rule Builder / Route Creation** (Thread A) — see §4.8.
 
 ---
 
 ## 3. Files currently being worked on
 
-**None mid-edit.** The last completed unit of work (the Admin/DLQ UI-verification pass, §4.7's final
-item) was fully verified live and its memory notes written. There is no in-progress edit to resume.
+**None mid-edit.** The last completed unit of work (§4.8-B — the Rule Builder static-inheritance fix
+after the user hit `RuleBuilderController.buildRule is not a function` on a valid save, then the inline
+wizard rule step) was fully live-verified and memory notes written. No in-progress edit to resume.
+
+Two plans were run through plan-mode this session (Message Monitoring JMS retry, then the wizard rule
+step) — both approved, executed, and now complete. The plan file
+`~/.claude/plans/toasty-coalescing-pelican.md` currently holds the (finished) wizard-rule-step plan.
 
 **Ephemeral scratchpad scripts** from this session (session temp dir, **not part of the repo** —
 `C:\Users\duber\AppData\Local\Temp\claude\...\scratchpad\`, will not survive past this session/container).
@@ -278,10 +291,76 @@ are included for completeness since they're load-bearing context for everything 
     rendering fully blank cells for legitimately-empty tenant data (looked like a load failure) with a
     plain `'–'` fallback.
 
-**As of the end of item 11, the CoE Framework backlog is empty.** Backend test suite: 348/348 (up from
-266 at the start of this session — 82 new tests across the queue builder, Parameter Registry lookup
-endpoints, Partner Dashboard, and the route-key reverse-parsing helpers). Frontend `tsc`/ESLint clean
-throughout.
+**As of the end of item 11, the CoE Framework backlog was empty.** Backend test suite: 348/348 at that
+point. Frontend `tsc`/ESLint clean throughout.
+
+### 4.8 This session (2026-07-22)
+
+Two independent feature streams, both live-verified against the real tenant, both fully cleaned up
+after testing. Backend suite ended at **356/356** (348 + 8 new JMS-retry tests); frontend QUnit
+**131/131**; `tsc`/ESLint clean both sides.
+
+#### 4.8-A Message Monitoring — real JMS retry + top-filter layout + routed detail page
+
+The old Message Monitoring "Retry" action was a stub that just deep-linked to JMS Queues and retried
+nothing. Reworked into a real capability driven entirely by unfabricated tenant data (all confirmed
+against `$metadata.xml`, not assumed):
+
+- **Real custom-header reads**: `MessageEngine.getMessage()` hardcoded `customHeaders: {}`. Wired the
+  live `MessageProcessingLogs('id')/CustomHeaderProperties` nav property through a new
+  `IMonitoringProvider.getCustomHeaders` (Real + Mock). First real use of that nav property.
+- **JMS classification + retry resolution** (`srv/src/modules/message-monitoring/service.ts`): a
+  message is JMS-retryable iff its correlation group (via the existing `findByCorrelationId`) contains
+  the two **literal, fixed bridge iFlows `IF_JMS_ingress` and `IF_JMS_egress`** (user-confirmed names).
+  The target queue is parsed from the ingress entry's own `CH-Message-Queue` custom header — real value
+  format `📁 [PD Fetch Queue] Queue resolved via Direct Value [QUEUE_JMS_{RouteKey} = Common_JMS_ID_Ecom_P1]`,
+  parsed via `/\[[^[\]]*=\s*([^\]]+)\]\s*$/`. Presence is checked with a new **keyed** JMS lookup
+  (`IJmsProvider.getMessage`, composite key `(jmsMessageId, queueName)` — cheaper/honester than the old
+  scan-every-queue pattern), first on the resolved queue, then the fixed central DLQ `Common_JMS_ID_DLQ`.
+  Five business-rule constants live at the top of that service file — **change them there** if the
+  tenant's iFlow/queue/header naming differs.
+- **Cost control**: classification is split cheap (`checkJmsEligibility`, list-toggle-facing, one
+  correlation-group fetch) vs. expensive (`getRetryCheck`, header + up to 2 keyed queue reads,
+  retry-button-facing) — deliberately not run eagerly per row.
+- **Real retry execution**: `QueueEngine.retryMessage` → `JmsClient.retryMessage` → the tenant's
+  `RetryMessagingMessages` action. New routes: `GET /:id/jms-eligibility`, `GET /:id/retry-check`,
+  `POST /:id/retry` (the POST gated `requireScope("MessageReplay.Execute")`, same as every other retry
+  route).
+- **Frontend layout rework** (`view/messageMonitoring/List.view.xml` + controller): filter bar moved to
+  a **top bar** (quick search + Advanced Search toggle + JMS/Non-JMS `SegmentedButton`), full-width
+  multi-select grid, row actions (View Details / Retry / Download), single + bulk retry with a
+  per-item results dialog (`fragment/messageMonitoring/BulkRetryResultsDialog`), permission-gated bulk
+  button. Retry confirm dialogs follow the CoE `MessageBox.confirm → busy → toast` idiom.
+- **Routed detail page**: `#/messageMonitoring/{mplId}` (manifest pattern `messageMonitoring/:mplId::?query:`
+  — UI5 1.120 optional-path-param syntax, **now verified working live**, was previously flagged
+  unverified). Reuses the same route name (no new `NavigationService` wiring), embeds `DetailDrawer`
+  full-page, and appends a 4th, message-level breadcrumb via the pure `controller/messageMonitoring/DetailBreadcrumb.ts`
+  (unit-tested — `test/unit/DetailBreadcrumbTest.qunit.js`; caught a real A→B-navigation crumb-accumulation
+  bug the live click-through missed). "Expand" now navigates here instead of opening a Dialog.
+
+#### 4.8-B Rule Builder bug fixes + inline "Disambiguation Rule" wizard step
+
+Two real Rule Builder bugs the user hit, then a feature:
+
+- **X-Cast structural edits were completely dead** — every add-nested-if / else-if / else / remove
+  button read the flattened *row-view wrapper* (`{depth, node, isRoot, canRemove}`) instead of its
+  `.node`, so `node.nodeType` was `undefined` and they all silently no-op'd (field edits worked because
+  they bind through `node/…`). Fixed with a `rowNode()` unwrap.
+- **"Request validation failed" on save** was *correct* backend validation on an empty required field,
+  opaquely reported. Fixed with client-side pre-submit checks naming the exact field + `valueState`
+  markers, **and** a global `ErrorHandler` enhancement (`ErrorHandler.validationHint`) that appends the
+  failing zod field path to any VALIDATION-kind error app-wide.
+- **Feature — inline rule authoring during route creation** (user chose: dedicated wizard step, full
+  editor, both kinds). The editor was extracted for reuse: ~15 handlers + build/validate/apply/flatten/
+  locate helpers moved into a shared base `controller/coeRuleBuilder/RuleEditorHost.controller.ts`
+  (operating on a standard `view>/ruleEditor` slice — the Rule Builder was **migrated** from `/editor`);
+  the editor UI moved into `view/coeRuleBuilder/RuleEditorContent.fragment.xml`; state types live in
+  `model/coeRuleBuilder/RuleEditorState.ts`. `RuleBuilderController` and `CreationFlowController` both
+  now `extend RuleEditorHostController`, so all 3 wizards inherit the editor. Each wizard gained a
+  "Disambiguation Rule" `WizardStep` (before Review) that auto-enables + pre-fills from a detected
+  ruleset collision (registry PID from `check.agreementStorePid`, candidate name/routing from the route),
+  and saves the authored rule via `RuleBuilderService` after the route deploy creates the `RULESET_`
+  entry. Full detail: memory notes [[coe-visual-rule-builder]], [[coe-creation-hub]].
 
 ---
 
@@ -300,7 +379,13 @@ Preserved from the original handoff (still true), plus new entries from this ses
 | **(this session)** `kill -9 <pid>` against a PID from Git Bash's `ps aux` to restart the backend | Looked like it worked, but the real process was still holding the port; the new spawn crashed silently with `EADDRINUSE`, so the *old*, stale-config process kept serving requests | Found the true owning PID via PowerShell's `Get-NetTCPConnection -LocalPort 4004`, then `Stop-Process -Id <pid> -Force` |
 | **(this session)** Generic `document.querySelectorAll('textarea')[0]`-style controller lookup in verify scripts, once more than one Creation Hub wizard flow had been opened in the same headless session | Silently drove the *wrong* wizard's controller (all 3 flows are simultaneously instantiated in the DOM, with identical local ids) — produced confusing "it didn't work" results that were actually a test-script bug, not a product bug | Always resolve by the specific flow's static id suffix (`[id$="routerOnlyFlow"]`) |
 | **(this session)** Awaiting a controller's `void` fire-and-forget event-handler methods directly in verify scripts (`await ctrl.onSearch()`) | Read stale/`null` model state — the method returns before its internal async work finishes, matching the app's real UI5 press-handler convention (`void this.doAsyncThing()`) | Poll `/busy` true→false in the test script instead of awaiting the handler call |
-| **(this session)** Case-sensitive string matching for toast/dialog text in a couple of verify scripts (e.g. searching for `"Correct"` when the actual i18n text said `"correct"` mid-sentence) | False-negative "bug" that wasn't real | Re-checked the actual i18n key value before concluding a test failure was a product bug — always verify the exact string before writing an assertion against it |
+| **(2026-07-15)** Case-sensitive string matching for toast/dialog text in a couple of verify scripts (e.g. searching for `"Correct"` when the actual i18n text said `"correct"` mid-sentence) | False-negative "bug" that wasn't real | Re-checked the actual i18n key value before concluding a test failure was a product bug — always verify the exact string before writing an assertion against it |
+| **(2026-07-22)** Referencing an inherited `protected static` method through the **subclass** name (`RuleBuilderController.buildRule`, where `buildRule` is defined on the base `RuleEditorHostController`) | tsc accepted it, but at runtime the transpiled UI5 class output does **not** carry statics through the subclass name → `RuleBuilderController.buildRule is not a function` on Save. (The wizards worked because they reach it via an instance helper that uses the defining-class name internally.) | Always call an inherited static via the **defining** class name (`RuleEditorHostController.buildRule`), or wrap it in a `protected` instance method on the base |
+| **(2026-07-22)** Regression-testing the Rule Builder Save with only the *empty-field* path | The empty-field path returns at the validation guard **before** `buildRule` runs, so it never exercised the broken static call — the "green" regression missed the bug the user then hit on a valid save | When a method has an early-return guard, test the path that goes **past** it; a valid, complete save is a distinct code path from a blocked one |
+| **(2026-07-22)** Message Monitoring's Advanced Search button "not opening" after two prior fixes | Real cause was neither fix: moving the filter bar from `headerContent` into the page `<content>` put it **under the page-level busy overlay** (`busy="{view>/grid/busy}"` on the `Page`), which swallows clicks page-wide during every grid refresh | Scope the busy indicator to just the grid pane (`busy` on the grid `VBox`, not the `Page`) so the top bar stays interactive while the grid loads |
+| **(2026-07-22)** The collapsible Advanced Search panel rendered but showed nothing | CSS flexbox: the panel has `overflow:auto`, which makes its flex min-size `0`; its `flex-grow:1` sibling (the results Splitter) then squeezed it to **`height:1px`** — "visible" but invisible | Give the panel (and top toolbar) explicit `FlexItemData shrinkFactor="0"` so only the Splitter flexes |
+| **(2026-07-22)** A `sap.m.ToggleButton` press handler reading `event.getParameter("pressed")` | Wrong param name — returns `undefined`; the toggle silently did nothing. The codebase's own `onDensityChange` (same control type) already used the correct name | ToggleButton press fires with `state` (not `pressed`) — `event.getParameter("state")` |
+| **(2026-07-22)** Embedding the shared Rule-editor fragment (keys `coeRuleBuilder.*`) inside a coeRouter wizard step | i18n is per-module and never inherited — `getText`/`{i18n>…}` resolve against the *active view's* bundle, so ~35 editor keys rendered as raw key literals in the coeRouter module | Duplicated the editor keys verbatim into `i18n/coeRouter/i18n.properties` (both the fragment bindings and the host controller's `getText` messages). If you change an editor label, update **both** bundles |
 
 ---
 
@@ -319,7 +404,7 @@ redirected to Thread A instead):
 
 | Phase | Scope |
 |---|---|
-| 2 | **Message Monitoring**: filter-first UX, deeper MPL fields, client-side regex search. |
+| 2 | **Message Monitoring**: filter-first UX ✅ (top bar + Advanced Search toggle shipped §4.8-A), real JMS retry ✅, routed detail page ✅. Still open: deeper MPL fields, client-side regex search. |
 | 3 | **Recovery Center** gains a "Failed Messages" tab absorbing Message Replay's role (real retry counts + DLQ context); Message Replay retires once this ships. |
 | 4 | **JMS Queues** becomes a real per-queue monitor: health score, tenant-wide broker capacity context. |
 | 5 | **Runtime Center**: pre-filter the Integration Catalog; tighten tenant-wide-vs-per-flow caveats. |
@@ -431,15 +516,16 @@ actually re-inject.
 
 ### Testing
 
-- **Backend**: `srv/test/` (`node:test` via `tsx`), run with `npm test` inside `srv/`. **348/348
-  passing** as of this handoff (verified fresh, just now). Occasional flake observed once in ~10 runs
-  during this session in an unrelated pre-existing test, unreproducible — not traced to any change made
-  this session.
+- **Backend**: `srv/test/` (`node:test` via `tsx`), run with `npm test` inside `srv/`. **356/356
+  passing** as of this handoff (348 + 8 new JMS-retry tests: header parsing, eligibility classifier,
+  keyed queue lookup). Occasional rare flake in an unrelated pre-existing test, unreproducible.
 - **Frontend**: `app/webapp/test/` (QUnit unit + OPA5), SAP-standard location, runs in-browser via the
-  dev server. **Not re-run this session** (`tsc`/ESLint were used for the CoE work instead, plus live
-  CDP verification against the real tenant for every feature) — last known count from the 2026-07-11
-  handoff was 367/367; re-run before trusting that number now that 6 new modules + 21 total exist. No
-  CI runner wired yet (old Phase 8).
+  dev server (there is **no headless CI runner** — old Phase 8 — so it's driven via a raw-CDP script
+  that loads `test/unit/unitTests.qunit.html` and reads `#qunit-testresult`). **131/131 this session**
+  (added `DetailBreadcrumbTest`). New unit tests only cover *pure, framework-free* logic (the codebase
+  has no precedent for testing a full MVC controller); everything stateful is verified via live CDP
+  against the real tenant instead. Note: the 2026-07-15 "367/367" figure predates the layer-first
+  refactor's test consolidation — 131 is the current real count.
 
 ### Deployment target (not yet exercised end-to-end)
 
