@@ -144,6 +144,14 @@ export default class ModuleRegistry {
       requiredScope: "Administration.Manage",
     },
     {
+      id: "coePartnersRoutes",
+      titleKey: "module.coePartnersRoutes",
+      icon: Icons.module.coePartnersRoutes,
+      route: "coePartnersRoutes",
+      group: "administration",
+      phase: 20,
+    },
+    {
       id: "coeRouter",
       titleKey: "module.coeRouter",
       icon: Icons.module.coeRouter,

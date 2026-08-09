@@ -23,6 +23,7 @@ export const Icons = {
     integrationAdvisor: "sap-icon://lightbulb",
     analytics: "sap-icon://bar-chart",
     coeAdmin: "sap-icon://official-service",
+    coePartnersRoutes: "sap-icon://org-chart",
     coeRouter: "sap-icon://chain-link",
     coeRegistry: "sap-icon://tree",
     coeDlq: "sap-icon://alert",

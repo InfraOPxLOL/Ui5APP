@@ -108,7 +108,14 @@
                 <Input
                   value="{view>/target/targetPid}"
                   valueState="{= ${view>/target/targetPid} === '' ? 'Error' : 'None' }"
-                  placeholder="PID_SALESFORCE_CORE" />
+                  placeholder="PID_SALESFORCE_CORE"
+                  showSuggestion="true"
+                  autocomplete="true"
+                  suggestionItems="{view>/partnerSuggestions}">
+                  <suggestionItems>
+                    <core:ListItem text="{view>pid}" additionalText="{view>info}" />
+                  </suggestionItems>
+                </Input>
               </form:content>
             </form:SimpleForm>
             <Button

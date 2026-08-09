@@ -16,8 +16,21 @@
 }
 .investigationAdvancedPanel {
   border-bottom: 1px solid var(--sapList_BorderColor, rgba(127, 127, 127, 0.3));
-  max-height: 60vh;
+  /* The criteria now flow into a 4/3/2-column grid, so the panel is naturally short — cap it well
+     below the old 60vh so the results grid always stays on screen. */
+  max-height: 42vh;
   overflow: auto;
+  background: var(--sapObjectHeader_Background, transparent);
+}
+.investigationAdvancedInner {
+  padding: 0.5rem 1rem 0.75rem;
+}
+.investigationSmartFilterRow {
+  padding-bottom: 0.25rem;
+}
+/* ColumnLayout already sizes each field to its column; keep selects from stretching further. */
+.investigationCriteriaForm .sapMSlt {
+  min-width: 8rem;
 }
 .investigationDetailPage {
   overflow: auto;

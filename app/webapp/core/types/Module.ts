@@ -29,6 +29,7 @@ export type ModuleId =
   | "integrationAdvisor"
   | "analytics"
   | "coeAdmin"
+  | "coePartnersRoutes"
   | "coeRouter"
   | "coeRegistry"
   | "coeDlq"

@@ -118,7 +118,14 @@
                 <Input
                   value="{view>/router/finalTargetPid}"
                   valueState="{= ${view>/router/finalTargetPid} === '' ? 'Error' : 'None' }"
-                  placeholder="PID_SALESFORCE_CORE" />
+                  placeholder="PID_SALESFORCE_CORE"
+                  showSuggestion="true"
+                  autocomplete="true"
+                  suggestionItems="{view>/partnerSuggestions}">
+                  <suggestionItems>
+                    <core:ListItem text="{view>pid}" additionalText="{view>info}" />
+                  </suggestionItems>
+                </Input>
                 <Label text="{i18n>coeRouter.field.routeKey}" />
                 <Text text="{view>/idoc/routeKey}" />
               </form:content>

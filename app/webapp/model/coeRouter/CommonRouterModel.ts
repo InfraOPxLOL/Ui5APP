@@ -1,4 +1,5 @@
 import JSONModel from "sap/ui/model/json/JSONModel";
+import type { PartnerSuggestion } from "../../controller/coeRouter/CreationFlowController";
 import type { IdocState } from "./RouteWizardModel";
 import { blankEditor, type EditorState } from "../coeRuleBuilder/RuleEditorState";
 import type {
@@ -24,6 +25,8 @@ export interface CommonRouterState {
   collision: RouteAgreementCheck | null;
   deployResult: RouteDeployResult | null;
   ruleStepEnabled: boolean;
+  /** Known Partner IDs offered as type-ahead suggestions under the Final Target PID field. */
+  partnerSuggestions: PartnerSuggestion[];
   ruleEditor: EditorState;
 }
 
@@ -54,6 +57,7 @@ export default class CommonRouterModel extends JSONModel {
       collision: null,
       deployResult: null,
       ruleStepEnabled: false,
+      partnerSuggestions: [],
       ruleEditor: blankEditor(""),
     };
     super(initial);

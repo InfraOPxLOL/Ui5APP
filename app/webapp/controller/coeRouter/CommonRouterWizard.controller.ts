@@ -29,11 +29,13 @@ export default class CommonRouterWizardController extends CreationFlowController
   /** Lifecycle hook: installs the view model. */
   public onInit(): void {
     this.setModel(new CommonRouterModel(), "view");
+    void this.loadPartnerSuggestions();
   }
 
   /** Lifecycle hook: aborts any in-flight agreement check. */
   public onExit(): void {
     this.checkAbort?.abort();
+    this.abortPartnerSuggestions();
   }
 
   /**

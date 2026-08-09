@@ -16,6 +16,7 @@
     "integrationAdvisor": { "enabled": false },
     "analytics": { "enabled": false },
     "coeAdmin": { "enabled": true },
+    "coePartnersRoutes": { "enabled": true },
     "coeRouter": { "enabled": true },
     "coeRegistry": { "enabled": true },
     "coeDlq": { "enabled": true },

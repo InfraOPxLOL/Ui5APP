@@ -257,10 +257,17 @@ export default class ListController extends BaseController {
     MessageToast.show(this.getText("investigation.search.saved", [name]));
   }
 
-  /** Loads a saved search's criteria and re-runs it. */
+  /**
+   * Loads a saved search's criteria and re-runs it. Driven by the compact saved-search `Select`, so
+   * the id comes from the selected item's key (not a row binding context).
+   */
   public onLoadSavedSearch(event: Event): void {
-    const id = ListController.contextOf<{ id: string }>(event)?.id;
-    const saved = id === undefined ? undefined : this.savedSearches.get(id);
+    const item = event.getParameter("selectedItem" as never) as
+      | { getKey(): string }
+      | undefined
+      | null;
+    const id = item?.getKey();
+    const saved = id === undefined || id === "" ? undefined : this.savedSearches.get(id);
     if (saved === undefined) {
       return;
     }
@@ -270,14 +277,15 @@ export default class ListController extends BaseController {
     void this.refresh();
   }
 
-  /** Deletes a saved search. */
-  public onDeleteSavedSearch(event: Event): void {
-    const id = ListController.contextOf<{ id: string }>(event)?.id;
-    if (id === undefined) {
+  /** Deletes the saved search currently chosen in the saved-search `Select`. */
+  public onDeleteSavedSearch(): void {
+    const id = this.model().getProperty("/selectedSavedSearchId") as string;
+    if (id === "") {
       return;
     }
     this.savedSearches.remove(id);
     this.model().setProperty("/savedSearches", [...this.savedSearches.getAll()]);
+    this.model().setProperty("/selectedSavedSearchId", "");
   }
 
   // --- Row selection / Context Panel -------------------------------------------
@@ -805,9 +813,8 @@ export default class ListController extends BaseController {
 
   /** Toggles the grid's density preset. */
   public onDensityChange(event: Event): void {
-    const density = (event.getParameter("state" as never) as boolean | undefined)
-      ? "cozy"
-      : "compact";
+    // See `onToggleAdvancedSearch` — ToggleButton's press parameter is `pressed`, not `state`.
+    const density = event.getParameter("pressed" as never) === true ? "cozy" : "compact";
     this.grid.setDensity(density);
     this.model().setProperty("/grid/density", density);
   }
@@ -1014,9 +1021,16 @@ export default class ListController extends BaseController {
     });
   }
 
-  /** Toggles the top Advanced Search panel's open state. */
+  /**
+   * Toggles the top Advanced Search panel's open state.
+   *
+   * `sap.m.ToggleButton`'s `press` event carries **`pressed`** (not `state` — that's `sap.m.Switch`'s
+   * `change` parameter). Reading the wrong name yields `undefined`, and assigning `undefined` to a UI5
+   * boolean property *resets it to its default* — for `visible` that default is `true`, so the panel
+   * would open and then never close again.
+   */
   public onToggleAdvancedSearch(event: Event): void {
-    const open = event.getParameter("state" as never) as boolean;
+    const open = event.getParameter("pressed" as never) === true;
     this.model().setProperty("/advancedSearchOpen", open);
     this.panelLayout.update({ advancedSearchOpen: open });
   }

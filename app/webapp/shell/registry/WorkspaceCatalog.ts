@@ -122,13 +122,14 @@ export const DEFAULT_WORKSPACES: readonly WorkspaceDefinition[] = [
     showInSidebar: true,
     moduleIds: [
       "coeAdmin",
+      "coePartnersRoutes",
       "coeRouter",
       "coeRegistry",
       "coeDlq",
       "coeRuleBuilder",
       "coePartnerDashboard",
     ],
-    defaultRoute: "coeRouter",
+    defaultRoute: "coePartnersRoutes",
   },
 ];
 
@@ -272,18 +273,33 @@ export const DEFAULT_MODULE_METADATA: readonly ShellModuleMetadata[] = [
   },
   {
     // Developer / operational tiles — general visibility (spec §2), so no permission gate.
-    moduleId: "coeRouter",
+    // The consolidated shell: hosts Route Creation, Partner Dashboard, Parameter Registry and the
+    // Rule Builder as tabs (see `view/coePartnersRoutes/PartnersRoutes.view.xml`).
+    moduleId: "coePartnersRoutes",
     workspace: Workspaces.CoE,
     navigationOrder: 20,
     showLandingCard: true,
     showInSidebar: true,
   },
+  // The four modules below are now tabs inside `coePartnersRoutes`. Their routes are deliberately
+  // kept alive (and retargeted to the shell in `manifest.json`) so every existing deep link still
+  // resolves — the wizards' ruleset follow-up into the Rule Builder, and Partner Dashboard's
+  // deep-link-to-edit into the wizards. `showInSidebar: false` removes them from the sidebar while
+  // `isModuleVisible = showInSidebar && isModuleAuthorized` keeps them routable and authorized, so
+  // they must also stay `enabled` in `config/features.json` or `RouteGuard` would deny them.
+  {
+    moduleId: "coeRouter",
+    workspace: Workspaces.CoE,
+    navigationOrder: 21,
+    showLandingCard: false,
+    showInSidebar: false,
+  },
   {
     moduleId: "coeRegistry",
     workspace: Workspaces.CoE,
     navigationOrder: 40,
-    showLandingCard: true,
-    showInSidebar: true,
+    showLandingCard: false,
+    showInSidebar: false,
   },
   {
     moduleId: "coeDlq",
@@ -296,14 +312,14 @@ export const DEFAULT_MODULE_METADATA: readonly ShellModuleMetadata[] = [
     moduleId: "coeRuleBuilder",
     workspace: Workspaces.CoE,
     navigationOrder: 60,
-    showLandingCard: true,
-    showInSidebar: true,
+    showLandingCard: false,
+    showInSidebar: false,
   },
   {
     moduleId: "coePartnerDashboard",
     workspace: Workspaces.CoE,
     navigationOrder: 45,
-    showLandingCard: true,
-    showInSidebar: true,
+    showLandingCard: false,
+    showInSidebar: false,
   },
 ];

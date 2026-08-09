@@ -1,26 +1,28 @@
 <!--
-  Advanced Search Panel (§ Advanced Search) — the workspace's left pane.
+  Advanced Search Panel (§ Advanced Search) — the collapsible criteria panel below the top filter bar.
 
-  Every field two-way binds directly into `view>/criteria` (a `MessageSearchCriteria`); pressing
-  Search re-runs the query from page 1. Smart filters, saved searches and quick filters are metadata-
-  driven from `view>/smartFilters` / `view>/savedSearches` (session-only).
+  Laid out as a responsive multi-column `SimpleForm`/`ColumnLayout` (4 columns XL → 1 column S) rather
+  than a stack of full-width rows: every criterion here is a short token (a status word, a partner id,
+  a message type), so full-width inputs wasted the whole viewport and pushed the results grid off
+  screen. Fields two-way bind directly into `view>/criteria` (a `MessageSearchCriteria`); pressing
+  Search re-runs the query from page 1. Smart filters and saved searches are metadata-driven from
+  `view>/smartFilters` / `view>/savedSearches` (session-only).
 -->
 <core:FragmentDefinition
   xmlns="sap.m"
   xmlns:core="sap.ui.core"
-  xmlns:l="sap.ui.layout">
-  <ScrollContainer height="100%" vertical="true" class="investigationSearchScroll">
-    <l:VerticalLayout width="100%" class="sapUiSmallMargin">
+  xmlns:l="sap.ui.layout"
+  xmlns:form="sap.ui.layout.form">
+  <VBox class="investigationAdvancedInner">
 
-      <Title text="{i18n>investigation.search.title}" level="H4" class="sapUiTinyMarginBottom" />
-
-      <!-- Smart filters -->
-      <Text text="{i18n>investigation.search.smartFilters}" class="investigationSearchLabel" />
+    <!-- Smart filters: one-click presets over the same criteria object -->
+    <HBox alignItems="Center" wrap="Wrap" class="investigationSmartFilterRow">
+      <Label text="{i18n>investigation.search.smartFilters}" design="Bold" class="sapUiTinyMarginEnd" />
       <FlexBox items="{view>/smartFilters}" wrap="Wrap" class="investigationSmartFilters">
         <Button
           text="{view>title}"
           icon="{view>icon}"
-          type="{= ${view>/activeSmartFilter} === ${view>id} ? 'Emphasized' : 'Default' }"
+          type="{= ${view>/activeSmartFilter} === ${view>id} ? 'Emphasized' : 'Transparent' }"
           press=".onSmartFilterPress"
           class="sapUiTinyMarginEnd sapUiTinyMarginBottom">
           <customData>
@@ -28,96 +30,133 @@
           </customData>
         </Button>
       </FlexBox>
+    </HBox>
 
-      <Label text="{i18n>investigation.search.status}" labelFor="critStatus" />
-      <Select id="critStatus" width="100%" selectedKey="{view>/criteria/status}">
-        <core:Item key="" text="{i18n>investigation.search.any}" />
-        <core:Item key="COMPLETED" text="COMPLETED" />
-        <core:Item key="FAILED" text="FAILED" />
-        <core:Item key="PROCESSING" text="PROCESSING" />
-        <core:Item key="RETRY" text="RETRY" />
-        <core:Item key="ESCALATED" text="ESCALATED" />
+    <!-- Criteria grid: 4 columns on XL, 3 on L, 2 on M, 1 on S -->
+    <form:SimpleForm
+      editable="true"
+      layout="ColumnLayout"
+      columnsXL="4"
+      columnsL="3"
+      columnsM="2"
+      labelSpanXL="12"
+      labelSpanL="12"
+      labelSpanM="12"
+      labelSpanS="12"
+      class="investigationCriteriaForm">
+      <form:content>
+
+        <Label text="{i18n>investigation.search.status}" labelFor="critStatus" />
+        <Select id="critStatus" selectedKey="{view>/criteria/status}" autoAdjustWidth="true">
+          <core:Item key="" text="{i18n>investigation.search.any}" />
+          <core:Item key="COMPLETED" text="COMPLETED" />
+          <core:Item key="FAILED" text="FAILED" />
+          <core:Item key="PROCESSING" text="PROCESSING" />
+          <core:Item key="RETRY" text="RETRY" />
+          <core:Item key="ESCALATED" text="ESCALATED" />
+        </Select>
+
+        <Label text="{i18n>investigation.search.severity}" labelFor="critSeverity" />
+        <Select id="critSeverity" selectedKey="{view>/criteria/severity}" autoAdjustWidth="true">
+          <core:Item key="" text="{i18n>investigation.search.any}" />
+          <core:Item key="info" text="Info" />
+          <core:Item key="warning" text="Warning" />
+          <core:Item key="error" text="Error" />
+          <core:Item key="critical" text="Critical" />
+        </Select>
+
+        <Label text="{i18n>column.applicationId}" labelFor="critAppId" />
+        <Input id="critAppId" value="{view>/criteria/applicationId}" placeholder="IDOC-2828…" />
+
+        <Label text="{i18n>investigation.search.sapMessageType}" labelFor="critMessageType" />
+        <Input id="critMessageType" value="{view>/criteria/messageType}" placeholder="DESADV" />
+
+        <Label text="{i18n>investigation.search.sapSender}" labelFor="critSender" />
+        <Input id="critSender" value="{view>/criteria/sender}" placeholder="Shopify" />
+
+        <Label text="{i18n>investigation.search.sapReceiver}" labelFor="critReceiver" />
+        <Input id="critReceiver" value="{view>/criteria/receiver}" placeholder="HML" />
+
+        <Label text="{i18n>column.customStatus}" labelFor="critCustomStatus" />
+        <Input id="critCustomStatus" value="{view>/criteria/customStatus}" />
+
+        <Label text="{i18n>column.correlationId}" labelFor="critCorrelationId" />
+        <Input id="critCorrelationId" value="{view>/criteria/correlationId}" />
+
+        <Label text="{i18n>column.queue}" labelFor="critQueue" />
+        <Input id="critQueue" value="{view>/criteria/queue}" placeholder="Common_JMS_ID_…" />
+
+        <Label text="{i18n>investigation.search.freeText}" labelFor="critSearch" />
+        <Input id="critSearch" value="{view>/criteria/search}" />
+
+        <Label text="{i18n>investigation.search.dateFrom}" labelFor="critDateFrom" />
+        <DateTimePicker id="critDateFrom" value="{view>/criteria/dateFrom}" />
+
+        <Label text="{i18n>investigation.search.dateTo}" labelFor="critDateTo" />
+        <DateTimePicker id="critDateTo" value="{view>/criteria/dateTo}" />
+
+        <!-- Only controls implementing sap.ui.core.IFormContent are valid SimpleForm content —
+             a layout container (HBox/VBox) here throws and kills the whole form render. -->
+        <Label text="{i18n>investigation.search.durationMin}" labelFor="critDurationMin" />
+        <StepInput id="critDurationMin" min="0" step="100" value="{view>/criteria/durationMinMs}" />
+
+        <Label text="{i18n>investigation.search.durationMax}" labelFor="critDurationMax" />
+        <StepInput id="critDurationMax" min="0" step="100" value="{view>/criteria/durationMaxMs}" />
+
+      </form:content>
+    </form:SimpleForm>
+
+    <!-- Boolean post-filters: kept outside the form so they can sit inline on one compact row -->
+    <HBox alignItems="Center" wrap="Wrap" class="investigationSearchFlags">
+      <CheckBox
+        text="{i18n>investigation.search.hasAttachments}"
+        selected="{view>/criteria/hasAttachments}"
+        class="sapUiMediumMarginEnd" />
+      <CheckBox
+        text="{i18n>investigation.search.hasPayload}"
+        selected="{view>/criteria/hasPayload}" />
+    </HBox>
+
+    <!-- Actions + saved searches, on one compact row -->
+    <HBox alignItems="Center" wrap="Wrap" class="investigationSearchActions">
+      <Button
+        text="{i18n>investigation.search.execute}"
+        type="Emphasized"
+        icon="sap-icon://search"
+        press=".onSearchExecute"
+        class="sapUiTinyMarginEnd" />
+      <Button
+        text="{i18n>investigation.search.clear}"
+        press=".onSearchClear"
+        class="sapUiMediumMarginEnd" />
+
+      <Input
+        placeholder="{i18n>investigation.search.saveNamePlaceholder}"
+        value="{view>/newSavedSearchName}"
+        width="12rem"
+        class="sapUiTinyMarginEnd" />
+      <Button
+        text="{i18n>investigation.search.save}"
+        icon="sap-icon://save"
+        press=".onSaveSearch"
+        class="sapUiTinyMarginEnd" />
+      <Select
+        selectedKey="{view>/selectedSavedSearchId}"
+        items="{view>/savedSearches}"
+        change=".onLoadSavedSearch"
+        autoAdjustWidth="true"
+        forceSelection="false"
+        tooltip="{i18n>investigation.search.savedSearches}"
+        class="sapUiTinyMarginEnd">
+        <core:Item key="{view>id}" text="{view>name}" />
       </Select>
+      <Button
+        icon="sap-icon://delete"
+        type="Transparent"
+        tooltip="{i18n>investigation.search.deleteSaved}"
+        enabled="{= ${view>/selectedSavedSearchId} !== '' }"
+        press=".onDeleteSavedSearch" />
+    </HBox>
 
-      <Label text="{i18n>investigation.search.severity}" labelFor="critSeverity" />
-      <Select id="critSeverity" width="100%" selectedKey="{view>/criteria/severity}">
-        <core:Item key="" text="{i18n>investigation.search.any}" />
-        <core:Item key="info" text="Info" />
-        <core:Item key="warning" text="Warning" />
-        <core:Item key="error" text="Error" />
-        <core:Item key="critical" text="Critical" />
-      </Select>
-
-      <Label text="{i18n>column.applicationId}" labelFor="critAppId" />
-      <Input id="critAppId" width="100%" value="{view>/criteria/applicationId}" />
-
-      <Label text="{i18n>investigation.search.sapSender}" labelFor="critSender" />
-      <Input id="critSender" width="100%" value="{view>/criteria/sender}" />
-
-      <Label text="{i18n>investigation.search.sapReceiver}" labelFor="critReceiver" />
-      <Input id="critReceiver" width="100%" value="{view>/criteria/receiver}" />
-
-      <Label text="{i18n>investigation.search.sapMessageType}" labelFor="critMessageType" />
-      <Input id="critMessageType" width="100%" value="{view>/criteria/messageType}" />
-
-      <Label text="{i18n>column.customStatus}" labelFor="critCustomStatus" />
-      <Input id="critCustomStatus" width="100%" value="{view>/criteria/customStatus}" />
-
-      <Label text="{i18n>column.correlationId}" labelFor="critCorrelationId" />
-      <Input id="critCorrelationId" width="100%" value="{view>/criteria/correlationId}" />
-
-      <Label text="{i18n>column.queue}" labelFor="critQueue" />
-      <Input id="critQueue" width="100%" value="{view>/criteria/queue}" />
-
-      <Label text="{i18n>investigation.search.freeText}" labelFor="critSearch" />
-      <Input id="critSearch" width="100%" value="{view>/criteria/search}" />
-
-      <Label text="{i18n>investigation.search.dateFrom}" labelFor="critDateFrom" />
-      <DateTimePicker id="critDateFrom" width="100%" value="{view>/criteria/dateFrom}" />
-
-      <Label text="{i18n>investigation.search.dateTo}" labelFor="critDateTo" />
-      <DateTimePicker id="critDateTo" width="100%" value="{view>/criteria/dateTo}" />
-
-      <Label text="{i18n>investigation.search.durationMin}" labelFor="critDurationMin" />
-      <StepInput id="critDurationMin" width="100%" min="0" value="{view>/criteria/durationMinMs}" />
-
-      <Label text="{i18n>investigation.search.durationMax}" labelFor="critDurationMax" />
-      <StepInput id="critDurationMax" width="100%" min="0" value="{view>/criteria/durationMaxMs}" />
-
-      <CheckBox text="{i18n>investigation.search.hasAttachments}" selected="{view>/criteria/hasAttachments}" />
-      <CheckBox text="{i18n>investigation.search.hasPayload}" selected="{view>/criteria/hasPayload}" />
-
-      <HBox class="sapUiSmallMarginTop investigationSearchActions">
-        <Button
-          text="{i18n>investigation.search.execute}"
-          type="Emphasized"
-          press=".onSearchExecute"
-          class="sapUiTinyMarginEnd" />
-        <Button text="{i18n>investigation.search.clear}" press=".onSearchClear" />
-      </HBox>
-
-      <!-- Saved searches -->
-      <Title text="{i18n>investigation.search.savedSearches}" level="H5" class="sapUiSmallMarginTop" />
-      <HBox class="sapUiTinyMarginBottom">
-        <Input
-          placeholder="{i18n>investigation.search.saveNamePlaceholder}"
-          value="{view>/newSavedSearchName}"
-          width="70%"
-          class="sapUiTinyMarginEnd" />
-        <Button text="{i18n>investigation.search.save}" press=".onSaveSearch" />
-      </HBox>
-      <List items="{view>/savedSearches}" noDataText="{i18n>investigation.search.noSaved}">
-        <StandardListItem
-          title="{view>name}"
-          type="Active"
-          press=".onLoadSavedSearch"
-          icon="sap-icon://search">
-          <customData>
-            <core:CustomData key="id" value="{view>id}" writeToDom="false" />
-          </customData>
-        </StandardListItem>
-      </List>
-
-    </l:VerticalLayout>
-  </ScrollContainer>
+  </VBox>
 </core:FragmentDefinition>

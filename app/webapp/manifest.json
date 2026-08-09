@@ -180,14 +180,19 @@
           "target": "coeAdmin"
         },
         {
+          "name": "coePartnersRoutes",
+          "pattern": "coePartnersRoutes",
+          "target": "coePartnersRoutes"
+        },
+        {
           "name": "coeRouter",
           "pattern": "coeRouter:?query:",
-          "target": "coeRouter"
+          "target": "coePartnersRoutes"
         },
         {
           "name": "coeRegistry",
           "pattern": "coeRegistry",
-          "target": "coeRegistry"
+          "target": "coePartnersRoutes"
         },
         {
           "name": "coeDlq",
@@ -197,12 +202,12 @@
         {
           "name": "coeRuleBuilder",
           "pattern": "coeRuleBuilder:?query:",
-          "target": "coeRuleBuilder"
+          "target": "coePartnersRoutes"
         },
         {
           "name": "coePartnerDashboard",
           "pattern": "coePartnerDashboard",
-          "target": "coePartnerDashboard"
+          "target": "coePartnersRoutes"
         }
       ],
       "targets": {
@@ -325,16 +330,9 @@
           "controlAggregation": "pages",
           "controlId": "moduleContainer"
         },
-        "coeRouter": {
+        "coePartnersRoutes": {
           "type": "View",
-          "name": "com.middlewareops.integrationportal.view.coeRouter.Hub",
-          "viewType": "XML",
-          "controlAggregation": "pages",
-          "controlId": "moduleContainer"
-        },
-        "coeRegistry": {
-          "type": "View",
-          "name": "com.middlewareops.integrationportal.view.coeRegistry.Registry",
+          "name": "com.middlewareops.integrationportal.view.coePartnersRoutes.PartnersRoutes",
           "viewType": "XML",
           "controlAggregation": "pages",
           "controlId": "moduleContainer"
@@ -342,20 +340,6 @@
         "coeDlq": {
           "type": "View",
           "name": "com.middlewareops.integrationportal.view.coeDlq.Dlq",
-          "viewType": "XML",
-          "controlAggregation": "pages",
-          "controlId": "moduleContainer"
-        },
-        "coeRuleBuilder": {
-          "type": "View",
-          "name": "com.middlewareops.integrationportal.view.coeRuleBuilder.RuleBuilder",
-          "viewType": "XML",
-          "controlAggregation": "pages",
-          "controlId": "moduleContainer"
-        },
-        "coePartnerDashboard": {
-          "type": "View",
-          "name": "com.middlewareops.integrationportal.view.coePartnerDashboard.PartnerDashboard",
           "viewType": "XML",
           "controlAggregation": "pages",
           "controlId": "moduleContainer"

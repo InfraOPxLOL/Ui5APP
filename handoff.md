@@ -362,6 +362,52 @@ Two real Rule Builder bugs the user hit, then a feature:
   and saves the authored rule via `RuleBuilderService` after the route deploy creates the `RULESET_`
   entry. Full detail: memory notes [[coe-visual-rule-builder]], [[coe-creation-hub]].
 
+### 4.9 UX pass: Message Monitoring fixes + CoE workspace consolidation (2026-08-03)
+
+**Message Monitoring**
+- **Advanced Search would open but never close** — root cause was a bug introduced by an earlier
+  "fix" in this same session: `sap.m.ToggleButton`'s `press` carries **`pressed`**, not `state`
+  (`state` belongs to `sap.m.Switch`'s `change`). Reading the wrong name yields `undefined`, and
+  assigning `undefined` to a UI5 boolean property **resets it to its default** — `visible` defaults
+  to `true`, so the panel could never hide. The same bug had silently pinned the density toggle to
+  "compact"; both fixed.
+- **Filter layout compacted** — the criteria moved from 14 stacked full-width rows into a responsive
+  4/3/2-column `SimpleForm`/`ColumnLayout`: panel height **403px (was ~590px+)**, fields ~350px, 4
+  rows. Saved-search load/delete moved into a compact `Select` + delete button.
+- **Target PID type-ahead** on all three wizards, from
+  `CreationFlowController.loadPartnerSuggestions()` → `GET /api/v1/coe-partner-dashboard`. Kept a
+  free-text `Input` with `showSuggestion` rather than a `Select`, because the PID list is *derived*
+  from the agreement registries — a partner being onboarded right now is legitimately absent, and a
+  closed list would make it un-enterable.
+
+**CoE workspace: 6 sidebar entries → 3** (`coePartnersRoutes`)
+New tabbed shell `view/coePartnersRoutes/PartnersRoutes.view.xml` + controller. Sidebar is now
+**Partners & Routes · DLQ & Recovery · CoE Global Settings**. Entry is partner-first: partner list →
+that partner's decoded routes → "New Route" opens the Creation Hub in place ("Back to Partners"
+returns).
+
+*Compose, don't rewrite* — the tabs embed the **existing, unmodified** Partner Dashboard, Route
+Creation Hub, Parameter Registry and Rule Builder views as nested `<mvc:XMLView>`. No logic changed
+in those four modules, so wizards/ruleset escalation/inline rule editor/deep-link-to-edit all kept
+working. Reuse this pattern for future merges.
+
+Three mechanisms made it safe, all live-verified:
+1. **Nested-view i18n** — `Component.applyModuleI18n` only fires for *routed target* views, so
+   nested views would silently render raw `{i18n>…}` keys. Extracted the bundle build+cache to
+   `core/utils/ModuleI18n.ts` (`getModuleI18nModel`), applied per nested view by the shell's
+   `applyNestedI18n()`. **Not** solved by duplicating keys.
+2. **Deep links preserved** — all four original route names kept and simply *retargeted* to the one
+   shell target in `manifest.json`; the shell's `onRouteMatched` selects the tab. Because
+   `attachPatternMatched` binds to the **route, not the view**, the nested controllers' own handlers
+   still fire (verified: wizard→Rule Builder opens the editor pre-filled with pid+ruleName; Partner
+   Dashboard→wizard prefills targetPid/sndprn).
+3. **Sidebar hiding** — `showInSidebar:false` in `WorkspaceCatalog.ts`
+   (`isModuleVisible = showInSidebar && isModuleAuthorized`) hides the entry while keeping the route
+   authorized; the merged modules therefore stay `enabled:true` in `config/features.json`.
+
+Gates after this pass: backend **356/356**, frontend QUnit **131/131**, `tsc`/ESLint clean. No test
+artifacts left on the tenant (rule list empty, partner list unchanged at 7).
+
 ---
 
 ## 5. What was tried that failed (and the fix)
@@ -386,6 +432,9 @@ Preserved from the original handoff (still true), plus new entries from this ses
 | **(2026-07-22)** The collapsible Advanced Search panel rendered but showed nothing | CSS flexbox: the panel has `overflow:auto`, which makes its flex min-size `0`; its `flex-grow:1` sibling (the results Splitter) then squeezed it to **`height:1px`** — "visible" but invisible | Give the panel (and top toolbar) explicit `FlexItemData shrinkFactor="0"` so only the Splitter flexes |
 | **(2026-07-22)** A `sap.m.ToggleButton` press handler reading `event.getParameter("pressed")` | Wrong param name — returns `undefined`; the toggle silently did nothing. The codebase's own `onDensityChange` (same control type) already used the correct name | ToggleButton press fires with `state` (not `pressed`) — `event.getParameter("state")` |
 | **(2026-07-22)** Embedding the shared Rule-editor fragment (keys `coeRuleBuilder.*`) inside a coeRouter wizard step | i18n is per-module and never inherited — `getText`/`{i18n>…}` resolve against the *active view's* bundle, so ~35 editor keys rendered as raw key literals in the coeRouter module | Duplicated the editor keys verbatim into `i18n/coeRouter/i18n.properties` (both the fragment bindings and the host controller's `getText` messages). If you change an editor label, update **both** bundles |
+| **(2026-08-03)** Reading a `sap.m.ToggleButton` press as `event.getParameter("state")` (copied from `onDensityChange`, which was itself already broken this way) | `state` is `sap.m.Switch`'s parameter, so this returns `undefined`; assigning `undefined` to a UI5 boolean property **resets it to its default**, and `visible` defaults to `true` — so the Advanced Search panel opened and could **never** close, and the density toggle was permanently "compact" | ToggleButton press carries **`pressed`**: `event.getParameter("pressed") === true`. Verify the actual event parameter in `@sapui5/types` rather than copying a neighbouring handler |
+| **(2026-08-03)** Putting an `HBox` inside `form:content` of a `SimpleForm`/`ColumnLayout` (to group two duration fields on one row) | `Element sap.m.HBox is not a valid Form content!` — thrown at render, which killed the **entire** form, so the whole Advanced Search panel silently failed to appear (easy to misdiagnose as a data/visibility problem) | Only controls implementing `sap.ui.core.IFormContent` may be form content (`Input`, `Select`, `CheckBox`, `StepInput`, `DateTimePicker`, …). Move layout containers **outside** `form:content` |
+| **(2026-08-03)** Assuming a nested `<mvc:XMLView>` would get its own module i18n bundle | `Component.applyModuleI18n` is bound to `router.attachRouteMatched` and only ever sees the *routed target* view, so nested views inherit the host's bundle and render raw `{i18n>…}` keys with no error | Extracted `core/utils/ModuleI18n.getModuleI18nModel(moduleId)` and applied it explicitly per nested view in the hosting controller (`PartnersRoutes.applyNestedI18n`) |
 
 ---
 

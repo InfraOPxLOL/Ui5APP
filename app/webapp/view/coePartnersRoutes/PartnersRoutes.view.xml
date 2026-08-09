@@ -1,0 +1,93 @@
+<!--
+  Partners & Routes — the consolidated CoE workspace shell.
+
+  The CoE framework previously exposed six sidebar entries; operating it meant constantly jumping
+  between Route Creation (which opened straight onto "pick a wizard", with no partner context) and
+  Partner Dashboard (which already listed every partner, their decoded routes, and deep-linked into
+  those very wizards). This view merges those halves plus the Parameter Registry and Rule Builder
+  into one tabbed destination, leaving three CoE sidebar entries in total.
+
+  **Composition, not reimplementation.** Each tab embeds the module's *existing, unchanged* view as
+  a nested `XMLView`, so every controller, model and service behind them keeps working exactly as it
+  did — including the wizards, ruleset escalation, the inline rule editor and deep-link-to-edit.
+
+  Nested views are not routed targets, so `Component`'s route-driven `applyModuleI18n` never fires
+  for them; `PartnersRoutes.controller` attaches each one's own bundle explicitly (see its
+  `applyNestedI18n`). Without that they would silently inherit this view's bundle and render raw
+  `{i18n>…}` keys.
+-->
+<mvc:View
+  controllerName="com.middlewareops.integrationportal.controller.coePartnersRoutes.PartnersRoutes"
+  height="100%"
+  xmlns="sap.m"
+  xmlns:mvc="sap.ui.core.mvc">
+  <Page id="page" showHeader="false" class="integrationPortalModulePage">
+    <content>
+      <IconTabBar
+        id="coeTabs"
+        expanded="true"
+        expandable="false"
+        stretchContentHeight="true"
+        applyContentPadding="false"
+        selectedKey="{view>/selectedTab}"
+        select=".onTabSelect"
+        class="sapUiResponsiveContentPadding">
+        <items>
+
+          <!-- Routes: partner-first. Lands on the partner master-detail; "New Route" swaps to the
+               Creation Hub (itself a NavContainer of the three wizard flows) in place. -->
+          <IconTabFilter
+            key="routes"
+            text="{i18n>coePartnersRoutes.tab.routes}"
+            icon="sap-icon://org-chart">
+            <VBox height="100%">
+              <!-- Host-owned return path: the Hub's own back button only walks its inner wizard
+                   NavContainer, so getting from route creation back to the partner list needs this. -->
+              <Toolbar
+                visible="{= ${view>/routesPage} === 'creationView' }"
+                class="coePartnersRoutesBackBar">
+                <Button
+                  icon="sap-icon://nav-back"
+                  text="{i18n>coePartnersRoutes.backToPartners}"
+                  type="Transparent"
+                  press=".onBackToPartners" />
+              </Toolbar>
+              <NavContainer id="routesNav" height="100%">
+                <layoutData>
+                  <FlexItemData growFactor="1" baseSize="0%" />
+                </layoutData>
+                <mvc:XMLView
+                  id="partnersView"
+                  viewName="com.middlewareops.integrationportal.view.coePartnerDashboard.PartnerDashboard" />
+                <mvc:XMLView
+                  id="creationView"
+                  viewName="com.middlewareops.integrationportal.view.coeRouter.Hub" />
+              </NavContainer>
+            </VBox>
+          </IconTabFilter>
+
+          <!-- Registry: the existing three-box Parameter Registry, unchanged. -->
+          <IconTabFilter
+            key="registry"
+            text="{i18n>coePartnersRoutes.tab.registry}"
+            icon="sap-icon://database">
+            <mvc:XMLView
+              id="registryView"
+              viewName="com.middlewareops.integrationportal.view.coeRegistry.Registry" />
+          </IconTabFilter>
+
+          <!-- Rules: the standalone Visual Rule Builder, unchanged. -->
+          <IconTabFilter
+            key="rules"
+            text="{i18n>coePartnersRoutes.tab.rules}"
+            icon="sap-icon://tree">
+            <mvc:XMLView
+              id="rulesView"
+              viewName="com.middlewareops.integrationportal.view.coeRuleBuilder.RuleBuilder" />
+          </IconTabFilter>
+
+        </items>
+      </IconTabBar>
+    </content>
+  </Page>
+</mvc:View>

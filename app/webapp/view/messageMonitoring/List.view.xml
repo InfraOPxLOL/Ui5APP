@@ -27,7 +27,7 @@
       </Select>
       <ToggleButton
         icon="sap-icon://detail-view"
-        pressed="{view>/grid/density}"
+        pressed="{= ${view>/grid/density} === 'cozy' }"
         press=".onDensityChange"
         tooltip="{i18n>investigation.density.tooltip}" />
       <Button

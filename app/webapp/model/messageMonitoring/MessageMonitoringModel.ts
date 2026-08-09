@@ -67,6 +67,8 @@ export interface MessageMonitoringState {
   selectedMessageIds: string[];
   bookmarkedIds: string[];
   savedSearches: SavedSearch[];
+  /** Key of the saved search chosen in the compact saved-search `Select` ("" = none). */
+  selectedSavedSearchId: string;
   savedLayouts: SavedLayout[];
   actions: { id: string; title: string; icon: string }[];
   newSavedSearchName: string;
@@ -109,6 +111,7 @@ export default class MessageMonitoringModel extends JSONModel {
       selectedMessageIds: [],
       bookmarkedIds: [],
       savedSearches: [],
+      selectedSavedSearchId: "",
       savedLayouts: [],
       actions: [],
       newSavedSearchName: "",

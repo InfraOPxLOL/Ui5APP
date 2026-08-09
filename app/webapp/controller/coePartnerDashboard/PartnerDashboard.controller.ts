@@ -127,6 +127,16 @@ export default class PartnerDashboardController extends BaseController {
     return item?.getBindingContext("view")?.getObject() as PartnerSummary | undefined;
   }
 
+  /**
+   * Partner-first entry into route creation: opens the Creation Hub with no prefill.
+   *
+   * Navigates by *route* rather than calling into the hosting shell, so this works identically
+   * whether this view is embedded as the Partners & Routes "Routes" tab or opened standalone.
+   */
+  public onNewRoute(): void {
+    this.getRouter().navTo("coeRouter");
+  }
+
   // --- Deep-link into the Route/Router wizards for editing --------------------------------------
 
   /** Deep-links a decoded JMS route into the matching creation wizard, pre-filled for editing. */

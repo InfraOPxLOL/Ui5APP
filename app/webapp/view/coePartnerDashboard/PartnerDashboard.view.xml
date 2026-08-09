@@ -12,6 +12,11 @@
     busy="{view>/busy}"
     busyIndicatorDelay="0">
     <headerContent>
+      <Button
+        text="{i18n>partnerDashboard.newRoute}"
+        icon="sap-icon://add"
+        type="Emphasized"
+        press=".onNewRoute" />
       <Button icon="sap-icon://refresh" type="Transparent" tooltip="{i18n>action.refresh}" press=".onRefresh" />
     </headerContent>
     <content>

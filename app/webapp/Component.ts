@@ -16,6 +16,7 @@ import NotificationModel from "./core/models/NotificationModel";
 import TenantContext from "./shell/context/TenantContext";
 import UserContext from "./shell/context/UserContext";
 import NotificationCenter from "./shell/notifications/NotificationCenter";
+import { getModuleI18nModel, moduleIdFromViewName } from "./core/utils/ModuleI18n";
 
 /**
  * Root application component.
@@ -41,9 +42,6 @@ export default class Component extends BaseComponent {
   private userModel!: UserModel;
   private tenantModel!: TenantModel;
   private notificationModel!: NotificationModel;
-
-  /** Cache: module id → its resource model, attached to each module view as the view-scoped `i18n` model. */
-  private moduleI18nModels: Map<string, ResourceModel> | undefined;
 
   /**
    * Component lifecycle hook. Sets up global state and error handling, kicks off bootstrap, and
@@ -152,22 +150,10 @@ export default class Component extends BaseComponent {
     const view = event.getParameter("view" as never) as
       | { getViewName?: () => string; setModel: (model: ResourceModel, name: string) => void }
       | undefined;
-    const viewName = view?.getViewName?.() ?? "";
-    const match = /\.view\.([^.]+)\./.exec(viewName);
-    if (view === undefined || match === null || match[1] === undefined) {
+    const moduleId = moduleIdFromViewName(view?.getViewName?.() ?? "");
+    if (view === undefined || moduleId === undefined) {
       return;
     }
-    const moduleId = match[1];
-    this.moduleI18nModels ??= new Map<string, ResourceModel>();
-    let model = this.moduleI18nModels.get(moduleId);
-    if (model === undefined) {
-      model = new ResourceModel({
-        bundleName: `com.middlewareops.integrationportal.i18n.${moduleId}.i18n`,
-        supportedLocales: [""],
-        fallbackLocale: "",
-      });
-      this.moduleI18nModels.set(moduleId, model);
-    }
-    view.setModel(model, "i18n");
+    view.setModel(getModuleI18nModel(moduleId), "i18n");
   }
 }

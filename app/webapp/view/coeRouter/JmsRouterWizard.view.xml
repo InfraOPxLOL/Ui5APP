@@ -113,7 +113,14 @@
                 <Input
                   value="{view>/target/targetPid}"
                   valueState="{= ${view>/target/targetPid} === '' ? 'Error' : 'None' }"
-                  placeholder="PID_SALESFORCE_CORE" />
+                  placeholder="PID_SALESFORCE_CORE"
+                  showSuggestion="true"
+                  autocomplete="true"
+                  suggestionItems="{view>/partnerSuggestions}">
+                  <suggestionItems>
+                    <core:ListItem text="{view>pid}" additionalText="{view>info}" />
+                  </suggestionItems>
+                </Input>
                 <Label text="{i18n>commonRouter.field.routerPid}" />
                 <Input
                   value="{view>/router/routerPid}"

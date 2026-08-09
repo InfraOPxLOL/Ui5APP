@@ -1,4 +1,5 @@
 import JSONModel from "sap/ui/model/json/JSONModel";
+import type { PartnerSuggestion } from "../../controller/coeRouter/CreationFlowController";
 import type { IdocState, TargetState, AdvancedState, QueueBuilderState } from "./RouteWizardModel";
 import { QUEUE_REGIONS, type RegionOption } from "../../controller/coeRouter/queueBuilder";
 import { blankEditor, type EditorState } from "../coeRuleBuilder/RuleEditorState";
@@ -28,6 +29,8 @@ export interface JmsRouterState {
   priorities: string[];
   regions: RegionOption[];
   ruleStepEnabled: boolean;
+  /** Known Partner IDs offered as type-ahead suggestions under the Target PID field. */
+  partnerSuggestions: PartnerSuggestion[];
   ruleEditor: EditorState;
 }
 
@@ -72,6 +75,7 @@ export default class JmsRouterModel extends JSONModel {
       priorities: ["P1", "P2", "P3"],
       regions: [...QUEUE_REGIONS],
       ruleStepEnabled: false,
+      partnerSuggestions: [],
       ruleEditor: blankEditor(""),
     };
     super(initial);

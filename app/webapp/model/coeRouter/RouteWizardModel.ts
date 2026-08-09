@@ -1,4 +1,5 @@
 import JSONModel from "sap/ui/model/json/JSONModel";
+import type { PartnerSuggestion } from "../../controller/coeRouter/CreationFlowController";
 import { QUEUE_REGIONS, type RegionOption } from "../../controller/coeRouter/queueBuilder";
 import { blankEditor, type EditorState } from "../coeRuleBuilder/RuleEditorState";
 import type {
@@ -58,6 +59,8 @@ export interface RouteWizardState {
   regions: RegionOption[];
   /** Whether the developer is authoring a disambiguation rule in the Rule step (auto-on for a ruleset collision). */
   ruleStepEnabled: boolean;
+  /** Known Partner IDs offered as type-ahead suggestions under the Target PID field. */
+  partnerSuggestions: PartnerSuggestion[];
   /** The shared rule editor's working state (hosted by `RuleEditorHostController` at `/ruleEditor`). */
   ruleEditor: EditorState;
 }
@@ -100,6 +103,7 @@ export default class RouteWizardModel extends JSONModel {
       priorities: ["P1", "P2", "P3"],
       regions: [...QUEUE_REGIONS],
       ruleStepEnabled: false,
+      partnerSuggestions: [],
       ruleEditor: blankEditor(""),
     };
     super(initial);
