@@ -5,6 +5,11 @@ import {
   StatusFormatter,
   HealthFormatter,
 } from "../../core/formatters";
+import {
+  confidenceValueState,
+  recoveryStateIcon,
+  recoveryStateValueState,
+} from "../../controller/messageMonitoring/RecoveryPathFormatter";
 
 /**
  * Binding-facing formatter surface for the Message Investigation Workspace. Delegates to the
@@ -31,6 +36,15 @@ export default class MessageMonitoringFormatter {
   public static readonly healthIcon = HealthFormatter.healthIcon;
   /** Maps a severity to a representative icon. */
   public static readonly severityIcon = HealthFormatter.severityIcon;
+  /**
+   * Maps a recovery state to a semantic value state / icon (Phase 13). Delegates to the pure,
+   * unit-tested {@link module:../../controller/messageMonitoring/RecoveryPathFormatter} rather than
+   * duplicating the mapping, so the grid indicator and the Recovery tab can never disagree.
+   */
+  public static readonly recoveryStateState = recoveryStateValueState;
+  public static readonly recoveryStateIcon = recoveryStateIcon;
+  /** Maps a detection confidence to a semantic value state (`probable` is deliberately a warning). */
+  public static readonly confidenceState = confidenceValueState;
 
   /**
    * Resolves a dynamic i18n key (health/insight titles sent by the backend) to display text.

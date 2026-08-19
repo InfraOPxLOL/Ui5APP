@@ -8,6 +8,32 @@ import type {
   HeaderSummary,
 } from "../../operations/dto/index.js";
 import type { HealthStatus, Severity } from "../../operations/transform/index.js";
+import type {
+  DetectionConfidence,
+  FrameworkDetection,
+  MessageRecoveryOutcome,
+  MessageRecoveryPlan,
+  ProcessingFramework,
+  RecoveryPlanBatch,
+  RecoveryState,
+} from "../../operations/dto/index.js";
+
+export type {
+  DetectionConfidence,
+  DetectionEvidence,
+  FrameworkDetection,
+  MessageRecoveryOutcome,
+  MessageRecoveryPlan,
+  ProcessingFramework,
+  QueueRole,
+  RecoveryAction,
+  RecoveryOutcomeStatus,
+  RecoveryPathStep,
+  RecoveryPlanBatch,
+  RecoveryState,
+  RecoveryStepResult,
+  RecoveryValidation,
+} from "../../operations/dto/index.js";
 
 /**
  * Data transfer objects for the Message Monitoring module — now the Message Investigation Workspace
@@ -34,6 +60,8 @@ import type { HealthStatus, Severity } from "../../operations/transform/index.js
  *   enrichment step runs.
  * - `queueName` — populated only when the message is found parked on one of the tenant's enabled
  *   queues (a bounded, best-effort `QueueEngine` lookup, not present for most terminal messages).
+ * - `framework`/`frameworkConfidence`/`recoveryState` — the Phase 13 framework-awareness fields, see
+ *   their own doc comments below.
  */
 export interface MessageMonitoringDto extends MessageSummary {
   readonly mplId: string;
@@ -43,6 +71,28 @@ export interface MessageMonitoringDto extends MessageSummary {
   readonly attachmentCount: number | undefined;
   readonly payloadSizeBytes: number | undefined;
   readonly queueName: string | undefined;
+  /**
+   * Which processing framework owns this message (§1) — an **identity**, entirely independent of
+   * the message's condition. Resolved by *cheap* detection at list scope: integration-flow patterns
+   * plus correlation-group flow names, both evaluated over the working set already in memory, so the
+   * column costs no extra upstream calls per row.
+   *
+   * Frameworks whose only configured signal is their queue topology cannot be resolved this cheaply
+   * and legitimately appear as `UNKNOWN` here; selecting the row runs *full* detection, which adds
+   * header and queue evidence. The value is never a guess — see `frameworkConfidence`.
+   */
+  readonly framework: ProcessingFramework;
+  /** How strong the evidence behind `framework` is. `probable` means a name-shape match only. */
+  readonly frameworkConfidence: DetectionConfidence;
+  /**
+   * The message's recovery **condition** (§7) — the second, independent axis. A failed TPM V2
+   * message is `framework: "TPM_V2"` *and* `recoveryState: "…"`; the two are never fused.
+   *
+   * At list scope this is the *indicative* value derived from MPL status plus the detected framework,
+   * with **no queue probing** — the grid's recoverability indicator, not a promise. The authoritative
+   * value, which has really located the message, comes from the recovery-plan endpoint.
+   */
+  readonly recoveryState: RecoveryState;
 }
 
 /** UI classification of retry eligibility, derived from `status`/`customStatus` — see {@link MessageMonitoringDto}. */
@@ -177,3 +227,38 @@ export interface JmsRetryResultDto {
   readonly accepted: boolean;
   readonly note: string;
 }
+
+// --- Framework awareness & recovery (Phase 13) ---------------------------------
+
+/**
+ * Full framework detection for one selected message — everything cheap list-scope detection could
+ * not resolve, plus the evidence trail.
+ *
+ * Unlike the list's `framework` field this runs header rules and really probes the framework's
+ * queues, so `detectedQueue`/`queueRole` are populated when the message is actually sitting
+ * somewhere. Reported as `UNKNOWN` **with evidence** when nothing matches — never guessed.
+ */
+export type MessageFrameworkDto = FrameworkDetection;
+
+/**
+ * A single message's resolved recovery plan (§8's detail panel): framework, current location and
+ * queue, the action, whether a move is required, the validations, and the human-readable path the UI
+ * renders as `Processing DLQ → MOVE → SAP_TPM_INBOUND_Q → RETRY`.
+ *
+ * Read-only — resolving a plan never moves, retries or mutates anything.
+ */
+export type MessageRecoveryPlanDto = MessageRecoveryPlan;
+
+/**
+ * The bulk recovery plan behind "Retry Selected" (§9). Carries a plan for **every** selected message
+ * so the confirmation dialog can show non-executable ones (and why they are excluded) alongside the
+ * ones that will actually run — `executableMessageIds` is the set that gets executed.
+ */
+export type RecoveryPlanBatchDto = RecoveryPlanBatch;
+
+/**
+ * The real outcome of an executed recovery, step by step. A move accepted by the tenant but whose
+ * verification could not find the message on the target queue reports exactly that and stops, rather
+ * than proceeding to retry — the UI never infers success from an accepted request (§7, §10).
+ */
+export type MessageRecoveryOutcomeDto = MessageRecoveryOutcome;

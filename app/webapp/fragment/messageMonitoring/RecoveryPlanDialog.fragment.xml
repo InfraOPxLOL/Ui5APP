@@ -1,0 +1,92 @@
+<!--
+  Recovery Plan dialog (Phase 13, §9) — the confirmation step behind "Retry Selected".
+
+  Shows the resolved strategy for *every* selected message before anything runs
+  (`MSG001 | TPM V2 | DLQ → Inbound → Retry`), including the ones that cannot run and why: an
+  operator who selected 10 rows and sees 7 execute needs to know which 3 were skipped. Only the
+  executable rows are passed to execution.
+
+  After execution the same dialog switches to the real per-message outcomes. "Accepted" is shown as
+  accepted, never as succeeded — whether a retried message then processes cleanly is only visible
+  later in its processing log (§7).
+
+  Replaces `BulkRetryResultsDialog`, which showed results only, with no pre-execution plan.
+-->
+<core:FragmentDefinition
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core"
+  xmlns:l="sap.ui.layout">
+  <Dialog
+    title="{= ${view>/recoveryPlan/executed} ? ${i18n>investigation.recovery.bulk.resultsTitle} : ${i18n>investigation.recovery.bulk.planTitle} }"
+    contentWidth="46rem"
+    busy="{view>/recoveryPlan/busy}"
+    busyIndicatorDelay="0">
+    <content>
+      <l:VerticalLayout width="100%" class="sapUiSmallMargin">
+
+        <!-- Pre-execution: the plan. -->
+        <l:VerticalLayout width="100%" visible="{= !${view>/recoveryPlan/executed} }">
+          <Text
+            text="{i18n>investigation.recovery.bulk.planSummary}"
+            class="sapUiSmallMarginBottom" />
+          <MessageStrip
+            type="Information"
+            showIcon="true"
+            class="sapUiSmallMarginBottom"
+            visible="{= ${view>/recoveryPlan/excludedCount} > 0 }"
+            text="{i18n>investigation.recovery.bulk.excludedStrip}" />
+          <Table items="{ path: 'view>/recoveryPlan/rows', templateShareable: false }" noDataText=" ">
+            <columns>
+              <Column><Text text="{i18n>column.messageId}" /></Column>
+              <Column><Text text="{i18n>column.framework}" /></Column>
+              <Column><Text text="{i18n>investigation.recovery.path}" /></Column>
+              <Column hAlign="End"><Text text="{i18n>investigation.recovery.bulk.willRun}" /></Column>
+            </columns>
+            <items>
+              <ColumnListItem>
+                <cells>
+                  <Text text="{view>messageId}" wrapping="false" />
+                  <Text text="{ path: 'view>framework', formatter: '.frameworkLabel' }" />
+                  <Text
+                    text="{= ${view>executable} ? ${view>summary} : ${view>excludedReason} }"
+                    wrapping="true" />
+                  <ObjectStatus
+                    text="{= ${view>executable} ? ${i18n>investigation.recovery.bulk.rowWillRun} : ${i18n>investigation.recovery.bulk.rowExcluded} }"
+                    state="{= ${view>executable} ? 'Success' : 'Warning' }" />
+                </cells>
+              </ColumnListItem>
+            </items>
+          </Table>
+        </l:VerticalLayout>
+
+        <!-- Post-execution: what actually happened, per message. -->
+        <l:VerticalLayout width="100%" visible="{view>/recoveryPlan/executed}">
+          <Text text="{view>/recoveryPlan/summary}" class="sapUiSmallMarginBottom" />
+          <List items="{ path: 'view>/recoveryPlan/results', templateShareable: false }" noDataText=" ">
+            <StandardListItem
+              title="{view>messageId}"
+              description="{view>note}"
+              icon="{= ${view>status} === 'accepted' || ${view>status} === 'successful' ? 'sap-icon://accept' : 'sap-icon://error' }"
+              iconInset="false"
+              infoState="{= ${view>status} === 'accepted' || ${view>status} === 'successful' ? 'Success' : (${view>status} === 'already-processed' ? 'Information' : 'Error') }"
+              info="{view>status}" />
+          </List>
+        </l:VerticalLayout>
+
+      </l:VerticalLayout>
+    </content>
+    <beginButton>
+      <Button
+        text="{i18n>investigation.recovery.bulk.execute} ({view>/recoveryPlan/executableCount})"
+        type="Emphasized"
+        visible="{= !${view>/recoveryPlan/executed} }"
+        enabled="{= ${view>/recoveryPlan/executableCount} > 0 }"
+        press=".onRecoveryPlanConfirm" />
+    </beginButton>
+    <endButton>
+      <Button
+        text="{= ${view>/recoveryPlan/executed} ? ${i18n>action.close} : ${i18n>action.cancel} }"
+        press=".onRecoveryPlanClose" />
+    </endButton>
+  </Dialog>
+</core:FragmentDefinition>

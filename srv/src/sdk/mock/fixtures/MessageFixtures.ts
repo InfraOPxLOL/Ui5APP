@@ -21,6 +21,60 @@ const MOCK_JMS_BRIDGE_CORRELATION_ID = "corr-jms-bridge-fixture";
 /** The mock resolved queue `CH-Message-Queue` points at — mirrors the real header value's literal shape. */
 export const MOCK_JMS_RESOLVED_QUEUE = "Common_JMS_ID_Ecom_P1";
 
+/**
+ * Framework scenario fixtures (Phase 13). One message per branch the recovery strategies must be able
+ * to reach, so every framework's traversal, DLQ mapping and Manual-Investigation fallback is
+ * exercisable in mock mode without a live tenant.
+ *
+ * The TPM entries carry `SAP_TPM_`-shaped integration-flow names so they match the shipped
+ * `integrationFlowPatterns` in `config/frameworks.json`. The Common IDoc Router and IDoc Status Sync
+ * entries deliberately carry names that match **no** configured rule — those two frameworks ship with
+ * no detection rules today, so they are detectable only through queue evidence during *full*
+ * detection. That is the honest state of what is known about them, and these fixtures keep the
+ * distinction testable rather than papering over it.
+ */
+export const MOCK_TPM_PROCESSING_DLQ_MESSAGE_ID = "msg-tpm-processing-dlq";
+export const MOCK_TPM_RECEIVER_DLQ_MESSAGE_ID = "msg-tpm-receiver-dlq";
+export const MOCK_TPM_INBOUND_MESSAGE_ID = "msg-tpm-inbound-active";
+export const MOCK_TPM_ORPHAN_MESSAGE_ID = "msg-tpm-not-on-any-queue";
+export const MOCK_ROUTER_DLQ_MESSAGE_ID = "msg-router-dlq";
+export const MOCK_STATUS_SYNC_DLQ_MESSAGE_ID = "msg-status-sync-dlq";
+
+/** The TPM V2 queue names, mirroring `config/frameworks.json`'s shipped topology. */
+export const MOCK_TPM_INBOUND_QUEUE = "SAP_TPM_INBOUND_Q";
+export const MOCK_TPM_OUTBOUND_QUEUE = "SAP_TPM_OUTBOUND_Q";
+export const MOCK_TPM_PROCESSING_DLQ = "SAP_TPM_COM_PROCESSING_OUTBOUND_DEAD_LETTER_Q";
+export const MOCK_TPM_RECEIVER_DLQ = "SAP_TPM_COM_RECEIVER_OUTOUND_DEAD_LETTER_Q";
+/** The Common IDoc Router and IDoc Status Sync queue names. */
+export const MOCK_ROUTER_QUEUE = "Common_Router_JMS";
+export const MOCK_ROUTER_DLQ = "Common_Router_JMS_DLQ";
+export const MOCK_STATUS_SYNC_QUEUE = "Status_JMS";
+export const MOCK_STATUS_SYNC_DLQ = "Status_JMS_DLQ";
+
+/**
+ * Which queue each framework scenario message is parked on, consumed by `QueueFixtures`'
+ * `generateSingleMessage`.
+ */
+export const MOCK_FRAMEWORK_MESSAGE_QUEUES: Readonly<Record<string, string>> = {
+  [MOCK_TPM_PROCESSING_DLQ_MESSAGE_ID]: MOCK_TPM_PROCESSING_DLQ,
+  [MOCK_TPM_RECEIVER_DLQ_MESSAGE_ID]: MOCK_TPM_RECEIVER_DLQ,
+  [MOCK_TPM_INBOUND_MESSAGE_ID]: MOCK_TPM_INBOUND_QUEUE,
+  [MOCK_ROUTER_DLQ_MESSAGE_ID]: MOCK_ROUTER_DLQ,
+  [MOCK_STATUS_SYNC_DLQ_MESSAGE_ID]: MOCK_STATUS_SYNC_DLQ,
+};
+
+/**
+ * Scenario messages that must be present on **no** queue at all.
+ *
+ * Needed because `generateSingleMessage`'s catch-all branch is deterministically pseudo-random
+ * (~60% present), which would otherwise place the "detected as TPM V2 but parked nowhere" fixture on
+ * a queue by chance and quietly destroy the case it exists to cover — the `NOT_FOUND` /
+ * Manual-Investigation path.
+ */
+export const MOCK_FRAMEWORK_ABSENT_MESSAGE_IDS: ReadonlySet<string> = new Set([
+  MOCK_TPM_ORPHAN_MESSAGE_ID,
+]);
+
 const FLOWS = [
   "OrderToCash_SalesOrder_IN",
   "Invoice_SupplierInvoice_IN",
@@ -78,6 +132,9 @@ export function generateMessageLogs(count: number, seed = 42): MessageProcessing
   if (seed === 42 && count >= 6) {
     applyJmsBridgeFixture(logs);
   }
+  if (seed === 42 && count >= 12) {
+    applyFrameworkFixtures(logs);
+  }
   return logs;
 }
 
@@ -115,6 +172,63 @@ function applyJmsBridgeFixture(logs: MessageProcessingLog[]): void {
     status: "COMPLETED",
     customStatus: undefined,
   };
+}
+
+/**
+ * Deterministically repurposes 6 already-generated slots (indices 6–11) into the framework scenario
+ * messages described on {@link MOCK_TPM_PROCESSING_DLQ_MESSAGE_ID}. Same approach as
+ * {@link applyJmsBridgeFixture}: total entry count is unchanged, and only the default seed's fixture
+ * set carries these scenarios so other seeds stay purely random.
+ *
+ * Each message gets its own correlation id — these are single-entry correlation groups, which also
+ * makes them the negative case for the JMS framework's correlation-chain rule.
+ */
+function applyFrameworkFixtures(logs: MessageProcessingLog[]): void {
+  const scenarios: readonly {
+    readonly index: number;
+    readonly messageId: string;
+    readonly integrationFlow: string;
+  }[] = [
+    {
+      index: 6,
+      messageId: MOCK_TPM_PROCESSING_DLQ_MESSAGE_ID,
+      integrationFlow: "SAP_TPM_COM_OutboundProcessing",
+    },
+    {
+      index: 7,
+      messageId: MOCK_TPM_RECEIVER_DLQ_MESSAGE_ID,
+      integrationFlow: "SAP_TPM_COM_ReceiverOutbound",
+    },
+    {
+      index: 8,
+      messageId: MOCK_TPM_INBOUND_MESSAGE_ID,
+      integrationFlow: "SAP_TPM_Inbound_Handler",
+    },
+    {
+      index: 9,
+      messageId: MOCK_TPM_ORPHAN_MESSAGE_ID,
+      integrationFlow: "SAP_TPM_Inbound_Handler",
+    },
+    // No configured detection rule matches these two names — queue evidence is their only signal.
+    { index: 10, messageId: MOCK_ROUTER_DLQ_MESSAGE_ID, integrationFlow: "IDoc_Router_Dispatch" },
+    {
+      index: 11,
+      messageId: MOCK_STATUS_SYNC_DLQ_MESSAGE_ID,
+      integrationFlow: "IDoc_Status_Update_997",
+    },
+  ];
+
+  for (const scenario of scenarios) {
+    const base = logs[scenario.index] as MessageProcessingLog;
+    logs[scenario.index] = {
+      ...base,
+      messageId: scenario.messageId,
+      correlationId: `corr-${scenario.messageId}`,
+      integrationFlow: scenario.integrationFlow,
+      status: "FAILED",
+      customStatus: undefined,
+    };
+  }
 }
 
 const ERROR_TEXTS = [

@@ -26,6 +26,8 @@ function toListQuery(query: Request["query"]): MessageListQuery {
     durationMinMs: q.durationMinMs === undefined ? undefined : Number(q.durationMinMs),
     durationMaxMs: q.durationMaxMs === undefined ? undefined : Number(q.durationMaxMs),
     smartFilter: q.smartFilter as MessageListQuery["smartFilter"],
+    framework: q.framework as MessageListQuery["framework"],
+    recoveryState: q.recoveryState as MessageListQuery["recoveryState"],
     page: q.page === undefined ? undefined : Number(q.page),
     pageSize: q.pageSize === undefined ? undefined : Number(q.pageSize),
     sortBy: q.sortBy,
@@ -86,5 +88,38 @@ export async function retry(req: Request, res: Response): Promise<void> {
   const body = req.body as { queueName: string; reason?: string };
   res.json(
     await messageMonitoringService.retry(req.params.messageId as string, body.queueName, body.reason),
+  );
+}
+
+// --- Framework awareness & recovery (Phase 13) ---------------------------------
+
+/** GET /:messageId/framework — full framework detection, with the evidence behind it. */
+export async function getFramework(req: Request, res: Response): Promise<void> {
+  res.json(await messageMonitoringService.getFramework(req.params.messageId as string));
+}
+
+/** GET /:messageId/recovery-plan — resolves one message's recovery plan (read-only). */
+export async function getRecoveryPlan(req: Request, res: Response): Promise<void> {
+  const queueName = (req.query as Record<string, string | undefined>).queueName;
+  res.json(
+    await messageMonitoringService.getRecoveryPlan(req.params.messageId as string, queueName),
+  );
+}
+
+/** POST /recovery-plan — builds the pre-execution plan for a selection of messages (§9). */
+export async function buildRecoveryPlan(req: Request, res: Response): Promise<void> {
+  const body = req.body as { messageIds: string[] };
+  res.json(await messageMonitoringService.buildRecoveryPlan(body.messageIds));
+}
+
+/** POST /:messageId/recover — executes framework-aware recovery (move → verify → retry). */
+export async function recover(req: Request, res: Response): Promise<void> {
+  const body = req.body as { reason?: string; queueName?: string };
+  res.json(
+    await messageMonitoringService.recover(
+      req.params.messageId as string,
+      body.reason,
+      body.queueName,
+    ),
   );
 }

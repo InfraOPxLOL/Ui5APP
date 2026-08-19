@@ -1,22 +1,27 @@
 # Handoff — Integration Portal
 
-**Last updated:** 2026-07-22
+**Last updated:** 2026-08-09
 **Author of this handoff:** Claude (agentic session), for whoever picks this up next (human or AI).
-**Supersedes:** the 2026-07-15 handoff. That version ended with the CoE Framework backlog "empty";
-**this session (2026-07-22) reopened both threads** — it heavily reworked **Message Monitoring** (real
-JMS retry + layout + routed detail page, the first real chunk of the old Thread-B Operations roadmap)
-**and** extended the CoE **Rule Builder + Route Creation wizards** (Thread A). All new work is in §4.8;
-§4.1–§4.7 are preserved as historical record. Test counts, §5 "what failed", and §6 "what's next" are
-updated to current state.
+**Supersedes:** the 2026-07-22 handoff. That version ended with two open threads (Message Monitoring
+JMS retry + CoE Rule Builder/wizards, §4.8). **This session (2026-08-03) fixed three Message Monitoring
+UX bugs and consolidated the CoE workspace from 6 sidebar entries to 3** (§4.9) — see that section for
+the full writeup (already present in this document; this update just brings the surrounding sections
+and git-state banner below up to date, since they still described the pre-§4.9/pre-git state).
 
-> ⚠️ **Read this first: nothing in this repo is committed to git beyond the bare initial scaffold.**
-> `git log` shows exactly one commit (`b573cef`, "Initial commit: SAPUI5 freestyle app scaffold").
-> Everything else — the entire Operations Platform (13 phases), the CoE Framework (6 modules, built
-> across several sessions including this one), the structural refactors, all of it — is **untracked**
-> or a modification against that bare scaffold (`git status` shows `??`/` M`/` D` for essentially
-> everything under `app/`, `srv/`, `config/`, `docs/`, plus `mta.yaml`, `xs-security.json`,
-> `eslint.config.mjs`, `handoff.md` itself, etc.). **Commit before doing anything destructive**
-> (`git reset --hard`, branch switches, etc. would lose everything).
+> **Git state (corrected 2026-08-09 — the previous version of this banner was stale).** The repo now
+> has a real commit history and a GitHub remote: `origin` → `https://github.com/InfraOPxLOL/Ui5APP.git`.
+> Working branch **`feature-monitoring-Improvements`** is clean and pushed, tracking
+> `origin/feature-monitoring-Improvements`. (The "nothing is committed beyond the bare scaffold"
+> warning that used to be here is no longer true — do not assume an uncommitted working tree without
+> checking `git status` first.)
+>
+> **Getting the code into SAP Business Application Studio**: clone from the GitHub remote inside a
+> **"Full Stack Cloud Application"** dev space (matches this repo's `mta.yaml`/`xs-security.json`/
+> `approuter/` — CF CLI + MBT + Node.js preinstalled), `git clone -b feature-monitoring-Improvements
+> https://github.com/InfraOPxLOL/Ui5APP.git`, then `npm install` at the repo root (workspaces monorepo,
+> one install covers `app`/`srv`/`approuter`). `.env` is gitignored and won't come across in the clone —
+> recreate it by hand in the dev space using the same values as local (see the "Fresh-clone setup"
+> paragraph below); never paste real secret values into chat.
 
 ---
 
@@ -43,18 +48,23 @@ Two architectural principles, honored throughout every module described in this 
 - The original **Operations Platform** (13 build phases — architecture → SDK → live connectivity →
   Operations Engine → Application Shell → Operations Workspace → Message Investigation → Payload
   Studio → Recovery Center → Runtime Center → Certificate & Security Center) is **functionally
-  complete**. The old Thread-B roadmap (§6) is still mostly untouched, **except Message Monitoring,
-  which this session reworked into a genuine JMS-retry + top-filter tool with a routed detail page**
-  (§4.8-A) — the first roadmap item actually delivered.
+  complete**. The old Thread-B roadmap (§6) is still mostly untouched, **except Message Monitoring**,
+  which was reworked into a genuine JMS-retry + top-filter tool with a routed detail page (§4.8-A),
+  then had two more UX bugs fixed (Advanced Search close, filter layout — §4.9) — the first roadmap
+  item actually delivered.
 - A second, later initiative — the **Universal CoE Framework** (6 modules layered on top of the same
   platform: Global Settings, Route Creation, Parameter Registry, DLQ & Recovery, Rule Builder, Partner
   Dashboard) — was scoped, built, and iterated across multiple sessions. Its original backlog shipped
-  in the 2026-07-15 session; **this session extended it** with two Rule Builder bug fixes and a new
-  inline "Disambiguation Rule" step in all three route-creation wizards (§4.8-B).
+  in the 2026-07-15 session; it was then extended with two Rule Builder bug fixes and a new inline
+  "Disambiguation Rule" step in all three route-creation wizards (§4.8-B), and **most recently
+  consolidated from 6 sidebar entries down to 3** — Partners & Routes (tabbed), DLQ & Recovery, CoE
+  Global Settings — via a compose-not-rewrite tabbed shell, on explicit user direction to reduce
+  cross-module jumping (§4.9). All 6 underlying modules are unchanged and still fully live; only the
+  navigation surface changed.
 
-**What's next is genuinely open** — see §6. The user has been driving feature-by-feature this session
-(Message Monitoring retry, then Rule Builder fixes, then the wizard rule step), each confirmed via
-`AskUserQuestion`/plan-mode at the point of ambiguity.
+**What's next is genuinely open** — see §6. The user has been driving feature-by-feature
+(Message Monitoring retry → Rule Builder fixes → wizard rule step → Message Monitoring UX fixes → CoE
+workspace consolidation), each confirmed via `AskUserQuestion`/plan-mode at the point of ambiguity.
 
 ---
 
@@ -96,10 +106,13 @@ Stop-Process -Id <pid> -Force
   Replay, Alert Notification, Audit Trail, Roles, Administration, API Monitoring, Integration Advisor,
   Analytics. 12 enabled; `apiMonitoring`/`integrationAdvisor`/`analytics` remain feature-flagged off
   (`config/features.json`, `enabled: false`) and correctly redirect home via `RouteGuard`.
-- **CoE Framework** (6 modules, the `Workspaces.CoE` workspace — `CoE Global Settings`, `Route
-  Creation`, `Parameter Registry`, `DLQ & Recovery`, `Rule Builder`, `Partner Dashboard`): all 6
-  enabled, all **fully live** against the real tenant, all re-verified working as of this session
-  (§4.7). This is the only workspace with **zero** placeholder screens.
+- **CoE Framework** (6 modules, the `Workspaces.CoE` workspace, all `enabled:true` in
+  `config/features.json` and all **fully live** against the real tenant): as of §4.9, the sidebar shows
+  only **3 entries** — `Partners & Routes` (a tabbed shell embedding `Route Creation`, `Parameter
+  Registry`, `Rule Builder` and `Partner Dashboard` as nested, unmodified views — see §4.9), `DLQ &
+  Recovery`, `CoE Global Settings`. All 6 module routes still exist and are independently reachable
+  (`showInSidebar:false` on the 4 merged ones, not `enabled:false`), so deep links into any of them
+  still work. This is the only workspace with **zero** placeholder screens.
 
 **Data-honesty status per screen:**
 

@@ -64,13 +64,34 @@
               placeholder="{i18n>investigation.quickSearch}"
               liveChange=".onSearchExecute"
               value="{view>/grid/quickSearchTerm}" />
-            <SegmentedButton selectedKey="{view>/jmsFilter}" selectionChange=".onJmsFilterChange">
-              <items>
-                <SegmentedButtonItem key="all" text="{i18n>investigation.jmsFilter.all}" />
-                <SegmentedButtonItem key="jms" text="{i18n>investigation.jmsFilter.jms}" />
-                <SegmentedButtonItem key="nonJms" text="{i18n>investigation.jmsFilter.nonJms}" />
-              </items>
-            </SegmentedButton>
+            <!--
+              Framework and recovery condition are two independent axes, so they are two independent
+              selects. Both are real server-side criteria (the backend classifies the whole working
+              set before paginating), replacing the old JMS/Non-JMS toggle that could only post-filter
+              rows already loaded.
+            -->
+            <Select
+              width="12rem"
+              selectedKey="{view>/frameworkFilter}"
+              change=".onFrameworkFilterChange"
+              tooltip="{i18n>investigation.framework.tooltip}"
+              items="{
+                path: 'view>/frameworkOptions',
+                templateShareable: false
+              }">
+              <core:Item key="{view>key}" text="{view>text}" />
+            </Select>
+            <Select
+              width="13rem"
+              selectedKey="{view>/recoveryStateFilter}"
+              change=".onRecoveryStateFilterChange"
+              tooltip="{i18n>investigation.recoveryState.tooltip}"
+              items="{
+                path: 'view>/recoveryStateOptions',
+                templateShareable: false
+              }">
+              <core:Item key="{view>key}" text="{view>text}" />
+            </Select>
             <ToggleButton
               text="{i18n>investigation.search.advanced}"
               icon="sap-icon://filter"

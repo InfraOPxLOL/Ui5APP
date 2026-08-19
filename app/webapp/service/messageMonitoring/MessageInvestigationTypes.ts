@@ -14,6 +14,136 @@ export type OpsSeverity = "info" | "warning" | "error" | "critical";
 /** UI classification of retry eligibility, derived server-side from `status`/`customStatus`. */
 export type RetryStatus = "retryable" | "escalated" | "not-applicable";
 
+/**
+ * Which processing framework a message belongs to — an **identity**, mirroring the backend's
+ * `ProcessingFramework`.
+ *
+ * Deliberately independent of {@link RecoveryState}: framework answers "what owns this message?",
+ * recovery state answers "what condition is it in?". The two are separate columns and separate
+ * filters, and are never combined into one value.
+ */
+export type ProcessingFramework =
+  | "TPM_V2"
+  | "JMS_FRAMEWORK"
+  | "COMMON_IDOC_ROUTER"
+  | "IDOC_STATUS_SYNC"
+  | "NON_FRAMEWORK"
+  | "UNKNOWN";
+
+/** How strong the evidence behind a framework classification is. */
+export type DetectionConfidence = "confirmed" | "probable" | "none";
+
+/** What role the queue a message was found on plays in its framework's topology. */
+export type QueueRole = "MAIN" | "DLQ" | "NONE" | "UNKNOWN";
+
+/** The operational recovery condition of a message — the axis independent of framework. */
+export type RecoveryState =
+  | "RECOVERABLE"
+  | "RETRY_AVAILABLE"
+  | "DLQ_RECOVERY_AVAILABLE"
+  | "RETRYING"
+  | "NOT_FOUND"
+  | "MANUAL_INVESTIGATION_REQUIRED"
+  | "UNSUPPORTED"
+  | "COMPLETED"
+  | "FAILED_AGAIN";
+
+/** The recovery action a strategy resolved for one message. */
+export type RecoveryAction = "RETRY_IN_PLACE" | "MOVE_THEN_RETRY" | "MANUAL" | "NONE";
+
+/** One rule evaluation recorded during detection — the negative entries explain an `UNKNOWN`. */
+export interface DetectionEvidence {
+  readonly rule: string;
+  readonly matched: boolean;
+  readonly outcome: string;
+}
+
+/** One step of a recovery path, rendered as `Processing DLQ → MOVE → SAP_TPM_INBOUND_Q → RETRY`. */
+export interface RecoveryPathStep {
+  readonly action: "LOCATED" | "MOVE" | "VERIFY" | "RETRY" | "MANUAL";
+  readonly queueName: string | undefined;
+  readonly description: string;
+}
+
+/** Full framework detection for one message, including the evidence behind the verdict. */
+export interface FrameworkDetection {
+  readonly framework: ProcessingFramework;
+  readonly confidence: DetectionConfidence;
+  readonly matchedRule: string | undefined;
+  readonly detectedQueue: string | undefined;
+  readonly queueRole: QueueRole;
+  readonly sourceMplId: string;
+  readonly correlationId: string;
+  readonly evidence: readonly DetectionEvidence[];
+  readonly possibleRecoveryPath: readonly RecoveryPathStep[] | undefined;
+}
+
+/** One validation requirement a strategy checked before allowing execution. */
+export interface RecoveryValidation {
+  readonly key: string;
+  readonly passed: boolean;
+  readonly message: string;
+}
+
+/** A single message's resolved recovery plan (the Recovery tab, and each Recovery Plan dialog row). */
+export interface MessageRecoveryPlan {
+  readonly messageId: string;
+  readonly framework: ProcessingFramework;
+  readonly detection: FrameworkDetection;
+  readonly supported: boolean;
+  readonly executable: boolean;
+  readonly recoveryState: RecoveryState;
+  readonly action: RecoveryAction;
+  readonly currentLocation: string | undefined;
+  readonly currentQueue: string | undefined;
+  readonly queueRole: QueueRole;
+  readonly targetQueue: string | undefined;
+  readonly moveRequired: boolean;
+  readonly validations: readonly RecoveryValidation[];
+  readonly path: readonly RecoveryPathStep[];
+  readonly explanation: string;
+}
+
+/** The outcome classification every recovery operation resolves to. */
+export type RecoveryOutcomeStatus =
+  | "accepted"
+  | "successful"
+  | "already-processed"
+  | "failed"
+  | "unavailable";
+
+/** One executed step of a recovery, with its real upstream outcome. */
+export interface RecoveryStepResult {
+  readonly action: RecoveryPathStep["action"];
+  readonly queueName: string | undefined;
+  readonly succeeded: boolean;
+  readonly detail: string;
+}
+
+/**
+ * The real outcome of an executed recovery. `accepted` means the tenant took the retry — **not** that
+ * the message processed successfully, which is only observable later in its processing log. The UI
+ * must never upgrade this to "succeeded" on its own.
+ */
+export interface MessageRecoveryOutcome {
+  readonly messageId: string;
+  readonly framework: ProcessingFramework;
+  readonly status: RecoveryOutcomeStatus;
+  readonly recoveryState: RecoveryState;
+  readonly steps: readonly RecoveryStepResult[];
+  readonly note: string;
+  readonly startedAt: string;
+  readonly finishedAt: string;
+}
+
+/** The bulk recovery plan behind "Retry Selected" — every selected message, plus what will run. */
+export interface RecoveryPlanBatch {
+  readonly plans: readonly MessageRecoveryPlan[];
+  readonly executableMessageIds: readonly string[];
+  readonly executableCount: number;
+  readonly excludedCount: number;
+}
+
 /** One investigation-grade message row (see the backend `MessageMonitoringDto` doc comment). */
 export interface MessageMonitoringItem {
   readonly messageId: string;
@@ -39,10 +169,18 @@ export interface MessageMonitoringItem {
   readonly payloadSizeBytes: number | undefined;
   readonly queueName: string | undefined;
   /**
-   * Client-only JMS classification cache (§ JMS Retry) — populated lazily by the JMS/Non-JMS toggle
-   * via `checkJmsEligibility`, never sent by the backend list response. `undefined` until classified.
+   * Which processing framework owns this message — resolved **server-side** (never guessed here) by
+   * cheap detection at list scope. Frameworks detectable only through queue topology legitimately
+   * arrive as `UNKNOWN` and resolve when the row is selected.
    */
-  readonly jmsEligible?: boolean;
+  readonly framework: ProcessingFramework;
+  /** How strong the evidence behind `framework` is; `probable` means a name-shape match only. */
+  readonly frameworkConfidence: DetectionConfidence;
+  /**
+   * The message's recovery condition — the second, independent axis. Indicative at list scope (no
+   * queue was probed); the authoritative value comes from the recovery plan.
+   */
+  readonly recoveryState: RecoveryState;
 }
 
 /** Server-paginated page of investigation rows. */
@@ -204,6 +342,10 @@ export interface MessageSearchCriteria {
   durationMinMs?: number;
   durationMaxMs?: number;
   smartFilter?: SmartFilter;
+  /** Processing-framework filter — replaces the old binary JMS/Non-JMS toggle. Server-side. */
+  framework?: ProcessingFramework;
+  /** Recovery-condition filter, the second independent axis. Server-side. */
+  recoveryState?: RecoveryState;
   /** Client-side-only post-filter over the loaded page (not sent to the backend). */
   hasAttachments?: boolean;
   /** Client-side-only post-filter over the loaded page (not sent to the backend). */

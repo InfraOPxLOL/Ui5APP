@@ -5,6 +5,12 @@ import type { OperationsEngine } from "../../operations/OperationsEngine.js";
 import type { MessageSummary, ExportModel } from "../../operations/dto/index.js";
 import type { Severity } from "../../operations/transform/index.js";
 import { HttpError } from "../../core/errors/HttpError.js";
+import type { MessageRecoveryInput } from "../../operations/engines/RecoveryEngine.js";
+import type {
+  FrameworkDetection,
+  ProcessingFramework,
+  RecoveryState,
+} from "../../operations/dto/index.js";
 import type {
   JmsEligibilityDto,
   JmsRetryCheckDto,
@@ -12,10 +18,14 @@ import type {
   MessageContextDto,
   MessageDetailDto,
   MessageExportFormat,
+  MessageFrameworkDto,
   MessageMonitoringDto,
   MessageMonitoringPage,
+  MessageRecoveryOutcomeDto,
+  MessageRecoveryPlanDto,
   MessageTimelineEntryDto,
   QueueReferenceDto,
+  RecoveryPlanBatchDto,
   RelatedMessageDimension,
   RelatedMessageGroupDto,
   RetryStatus,
@@ -41,6 +51,17 @@ export type SmartFilter =
   | "systemErrors"
   | "recentlyFailed";
 
+/**
+ * A candidate message paired with its cheap framework classification, threaded through
+ * filter → sort → paginate → enrich so detection runs exactly once per message per request.
+ */
+interface ClassifiedMessage {
+  readonly item: MessageSummary;
+  readonly detection: FrameworkDetection;
+  /** The indicative, no-queue-probe recovery state — see `indicativeRecoveryState`. */
+  readonly recoveryState: RecoveryState;
+}
+
 /** Raw query parameters accepted by {@link MessageMonitoringService.list} (validated upstream). */
 export interface MessageListQuery {
   readonly status?: string;
@@ -59,6 +80,10 @@ export interface MessageListQuery {
   readonly durationMinMs?: number;
   readonly durationMaxMs?: number;
   readonly smartFilter?: SmartFilter;
+  /** Processing-framework filter (§1) — replaces the old binary JMS/Non-JMS toggle. */
+  readonly framework?: ProcessingFramework;
+  /** Recovery-condition filter (§7), the second, independent axis. */
+  readonly recoveryState?: RecoveryState;
   readonly page?: number;
   readonly pageSize?: number;
   readonly sortBy?: string;
@@ -73,6 +98,13 @@ const TECHNICAL_ERROR_STATUSES = new Set(["FAILED", "ABANDONED", "DISCARDED"]);
  * The two literal, fixed bridge-iFlow names a message's correlation chain passes through when it is
  * JMS-queue-retryable — confirmed against the real tenant's naming convention, not a guess (§ JMS
  * Retry). Matching is case-insensitive but otherwise exact; no wildcard/prefix matching is applied.
+ *
+ * **Superseded by `config/frameworks.json`** (Phase 13): these five constants now live in that
+ * file's `JMS_FRAMEWORK` entry, where they are tunable without a code change and sit alongside the
+ * other frameworks' rules. The copies below remain only to keep the pre-Phase-13
+ * `/jms-eligibility` and `/retry-check` endpoints working unchanged for any caller still on them;
+ * everything framework-aware reads the configuration instead. If you retune the JMS signals, change
+ * the config — and update these only if you also intend to change the legacy endpoints' behaviour.
  */
 const JMS_INGRESS_IFLOW = "IF_JMS_ingress";
 const JMS_EGRESS_IFLOW = "IF_JMS_egress";
@@ -117,12 +149,16 @@ export class MessageMonitoringService {
     const pageSize = resolved.pageSize ?? 50;
 
     const candidates = await this.resolveCandidates(engine, resolved);
-    const filtered = MessageMonitoringService.applyLocalFilters(candidates, resolved);
+    // Classify the *whole* candidate set before filtering, so `framework`/`recoveryState` are real
+    // server-side filter criteria rather than a post-pagination cosmetic. Affordable precisely
+    // because cheap detection makes zero upstream calls — see `classify`.
+    const classified = MessageMonitoringService.classify(engine, candidates);
+    const filtered = MessageMonitoringService.applyLocalFilters(classified, resolved);
     const sorted = MessageMonitoringService.sort(filtered, resolved);
     const total = sorted.length;
     const pageItems = sorted.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize);
 
-    const enriched = await Promise.all(pageItems.map((item) => this.enrichRow(engine, item)));
+    const enriched = await Promise.all(pageItems.map((entry) => this.enrichRow(engine, entry)));
     return { items: enriched, total, skip: (page - 1) * pageSize, top: pageSize };
   }
 
@@ -232,9 +268,10 @@ export class MessageMonitoringService {
     const engine = this.engineFactory();
     const resolved = MessageMonitoringService.applySmartFilter(query);
     const candidates = await this.resolveCandidates(engine, resolved);
-    const filtered = MessageMonitoringService.applyLocalFilters(candidates, resolved);
+    const classified = MessageMonitoringService.classify(engine, candidates);
+    const filtered = MessageMonitoringService.applyLocalFilters(classified, resolved);
     const sorted = MessageMonitoringService.sort(filtered, resolved);
-    const rows = sorted.map((item) => MessageMonitoringService.toRow(item));
+    const rows = sorted.map((entry) => MessageMonitoringService.toRow(entry));
     switch (format) {
       case "csv":
         return engine.export.toCsv(rows);
@@ -367,6 +404,134 @@ export class MessageMonitoringService {
     };
   }
 
+  // --- Framework awareness & recovery (Phase 13) --------------------------------
+
+  /**
+   * Full framework detection for one message (§1): everything cheap list-scope detection does, plus
+   * custom-header rules and real queue-membership evidence.
+   *
+   * Costs a header read and up to N keyed queue lookups, so it is only ever called for a message the
+   * operator actually selected — never per row.
+   *
+   * @param messageId the MPL message id.
+   * @returns the detection result, including the evidence trail behind it.
+   * @throws {HttpError} 404 when the message is unknown.
+   */
+  public async getFramework(messageId: string): Promise<MessageFrameworkDto> {
+    const engine = this.engineFactory();
+    const { source, group, headers } = await this.loadDetectionInputs(engine, messageId);
+    return engine.frameworkDetection.detectFull(source, group, headers, async (queueName, id) => {
+      return (await engine.queue.getMessage(queueName, id)) !== undefined;
+    });
+  }
+
+  /**
+   * Resolves what recovery would do for one message (§8's detail panel) — read-only, nothing is
+   * moved or retried.
+   * @param messageId the MPL message id.
+   * @param operatorSelectedQueue a queue the operator picked, for the one case a strategy cannot
+   *   resolve one itself (the JMS framework with an unparseable queue header).
+   * @returns the resolved plan.
+   * @throws {HttpError} 404 when the message is unknown.
+   */
+  public async getRecoveryPlan(
+    messageId: string,
+    operatorSelectedQueue?: string,
+  ): Promise<MessageRecoveryPlanDto> {
+    const engine = this.engineFactory();
+    const input = await this.buildRecoveryInput(engine, messageId, undefined, operatorSelectedQueue);
+    return engine.recovery.resolveRecoveryPlan(input);
+  }
+
+  /**
+   * Builds the pre-execution recovery plan for a selection (§9): resolve each message's strategy,
+   * validate it, and report which will actually run.
+   *
+   * Unknown message ids are skipped rather than failing the whole batch — a stale selection (a
+   * message purged between page load and confirmation) must not block recovery of the rest.
+   *
+   * @param messageIds the selected message ids.
+   * @returns the batch plan, with `executableMessageIds` naming exactly what execution would touch.
+   */
+  public async buildRecoveryPlan(
+    messageIds: readonly string[],
+  ): Promise<RecoveryPlanBatchDto> {
+    const engine = this.engineFactory();
+    const inputs = await Promise.all(
+      messageIds.map(async (messageId) => {
+        try {
+          return await this.buildRecoveryInput(engine, messageId, undefined, undefined);
+        } catch {
+          return undefined;
+        }
+      }),
+    );
+    return engine.recovery.buildRecoveryPlan(
+      inputs.filter((input): input is MessageRecoveryInput => input !== undefined),
+    );
+  }
+
+  /**
+   * Executes framework-aware recovery for one message: the strategy's real move → verify → retry
+   * against the tenant, guarded against a concurrent duplicate by the engine's lock store (§10).
+   *
+   * @param messageId the MPL message id.
+   * @param reason optional operator-supplied reason, captured in the audit log.
+   * @param operatorSelectedQueue a queue the operator picked, when the strategy could not resolve one.
+   * @returns the real outcome, step by step.
+   * @throws {HttpError} 404 when the message is unknown.
+   */
+  public async recover(
+    messageId: string,
+    reason?: string,
+    operatorSelectedQueue?: string,
+  ): Promise<MessageRecoveryOutcomeDto> {
+    const engine = this.engineFactory();
+    const input = await this.buildRecoveryInput(engine, messageId, reason, operatorSelectedQueue);
+    return engine.recovery.executeMessageRecovery(input);
+  }
+
+  /**
+   * Loads the three inputs detection needs for one message: the message itself, its correlation
+   * group and its custom headers.
+   */
+  private async loadDetectionInputs(
+    engine: OperationsEngine,
+    messageId: string,
+  ): Promise<{
+    source: MessageSummary;
+    group: readonly MessageSummary[];
+    headers: Readonly<Record<string, string>>;
+  }> {
+    const source = await engine.message.getMessage(messageId);
+    if (source === undefined) {
+      throw HttpError.notFound(`No message found with id "${messageId}".`);
+    }
+    const group = await engine.message.findByCorrelationId(source.correlationId);
+    return {
+      source,
+      group: group.length === 0 ? [source] : group,
+      headers: source.customHeaders,
+    };
+  }
+
+  /** Runs full detection and packages it with the message for the recovery engine. */
+  private async buildRecoveryInput(
+    engine: OperationsEngine,
+    messageId: string,
+    reason: string | undefined,
+    operatorSelectedQueue: string | undefined,
+  ): Promise<MessageRecoveryInput> {
+    const { source, group, headers } = await this.loadDetectionInputs(engine, messageId);
+    const detection = await engine.frameworkDetection.detectFull(
+      source,
+      group,
+      headers,
+      async (queueName, id) => (await engine.queue.getMessage(queueName, id)) !== undefined,
+    );
+    return { message: source, detection, customHeaders: headers, reason, operatorSelectedQueue };
+  }
+
   private static async resolveJmsGroup(
     engine: OperationsEngine,
     source: MessageSummary,
@@ -458,17 +623,101 @@ export class MessageMonitoringService {
     return details.filter((item): item is NonNullable<typeof item> => item !== undefined);
   }
 
+  // --- Framework classification (Phase 13) -----------------------------------
+
+  /**
+   * Classifies every candidate's processing framework using **cheap** detection.
+   *
+   * The whole point of the cheap/full split is here: the working set has already been fetched, so
+   * grouping it by correlation id in memory gives every row its correlation siblings for free. A
+   * 50-row page therefore costs **zero** additional upstream calls, versus one correlation fetch and
+   * one header read per row if detection were done naively — the difference between a grid that
+   * loads and one that times out against a real tenant.
+   *
+   * Frameworks detectable only through queue topology stay `UNKNOWN` at this scope, which is the
+   * honest answer: selecting the row runs full detection and resolves them properly.
+   */
+  private static classify(
+    engine: OperationsEngine,
+    candidates: readonly MessageSummary[],
+  ): readonly ClassifiedMessage[] {
+    const byCorrelation = new Map<string, MessageSummary[]>();
+    for (const item of candidates) {
+      const group = byCorrelation.get(item.correlationId);
+      if (group === undefined) {
+        byCorrelation.set(item.correlationId, [item]);
+      } else {
+        group.push(item);
+      }
+    }
+    return candidates.map((item) => {
+      const detection = engine.frameworkDetection.detectCheap(
+        item,
+        byCorrelation.get(item.correlationId) ?? [item],
+      );
+      return {
+        item,
+        detection,
+        recoveryState: MessageMonitoringService.indicativeRecoveryState(
+          detection.framework,
+          item.status,
+          item.severity,
+        ),
+      };
+    });
+  }
+
+  /**
+   * Derives the *indicative* recovery state shown in the grid, from the detected framework plus the
+   * message's own MPL status — deliberately **without** probing any queue, since that would reinstate
+   * the per-row upstream cost the cheap path exists to avoid.
+   *
+   * This is a recoverability **indicator**, not a promise: `RECOVERABLE` means "a framework owns this
+   * and it is in a state worth recovering", and only the recovery plan (which really locates the
+   * message) can say whether that is a retry in place, a DLQ move, or nothing at all. States that
+   * require real evidence — `RETRY_AVAILABLE`, `DLQ_RECOVERY_AVAILABLE`, `NOT_FOUND` — are never
+   * claimed here.
+   *
+   * A message that has not failed is `UNSUPPORTED`: there is genuinely nothing to recover, and saying
+   * so makes no claim about where the message is.
+   */
+  private static indicativeRecoveryState(
+    framework: ProcessingFramework,
+    status: string,
+    severity: Severity,
+  ): RecoveryState {
+    if (framework === "UNKNOWN") {
+      return "MANUAL_INVESTIGATION_REQUIRED";
+    }
+    if (framework === "NON_FRAMEWORK") {
+      return "UNSUPPORTED";
+    }
+    const normalized = status.toUpperCase();
+    const failed =
+      FUNCTIONAL_ERROR_STATUSES.has(normalized) ||
+      TECHNICAL_ERROR_STATUSES.has(normalized) ||
+      severity === "error" ||
+      severity === "critical";
+    return failed ? "RECOVERABLE" : "UNSUPPORTED";
+  }
+
   // --- Local (in-memory, bounded) filtering ----------------------------------
 
   private static applyLocalFilters(
-    items: readonly MessageSummary[],
+    items: readonly ClassifiedMessage[],
     query: MessageListQuery,
-  ): MessageSummary[] {
-    return items.filter((item) => {
-      if (query.severity !== undefined && item.severity !== query.severity) {
+  ): ClassifiedMessage[] {
+    return items.filter((entry) => {
+      if (query.severity !== undefined && entry.item.severity !== query.severity) {
         return false;
       }
-      if (query.correlationId !== undefined && item.correlationId !== query.correlationId) {
+      if (query.correlationId !== undefined && entry.item.correlationId !== query.correlationId) {
+        return false;
+      }
+      if (query.framework !== undefined && entry.detection.framework !== query.framework) {
+        return false;
+      }
+      if (query.recoveryState !== undefined && entry.recoveryState !== query.recoveryState) {
         return false;
       }
       return true;
@@ -506,15 +755,28 @@ export class MessageMonitoringService {
     }
   }
 
-  private static sort(items: readonly MessageSummary[], query: MessageListQuery): MessageSummary[] {
+  /**
+   * Sorts classified rows. `framework` and `recoveryState` are sortable alongside the message's own
+   * fields, since both are now first-class columns; everything else resolves against the underlying
+   * {@link MessageSummary}.
+   */
+  private static sort(
+    items: readonly ClassifiedMessage[],
+    query: MessageListQuery,
+  ): ClassifiedMessage[] {
     if (query.sortBy === undefined) {
       return [...items];
     }
-    const field = query.sortBy as keyof MessageSummary;
+    const sortBy = query.sortBy;
     const direction = query.sortDirection === "asc" ? 1 : -1;
+    const valueOf = (entry: ClassifiedMessage): string | number | undefined => {
+      if (sortBy === "framework") return entry.detection.framework;
+      if (sortBy === "recoveryState") return entry.recoveryState;
+      return entry.item[sortBy as keyof MessageSummary] as string | number | undefined;
+    };
     return [...items].sort((a, b) => {
-      const left = a[field];
-      const right = b[field];
+      const left = valueOf(a);
+      const right = valueOf(b);
       if (left === right) return 0;
       if (left === undefined) return 1;
       if (right === undefined) return -1;
@@ -544,7 +806,10 @@ export class MessageMonitoringService {
       matches = result.items;
     }
     const others = matches.filter((item) => item.messageId !== source.messageId);
-    const enriched = await Promise.all(others.map((item) => this.enrichRow(engine, item)));
+    // Related rows render in the same grid shape as the main list, so they carry the framework and
+    // recovery-state columns too — classified over the match set they came from.
+    const classified = MessageMonitoringService.classify(engine, others);
+    const enriched = await Promise.all(classified.map((entry) => this.enrichRow(engine, entry)));
     return enriched;
   }
 
@@ -612,8 +877,9 @@ export class MessageMonitoringService {
 
   private async enrichRow(
     engine: OperationsEngine,
-    item: MessageSummary,
+    entry: ClassifiedMessage,
   ): Promise<MessageMonitoringDto> {
+    const item = entry.item;
     const attachments = await engine.attachment.listAttachments(item.messageId);
     const knownSizes = attachments
       .map((attachment) => attachment.sizeBytes)
@@ -628,10 +894,14 @@ export class MessageMonitoringService {
       payloadSizeBytes:
         knownSizes.length === 0 ? undefined : knownSizes.reduce((sum, size) => sum + size, 0),
       queueName: undefined,
+      framework: entry.detection.framework,
+      frameworkConfidence: entry.detection.confidence,
+      recoveryState: entry.recoveryState,
     };
   }
 
-  private static toRow(item: MessageSummary): Record<string, unknown> {
+  private static toRow(entry: ClassifiedMessage): Record<string, unknown> {
+    const item = entry.item;
     return {
       messageId: item.messageId,
       mplId: item.messageId,
@@ -648,6 +918,9 @@ export class MessageMonitoringService {
       applicationId: item.applicationId ?? "",
       messageType: item.messageType ?? "",
       customStatus: item.customStatus ?? "",
+      framework: entry.detection.framework,
+      frameworkConfidence: entry.detection.confidence,
+      recoveryState: entry.recoveryState,
     };
   }
 

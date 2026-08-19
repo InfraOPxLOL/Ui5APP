@@ -3,10 +3,15 @@ import type {
   MessageContext,
   MessageDetail,
   MessageMonitoringItem,
+  MessageRecoveryOutcome,
+  MessageRecoveryPlan,
   MessageSearchCriteria,
+  ProcessingFramework,
+  RecoveryState,
   RelatedMessageGroup,
   SmartFilter,
 } from "../../service/messageMonitoring/MessageInvestigationTypes";
+import type { RecoveryPlanRow } from "../../controller/messageMonitoring/RecoveryPathFormatter";
 import type { SavedSearch } from "../../service/messageMonitoring/SavedSearchService";
 import type { SavedLayout } from "../../service/messageMonitoring/GridLayoutService";
 import type { SmartFilterDefinition } from "../../config/messageMonitoring/smartFilters";
@@ -43,16 +48,34 @@ export interface SmartFilterVM extends SmartFilterDefinition {
   readonly title: string;
 }
 
-/** JMS classification/retry-resolution view-model shape (§ JMS Retry). */
-export interface JmsRetryVM {
+/**
+ * Framework-aware recovery view-model for the selected message (Phase 13, §8). Replaces the old
+ * JMS-only `JmsRetryVM`: the queue and path now come from whichever strategy owns the message, not
+ * from an assumption that every retryable message went through the JMS bridge.
+ */
+export interface RecoveryVM {
   busy: boolean;
-  checked: boolean;
-  eligible: boolean;
-  reason: string;
-  resolvedQueue: string;
-  currentQueue: string;
-  resolutionSource: string;
-  retryCount: number | undefined;
+  /** Whether a plan has been loaded for the current selection yet. */
+  loaded: boolean;
+  plan: MessageRecoveryPlan | null;
+  /** The multi-line `DLQ → MOVE → Queue → RETRY` block rendered in the Recovery tab. */
+  pathBlock: string;
+  /** The last executed outcome, so the tab can show what actually happened. */
+  outcome: MessageRecoveryOutcome | null;
+}
+
+/** Bulk Recovery Plan dialog state (§9). */
+export interface RecoveryPlanVM {
+  busy: boolean;
+  rows: readonly RecoveryPlanRow[];
+  executableMessageIds: readonly string[];
+  executableCount: number;
+  excludedCount: number;
+  /** Populated once execution finishes, one entry per executed message. */
+  results: readonly MessageRecoveryOutcome[];
+  summary: string;
+  /** True while the dialog is showing results rather than the pre-execution plan. */
+  executed: boolean;
 }
 
 /** Shape of the Message Investigation Workspace view model. */
@@ -75,12 +98,23 @@ export interface MessageMonitoringState {
   newLayoutName: string;
   advancedSearchOpen: boolean;
   contextCollapsed: boolean;
-  jmsFilter: "all" | "jms" | "nonJms";
+  /**
+   * Processing-framework filter; `""` means all frameworks. Replaces the old `jmsFilter` toggle —
+   * unlike that one, this is a real server-side criterion, not a post-filter over the loaded page.
+   */
+  frameworkFilter: ProcessingFramework | "";
+  /** Recovery-condition filter; `""` means all states. Independent of `frameworkFilter`. */
+  recoveryStateFilter: RecoveryState | "";
+  /** The selectable framework options, resolved to display labels at init. */
+  frameworkOptions: { key: ProcessingFramework | ""; text: string }[];
+  /** The selectable recovery-state options, resolved to display labels at init. */
+  recoveryStateOptions: { key: RecoveryState | ""; text: string }[];
   detailPageOpen: boolean;
   canRetry: boolean;
   context: ContextPanelState;
   drawer: DrawerState;
-  jmsRetry: JmsRetryVM;
+  recovery: RecoveryVM;
+  recoveryPlan: RecoveryPlanVM;
 }
 
 /**
@@ -118,20 +152,24 @@ export default class MessageMonitoringModel extends JSONModel {
       newLayoutName: "",
       advancedSearchOpen: false,
       contextCollapsed: false,
-      jmsFilter: "all",
+      frameworkFilter: "",
+      recoveryStateFilter: "",
+      frameworkOptions: [],
+      recoveryStateOptions: [],
       detailPageOpen: false,
       canRetry: false,
       context: { busy: false, context: null, related: [] },
       drawer: { expanded: false, activeTab: "overview", busy: false, detail: null },
-      jmsRetry: {
+      recovery: { busy: false, loaded: false, plan: null, pathBlock: "", outcome: null },
+      recoveryPlan: {
         busy: false,
-        checked: false,
-        eligible: false,
-        reason: "",
-        resolvedQueue: "",
-        currentQueue: "",
-        resolutionSource: "unresolved",
-        retryCount: undefined,
+        rows: [],
+        executableMessageIds: [],
+        executableCount: 0,
+        excludedCount: 0,
+        results: [],
+        summary: "",
+        executed: false,
       },
     };
     super(initial);

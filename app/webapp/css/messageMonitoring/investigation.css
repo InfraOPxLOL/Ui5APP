@@ -114,3 +114,18 @@
     min-width: 0;
   }
 }
+
+/*
+ * Recovery path block (Phase 13, §8). The path is rendered as pre-formatted text
+ * (`Processing DLQ ↓ MOVE ↓ SAP_TPM_INBOUND_Q ↓ RETRY`), so it needs a monospace face and preserved
+ * whitespace — the indentation is what makes the arrows line up into a readable flow.
+ */
+.investigationRecoveryPath {
+  font-family: "72Mono", "Courier New", monospace;
+  white-space: pre;
+  display: block;
+  padding: 0.5rem 0.75rem;
+  background-color: var(--sapList_Background, #fff);
+  border-left: 0.1875rem solid var(--sapInformativeColor, #0070f2);
+  overflow-x: auto;
+}

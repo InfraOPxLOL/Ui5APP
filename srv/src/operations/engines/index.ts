@@ -6,6 +6,7 @@ export { HeaderEngine } from "./HeaderEngine.js";
 export { AttachmentEngine } from "./AttachmentEngine.js";
 export { QueueEngine } from "./QueueEngine.js";
 export { RecoveryEngine } from "./RecoveryEngine.js";
+export { FrameworkDetectionEngine, type QueueProbe } from "./FrameworkDetectionEngine.js";
 export { RecoveryStateStore, recoveryStateStore } from "./RecoveryStateStore.js";
 export { CertificateEngine } from "./CertificateEngine.js";
 export { StatisticsEngine } from "./StatisticsEngine.js";

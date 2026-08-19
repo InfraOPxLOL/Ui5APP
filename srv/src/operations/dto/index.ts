@@ -38,6 +38,22 @@ export type {
   RecoveryDashboardSummary,
 } from "./RecoveryDto.js";
 export type {
+  ProcessingFramework,
+  DetectionConfidence,
+  QueueRole,
+  DetectionEvidence,
+  RecoveryPathStep,
+  FrameworkDetection,
+  RecoveryState,
+  RecoveryAction,
+  RecoveryValidation,
+  MessageRecoveryPlan,
+  RecoveryOutcomeStatus,
+  RecoveryStepResult,
+  MessageRecoveryOutcome,
+  RecoveryPlanBatch,
+} from "./FrameworkDto.js";
+export type {
   CatalogEntry,
   FailureTrend,
   RuntimeHealthSummary,

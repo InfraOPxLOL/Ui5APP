@@ -10,9 +10,6 @@ import Button from "sap/m/Button";
 import Select from "sap/m/Select";
 import Text from "sap/m/Text";
 import CoreItem from "sap/ui/core/Item";
-import Filter from "sap/ui/model/Filter";
-import FilterOperator from "sap/ui/model/FilterOperator";
-import type ListBinding from "sap/ui/model/ListBinding";
 import type Event from "sap/ui/base/Event";
 import InvestigationGrid from "../../library/controls/InvestigationGrid";
 import ClipboardUtils from "../../core/utils/ClipboardUtils";
@@ -29,6 +26,7 @@ import PanelLayoutService from "../../service/messageMonitoring/PanelLayoutServi
 import JmsQueueService from "../../service/jmsQueue/JmsQueueService";
 import PayloadStudioService from "../../service/payloadStudio/PayloadStudioService";
 import { appendDetailCrumb, removeDetailCrumb, type BreadcrumbEntry } from "./DetailBreadcrumb";
+import { formatPathBlock, formatPathSummary, toPlanRows } from "./RecoveryPathFormatter";
 import MessageMonitoringFormatter from "../../formatter/messageMonitoring/MessageMonitoringFormatter";
 import MessageMonitoringModel from "../../model/messageMonitoring/MessageMonitoringModel";
 import { messageInvestigationTableConfig } from "../../config/messageMonitoring/columns";
@@ -38,18 +36,41 @@ import {
   type InvestigationActionDefinition,
 } from "../../config/messageMonitoring/investigationActions";
 import type {
-  JmsRetryCheck,
   MessageExportFormat,
   MessageMonitoringItem,
+  MessageRecoveryOutcome,
   MessageSearchCriteria,
+  ProcessingFramework,
+  RecoveryState,
   SmartFilter,
 } from "../../service/messageMonitoring/MessageInvestigationTypes";
 
-/** Bulk-retry preview state for one selected message (§ JMS Retry). */
-interface BulkRetryPreviewItem {
-  readonly messageId: string;
-  readonly check: JmsRetryCheck;
-}
+/**
+ * The framework filter's options, in the order they appear. `""` is "all frameworks"; the rest
+ * mirror the backend's `ProcessingFramework` union exactly.
+ */
+const FRAMEWORK_FILTER_KEYS: readonly (ProcessingFramework | "")[] = [
+  "",
+  "TPM_V2",
+  "JMS_FRAMEWORK",
+  "COMMON_IDOC_ROUTER",
+  "IDOC_STATUS_SYNC",
+  "NON_FRAMEWORK",
+  "UNKNOWN",
+];
+
+/**
+ * The recovery-state filter's options. A deliberate subset of the full `RecoveryState` union: the
+ * states that only ever arise *during* or *after* an execution (`RETRYING`, `COMPLETED`,
+ * `FAILED_AGAIN`) are not useful list filters, since the list carries the indicative pre-execution
+ * value.
+ */
+const RECOVERY_STATE_FILTER_KEYS: readonly (RecoveryState | "")[] = [
+  "",
+  "RECOVERABLE",
+  "MANUAL_INVESTIGATION_REQUIRED",
+  "UNSUPPORTED",
+];
 
 /** Maps an export format to the shared {@link FileTypes} registry key (extension + MIME type). */
 const EXPORT_FILE_TYPE: Readonly<Record<MessageExportFormat, FileTypeKey>> = {
@@ -102,6 +123,21 @@ export default class ListController extends BaseController {
     return value === undefined ? "" : MessageMonitoringFormatter.relative(value);
   }
 
+  /** Maps a recovery state to a UI5 value state (binding-facing delegate). */
+  public formatRecoveryStateState(state: string | undefined): string {
+    return state === undefined ? "None" : MessageMonitoringFormatter.recoveryStateState(state as never);
+  }
+
+  /** Maps a recovery state to an icon (binding-facing delegate). */
+  public formatRecoveryStateIcon(state: string | undefined): string {
+    return state === undefined ? "" : MessageMonitoringFormatter.recoveryStateIcon(state as never);
+  }
+
+  /** Maps a detection confidence to a UI5 value state (binding-facing delegate). */
+  public formatConfidenceState(confidence: string | undefined): string {
+    return confidence === undefined ? "None" : MessageMonitoringFormatter.confidenceState(confidence);
+  }
+
   private readonly service = new MessageMonitoringService();
   private readonly bookmarks = BookmarkService.getInstance();
   private readonly savedSearches = SavedSearchService.getInstance();
@@ -136,6 +172,7 @@ export default class ListController extends BaseController {
     this.model().setProperty("/savedLayouts", [...this.gridLayouts.getAll()]);
     this.model().setProperty("/actions", this.buildActionsViewModel());
     this.model().setProperty("/canRetry", this.hasRole(RoleCollections.RetryOperator));
+    this.buildFilterOptions();
     this.applyPanelLayout();
     this.getRouter()
       .getRoute("messageMonitoring")
@@ -150,7 +187,7 @@ export default class ListController extends BaseController {
     this.contextAbort?.abort();
     this.detailAbort?.abort();
     this.rowMenu?.destroy();
-    this.bulkRetryDialog?.destroy();
+    this.recoveryPlanDialog?.destroy();
   }
 
   // --- Data loading ----------------------------------------------------------
@@ -199,11 +236,8 @@ export default class ListController extends BaseController {
       model.setProperty("/items", [...page.items]);
       model.setProperty("/total", page.total);
       model.setProperty("/selectedMessageIds", []);
-      const jmsFilter = model.getProperty("/jmsFilter") as "all" | "jms" | "nonJms";
-      if (jmsFilter !== "all") {
-        await this.classifyVisibleRows();
-      }
-      this.applyJmsFilter(jmsFilter);
+      // No post-load classification pass here any more: framework and recovery state arrive on every
+      // row from the backend, and both filters are applied server-side before pagination.
     } catch (error) {
       this.getErrorHandler().handle(error);
     } finally {
@@ -364,99 +398,117 @@ export default class ListController extends BaseController {
     }
   }
 
-  /** Selects a Detail Drawer tab; lazily loads the JMS Retry check on first visit. */
+  /**
+   * Selects a Detail Drawer tab; lazily resolves the recovery plan on first visit to the Recovery
+   * tab. Deferred rather than loaded with the message because the plan really probes queues — a cost
+   * worth paying only when the operator asks to see it.
+   */
   public onDrawerTabSelect(event: Event): void {
     const key = (event.getParameter("key" as never) as string | undefined) ?? "overview";
     this.model().setProperty("/drawer/activeTab", key);
-    if (key === "jmsRetry" && !(this.model().getProperty("/jmsRetry/checked") as boolean)) {
+    if (key === "recovery" && !(this.model().getProperty("/recovery/loaded") as boolean)) {
       const messageId = this.model().getProperty("/selectedMessageId") as string;
       if (messageId !== "") {
-        void this.loadJmsRetryCheck(messageId);
+        void this.loadRecoveryPlan(messageId);
       }
     }
   }
 
-  // --- JMS Retry (§ JMS Retry) ---------------------------------------------------
+  // --- Framework-aware recovery (§7, §8) ------------------------------------------
 
-  private async loadJmsRetryCheck(messageId: string): Promise<void> {
+  /**
+   * Loads the selected message's recovery plan for the Recovery tab. Read-only — resolving a plan
+   * never moves or retries anything, so this is safe to run on tab selection.
+   */
+  private async loadRecoveryPlan(messageId: string): Promise<void> {
     const model = this.model();
-    model.setProperty("/jmsRetry/busy", true);
+    model.setProperty("/recovery/busy", true);
     try {
-      const check = await this.service.getRetryCheck(messageId);
-      model.setProperty("/jmsRetry", {
+      const plan = await this.service.getRecoveryPlan(messageId);
+      model.setProperty("/recovery", {
         busy: false,
-        checked: true,
-        eligible: check.eligible,
-        reason: check.reason ?? "",
-        resolvedQueue: check.resolvedQueue ?? "",
-        currentQueue: check.currentQueue ?? "",
-        resolutionSource: check.resolutionSource,
-        retryCount: check.retryCount,
+        loaded: true,
+        plan,
+        pathBlock: formatPathBlock(plan.path),
+        outcome: null,
       });
     } catch (error) {
-      model.setProperty("/jmsRetry/busy", false);
+      model.setProperty("/recovery/busy", false);
       this.getErrorHandler().handle(error);
     }
   }
 
-  /** Retry button inside the Detail Drawer's JMS Retry tab. */
-  public onRetryFromDrawerPress(): void {
+  /** Recover button inside the Detail Drawer's Recovery tab. */
+  public onRecoverFromDrawerPress(): void {
     const messageId = this.model().getProperty("/selectedMessageId") as string;
     if (messageId !== "") {
-      void this.startRetryFlow(messageId);
+      void this.startRecoveryFlow(messageId);
     }
   }
 
   /**
-   * Starts the single-message retry confirm flow (§ JMS Retry): resolves the queue + retry count via
-   * a fresh {@link MessageMonitoringService.getRetryCheck} call, then either confirms with the
-   * resolved queue or asks the operator to pick one manually.
+   * Starts the single-message recovery confirm flow.
+   *
+   * The plan is re-resolved here rather than reusing whatever the Recovery tab last showed: that
+   * value may be minutes old, and the message may have moved, drained or been recovered by someone
+   * else since. Confirming against a stale plan is how an operator ends up authorising an action
+   * against a queue the message has already left.
    */
-  private async startRetryFlow(messageId: string): Promise<void> {
-    let check: JmsRetryCheck;
+  private async startRecoveryFlow(messageId: string): Promise<void> {
+    const model = this.model();
+    model.setProperty("/grid/busy", true);
+    let plan;
     try {
-      check = await this.service.getRetryCheck(messageId);
+      plan = await this.service.getRecoveryPlan(messageId);
     } catch (error) {
       this.getErrorHandler().handle(error);
       return;
+    } finally {
+      model.setProperty("/grid/busy", false);
     }
-    if (!check.eligible) {
-      MessageToast.show(check.reason ?? this.getText("investigation.retry.notEligible"));
+
+    // A JMS-framework message whose queue header could not be parsed is the one case where the
+    // backend legitimately cannot resolve a queue and asks the operator to choose.
+    if (!plan.executable && plan.framework === "JMS_FRAMEWORK" && plan.currentQueue === undefined) {
+      await this.openManualQueueDialog(messageId, undefined);
       return;
     }
-    if (check.currentQueue !== undefined) {
-      const currentQueue = check.currentQueue;
-      MessageBox.confirm(
-        this.getText("investigation.retry.confirm.text", [
-          currentQueue,
-          String(check.retryCount ?? 0),
-        ]),
-        {
-          title: this.getText("investigation.retry.confirm.title"),
-          onClose: (action: unknown) => {
-            if (action === MessageBox.Action.OK) {
-              void this.executeRetry(messageId, currentQueue);
-            }
-          },
+    if (!plan.executable) {
+      MessageToast.show(plan.explanation);
+      return;
+    }
+
+    MessageBox.confirm(
+      this.getText("investigation.recovery.confirm.text", [
+        this.frameworkLabel(plan.framework),
+        formatPathSummary(plan.path),
+      ]),
+      {
+        title: this.getText("investigation.recovery.confirm.title"),
+        onClose: (action: unknown) => {
+          if (action === MessageBox.Action.OK) {
+            void this.executeRecovery(messageId);
+          }
         },
-      );
-      return;
-    }
-    await this.openManualQueueDialog(messageId, check.resolvedQueue);
+      },
+    );
   }
 
-  private async executeRetry(messageId: string, queueName: string): Promise<void> {
+  /**
+   * Executes recovery for one message and reports exactly what the backend said happened.
+   *
+   * `accepted` is reported as "accepted", never as "succeeded": the tenant has taken the retry, but
+   * whether the message then processes cleanly is only visible later in its processing log (§7 — the
+   * frontend must not pretend a retry succeeded because a request was accepted).
+   */
+  private async executeRecovery(messageId: string, queueName?: string): Promise<void> {
     const model = this.model();
     model.setProperty("/grid/busy", true);
     try {
-      const result = await this.service.retry(messageId, queueName);
-      MessageToast.show(
-        this.getText(
-          result.accepted ? "investigation.retry.success" : "investigation.retry.failure",
-          [queueName],
-        ),
-      );
-      model.setProperty("/jmsRetry/checked", false);
+      const outcome = await this.service.recover(messageId, undefined, queueName);
+      model.setProperty("/recovery/outcome", outcome);
+      MessageToast.show(outcome.note);
+      model.setProperty("/recovery/loaded", false);
       await this.refresh();
     } catch (error) {
       this.getErrorHandler().handle(error);
@@ -489,7 +541,7 @@ export default class ListController extends BaseController {
           const queueName = select.getSelectedKey();
           dialog.close();
           if (queueName !== "") {
-            void this.executeRetry(messageId, queueName);
+            void this.executeRecovery(messageId, queueName);
           }
         },
       }),
@@ -500,7 +552,13 @@ export default class ListController extends BaseController {
     dialog.open();
   }
 
-  /** Toolbar "Retry Selected" — bulk-retries every JMS-eligible selected message (§ JMS Retry). */
+  /**
+   * Toolbar "Retry Selected" (§9) — resolves a recovery strategy for every selected message, shows
+   * the resulting plan, and executes only after the operator confirms.
+   *
+   * Non-executable messages are shown in the plan rather than silently dropped: an operator who
+   * selected 10 rows and sees 7 run needs to know which 3 did not and why.
+   */
   public async onRetrySelectedPress(): Promise<void> {
     if (!this.hasRole(RoleCollections.RetryOperator)) {
       MessageToast.show(this.getText("investigation.retry.roleRequired"));
@@ -511,150 +569,176 @@ export default class ListController extends BaseController {
       MessageToast.show(this.getText("investigation.retry.bulk.noSelection"));
       return;
     }
+
     const model = this.model();
     model.setProperty("/grid/busy", true);
-    let previews: BulkRetryPreviewItem[];
+    let batch;
     try {
-      previews = await Promise.all(
-        selectedIds.map(async (messageId) => ({
-          messageId,
-          check: await this.service.getRetryCheck(messageId),
-        })),
-      );
+      // One round trip for the whole selection, rather than one request per message.
+      batch = await this.service.buildRecoveryPlan(selectedIds);
     } catch (error) {
-      model.setProperty("/grid/busy", false);
       this.getErrorHandler().handle(error);
       return;
+    } finally {
+      model.setProperty("/grid/busy", false);
     }
-    model.setProperty("/grid/busy", false);
 
-    const retryable = previews.filter(
-      (preview) => preview.check.eligible && preview.check.currentQueue !== undefined,
-    );
-    const needsManual = previews.filter(
-      (preview) => preview.check.eligible && preview.check.currentQueue === undefined,
-    );
-    if (retryable.length === 0) {
-      MessageToast.show(this.getText("investigation.retry.bulk.noneEligible"));
+    model.setProperty("/recoveryPlan", {
+      busy: false,
+      rows: toPlanRows(batch.plans),
+      executableMessageIds: batch.executableMessageIds,
+      executableCount: batch.executableCount,
+      excludedCount: batch.excludedCount,
+      results: [],
+      summary: "",
+      executed: false,
+    });
+
+    const dialog = await this.getRecoveryPlanDialog();
+    dialog.open();
+  }
+
+  /** Confirms the Recovery Plan dialog and executes only the messages that can genuinely run. */
+  public async onRecoveryPlanConfirm(): Promise<void> {
+    const model = this.model();
+    const messageIds = model.getProperty(
+      "/recoveryPlan/executableMessageIds",
+    ) as readonly string[];
+    if (messageIds.length === 0) {
+      MessageToast.show(this.getText("investigation.recovery.bulk.noneExecutable"));
       return;
     }
 
-    MessageBox.confirm(this.getText("investigation.retry.bulk.confirm.text", [retryable.length]), {
-      title: this.getText("investigation.retry.bulk.confirm.title"),
-      onClose: (action: unknown) => {
-        if (action === MessageBox.Action.OK) {
-          void this.executeBulkRetry(retryable, needsManual.length);
-        }
-      },
-    });
-  }
-
-  private async executeBulkRetry(
-    retryable: readonly BulkRetryPreviewItem[],
-    needsManualCount: number,
-  ): Promise<void> {
-    const dialog = await this.getBulkRetryDialog();
-    const dialogModel = dialog.getModel("bulkRetry") as JSONModel;
-    dialogModel.setData({ busy: true, summary: "", results: [] });
-    dialog.open();
-
-    const results: { messageId: string; queueName: string; accepted: boolean; note: string }[] = [];
-    for (const preview of retryable) {
+    model.setProperty("/recoveryPlan/busy", true);
+    const results: MessageRecoveryOutcome[] = [];
+    for (const messageId of messageIds) {
       try {
-        const result = await this.service.retry(
-          preview.messageId,
-          preview.check.currentQueue as string,
-        );
-        results.push(result);
+        results.push(await this.service.recover(messageId));
       } catch (error) {
+        // One message's failure must not abandon the rest of the batch — record it and continue.
         results.push({
-          messageId: preview.messageId,
-          queueName: preview.check.currentQueue ?? "",
-          accepted: false,
+          messageId,
+          framework: "UNKNOWN",
+          status: "failed",
+          recoveryState: "MANUAL_INVESTIGATION_REQUIRED",
+          steps: [],
           note: error instanceof Error ? error.message : String(error),
+          startedAt: new Date().toISOString(),
+          finishedAt: new Date().toISOString(),
         });
       }
     }
-    const succeeded = results.filter((result) => result.accepted).length;
-    let summary = this.getText("investigation.retry.bulk.complete", [succeeded, results.length]);
-    if (needsManualCount > 0) {
-      summary += " " + this.getText("investigation.retry.bulk.needsManual", [needsManualCount]);
+
+    // "Accepted" is counted separately from "succeeded" on purpose — see `executeRecovery`.
+    const accepted = results.filter(
+      (result) => result.status === "accepted" || result.status === "successful",
+    ).length;
+    let summary = this.getText("investigation.recovery.bulk.complete", [accepted, results.length]);
+    const excluded = model.getProperty("/recoveryPlan/excludedCount") as number;
+    if (excluded > 0) {
+      summary += " " + this.getText("investigation.recovery.bulk.excluded", [excluded]);
     }
-    dialogModel.setData({ busy: false, summary, results });
+
+    model.setProperty("/recoveryPlan/busy", false);
+    model.setProperty("/recoveryPlan/results", results);
+    model.setProperty("/recoveryPlan/summary", summary);
+    model.setProperty("/recoveryPlan/executed", true);
     await this.refresh();
   }
 
-  private async getBulkRetryDialog(): Promise<Dialog> {
-    if (this.bulkRetryDialog === undefined) {
-      this.bulkRetryDialog = (await Fragment.load({
-        name: "com.middlewareops.integrationportal.fragment.messageMonitoring.BulkRetryResultsDialog",
+  private async getRecoveryPlanDialog(): Promise<Dialog> {
+    if (this.recoveryPlanDialog === undefined) {
+      this.recoveryPlanDialog = (await Fragment.load({
+        name: "com.middlewareops.integrationportal.fragment.messageMonitoring.RecoveryPlanDialog",
         controller: this,
       })) as Dialog;
-      this.bulkRetryDialog.setModel(new JSONModel({ busy: false, summary: "", results: [] }), "bulkRetry");
-      this.getView()?.addDependent(this.bulkRetryDialog);
+      this.getView()?.addDependent(this.recoveryPlanDialog);
     }
-    return this.bulkRetryDialog;
+    return this.recoveryPlanDialog;
   }
 
-  /** Closes the bulk retry results dialog. */
-  public onBulkRetryResultsClose(): void {
-    this.bulkRetryDialog?.close();
+  /** Closes the Recovery Plan dialog. */
+  public onRecoveryPlanClose(): void {
+    this.recoveryPlanDialog?.close();
   }
 
-  // --- JMS/Non-JMS toggle ---------------------------------------------------------
+  // --- Framework / recovery-state filters (§1, §8) ---------------------------------
 
-  /** Switches the grid between All / JMS-only / Non-JMS-only, classifying loaded rows on demand. */
-  public async onJmsFilterChange(event: Event): Promise<void> {
-    const item = event.getParameter("item" as never) as { getKey(): string } | undefined;
-    const key = (item?.getKey() ?? "all") as "all" | "jms" | "nonJms";
-    this.model().setProperty("/jmsFilter", key);
-    if (key !== "all") {
-      this.model().setProperty("/grid/busy", true);
-      try {
-        await this.classifyVisibleRows();
-      } finally {
-        this.model().setProperty("/grid/busy", false);
-      }
-    }
-    this.applyJmsFilter(key);
+  /**
+   * Applies the processing-framework filter.
+   *
+   * Unlike the JMS/Non-JMS toggle this replaces, the filter is a **server-side criterion**: the
+   * backend classifies the whole working set before paginating, so filtering by framework returns a
+   * correct total and a full result set. The old toggle could only post-filter the rows already
+   * loaded, and had to issue one classification request per row to do it.
+   */
+  public onFrameworkFilterChange(event: Event): void {
+    const key = ((event.getParameter("selectedItem" as never) as { getKey(): string } | undefined)
+      ?.getKey() ?? "") as ProcessingFramework | "";
+    this.model().setProperty("/frameworkFilter", key);
+    this.applyCriteriaFilters();
   }
 
-  /** Classifies every currently-loaded row that hasn't been classified yet, in parallel. */
-  private async classifyVisibleRows(): Promise<void> {
-    const items = this.model().getProperty("/items") as MessageMonitoringItem[];
-    const unclassified = items.filter((item) => item.jmsEligible === undefined);
-    if (unclassified.length === 0) {
-      return;
-    }
-    const results = await Promise.all(
-      unclassified.map(async (item) => {
-        try {
-          const result = await this.service.checkJmsEligibility(item.messageId);
-          return { messageId: item.messageId, eligible: result.eligible };
-        } catch {
-          return { messageId: item.messageId, eligible: false };
-        }
-      }),
-    );
-    const eligibilityById = new Map(results.map((result) => [result.messageId, result.eligible]));
-    const updated = items.map((item) =>
-      eligibilityById.has(item.messageId)
-        ? { ...item, jmsEligible: eligibilityById.get(item.messageId) }
-        : item,
-    );
-    this.model().setProperty("/items", updated);
+  /** Applies the recovery-condition filter — the axis independent of framework. */
+  public onRecoveryStateFilterChange(event: Event): void {
+    const key = ((event.getParameter("selectedItem" as never) as { getKey(): string } | undefined)
+      ?.getKey() ?? "") as RecoveryState | "";
+    this.model().setProperty("/recoveryStateFilter", key);
+    this.applyCriteriaFilters();
   }
 
-  private applyJmsFilter(key: "all" | "jms" | "nonJms"): void {
-    const binding = this.grid.getBinding("rows") as ListBinding | undefined;
-    if (binding === undefined) {
-      return;
-    }
-    if (key === "all") {
-      binding.filter([]);
+  /** Folds both filter selections into the search criteria and reloads from the backend. */
+  private applyCriteriaFilters(): void {
+    const model = this.model();
+    const criteria = { ...(model.getProperty("/criteria") as MessageSearchCriteria) };
+    const framework = model.getProperty("/frameworkFilter") as ProcessingFramework | "";
+    const recoveryState = model.getProperty("/recoveryStateFilter") as RecoveryState | "";
+
+    if (framework === "") {
+      delete criteria.framework;
     } else {
-      binding.filter([new Filter("jmsEligible", FilterOperator.EQ, key === "jms")]);
+      criteria.framework = framework;
     }
+    if (recoveryState === "") {
+      delete criteria.recoveryState;
+    } else {
+      criteria.recoveryState = recoveryState;
+    }
+
+    model.setProperty("/criteria", criteria);
+    model.setProperty("/grid/page", 1);
+    void this.refresh();
+  }
+
+  /** Builds the two filter dropdowns' options, resolving each key to its i18n label. */
+  private buildFilterOptions(): void {
+    this.model().setProperty(
+      "/frameworkOptions",
+      FRAMEWORK_FILTER_KEYS.map((key) => ({
+        key,
+        text: key === "" ? this.getText("investigation.framework.all") : this.frameworkLabel(key),
+      })),
+    );
+    this.model().setProperty(
+      "/recoveryStateOptions",
+      RECOVERY_STATE_FILTER_KEYS.map((key) => ({
+        key,
+        text:
+          key === ""
+            ? this.getText("investigation.recoveryState.all")
+            : this.recoveryStateLabel(key),
+      })),
+    );
+  }
+
+  /** Resolves a framework's display label (binding-facing delegate for the grid column). */
+  public frameworkLabel(framework: string): string {
+    return framework === "" ? "" : this.getText(`investigation.framework.${framework}`);
+  }
+
+  /** Resolves a recovery state's display label (binding-facing delegate for the grid column). */
+  public recoveryStateLabel(state: string): string {
+    return state === "" ? "" : this.getText(`investigation.recoveryState.${state}`);
   }
 
   // --- Download (§ Message Actions) ------------------------------------------------
@@ -688,7 +772,7 @@ export default class ListController extends BaseController {
 
   // --- Detail page (§ Message Table — "expand option", a dedicated routed page) ----
 
-  private bulkRetryDialog: Dialog | undefined;
+  private recoveryPlanDialog: Dialog | undefined;
 
   /** Navigates to the dedicated, bookmarkable detail page for a message. */
   private openExpandedDetail(messageId: string): void {
@@ -904,8 +988,8 @@ export default class ListController extends BaseController {
       case "viewDetails":
         this.openExpandedDetail(messageId);
         break;
-      case "retryJms":
-        void this.startRetryFlow(messageId);
+      case "recover":
+        void this.startRecoveryFlow(messageId);
         break;
       case "download":
         void this.downloadForMessage(messageId);

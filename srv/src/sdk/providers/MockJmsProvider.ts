@@ -11,6 +11,7 @@ import {
   generateQueueStates,
   generateQueuedMessages,
   generateSingleMessage,
+  recordMockMove,
   MOCK_DISCOVERED_QUEUE_NAMES,
 } from "../mock/fixtures/index.js";
 
@@ -92,6 +93,28 @@ export class MockJmsProvider implements IJmsProvider {
       tenantId: context.tenantId,
       generateSuccess: () => ({ queueName, messageId }),
     });
+  }
+
+  /**
+   * @inheritdoc
+   *
+   * Records the relocation in the fixture ledger on success, so the caller's verification step
+   * (`getMessage` on the target queue) genuinely observes the move — without that, mock mode could
+   * never exercise the move → verify → retry sequence. A failure scenario short-circuits before the
+   * ledger is touched, leaving the message where it was.
+   */
+  public async moveMessages(
+    context: ProviderContext,
+    sourceQueue: string,
+    targetQueue: string,
+    messageIds: readonly string[],
+  ): Promise<void> {
+    await this.mockEngine.resolve({
+      operationKey: "jms.moveMessages",
+      tenantId: context.tenantId,
+      generateSuccess: () => ({ sourceQueue, targetQueue, messageIds }),
+    });
+    recordMockMove(targetQueue, messageIds);
   }
 
   /** @inheritdoc */

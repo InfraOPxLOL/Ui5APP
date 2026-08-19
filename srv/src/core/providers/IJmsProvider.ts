@@ -75,6 +75,28 @@ export interface IJmsProvider {
   retryMessage(context: ProviderContext, queueName: string, messageId: string): Promise<void>;
 
   /**
+   * Moves specific messages from one queue to another (the Cloud Integration JMS OData API's
+   * `MoveMessagingMessages` function import).
+   *
+   * Deliberately **message-specific**, never whole-queue: dead-letter recovery moves exactly the
+   * message(s) an operator selected back to their processing queue, leaving the rest of the DLQ
+   * untouched. This is the first half of the two-step DLQ recovery the framework strategies perform
+   * (`MOVE` → verify the message really arrived → `RETRY` on the target queue); the caller is
+   * responsible for the verification step, since acceptance of this call is not proof of arrival.
+   *
+   * @param context the tenant/correlation context.
+   * @param sourceQueue the physical queue the messages currently sit on.
+   * @param targetQueue the physical queue to move them to.
+   * @param messageIds the specific JMS message ids to move.
+   */
+  moveMessages(
+    context: ProviderContext,
+    sourceQueue: string,
+    targetQueue: string,
+    messageIds: readonly string[],
+  ): Promise<void>;
+
+  /**
    * Reads one message directly by its composite key (`jmsMessageId` + `queueName`) — cheaper and
    * more honest than scanning a queue's full listing looking for a match.
    * @param context the tenant/correlation context.

@@ -29,6 +29,21 @@ export {
   type RetryStrategy,
 } from "./queues.schema.js";
 export {
+  frameworksSchema,
+  frameworkSchema,
+  frameworkDetectionSchema,
+  frameworkTopologySchema,
+  frameworkQueueResolutionSchema,
+  headerMatchSchema,
+  CONFIGURABLE_FRAMEWORK_IDS,
+  type ConfigurableFrameworkId,
+  type FrameworkConfig,
+  type FrameworkDetectionRules,
+  type FrameworkTopology,
+  type FrameworkQueueResolution,
+  type FrameworksConfig,
+} from "./frameworks.schema.js";
+export {
   refreshSchema,
   refreshProfileSchema,
   type RefreshConfig,

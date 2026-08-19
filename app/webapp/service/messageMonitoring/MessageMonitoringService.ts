@@ -1,5 +1,6 @@
 import BaseService from "../../core/base/BaseService";
 import type {
+  FrameworkDetection,
   JmsEligibility,
   JmsRetryCheck,
   JmsRetryResult,
@@ -7,7 +8,10 @@ import type {
   MessageDetail,
   MessageExportFormat,
   MessageMonitoringPage,
+  MessageRecoveryOutcome,
+  MessageRecoveryPlan,
   MessageSearchCriteria,
+  RecoveryPlanBatch,
   RelatedMessageGroup,
 } from "./MessageInvestigationTypes";
 
@@ -156,6 +160,82 @@ export default class MessageMonitoringService extends BaseService {
     );
   }
 
+  // --- Framework awareness & recovery (Phase 13) --------------------------------
+
+  /**
+   * Loads full framework detection for one message, including the evidence behind the verdict —
+   * everything the cheap, list-scope classification could not resolve.
+   *
+   * Only called for a message the operator selected: it costs a header read and queue probes
+   * server-side, which is exactly why the grid's column uses the cheap classification instead.
+   * @param messageId the message id.
+   * @param signal optional abort signal.
+   * @returns the detection result.
+   */
+  public async getFramework(
+    messageId: string,
+    signal?: AbortSignal,
+  ): Promise<FrameworkDetection> {
+    return this.client.get<FrameworkDetection>(
+      this.path(`${encodeURIComponent(messageId)}/framework`),
+      { signal },
+    );
+  }
+
+  /**
+   * Resolves one message's recovery plan — read-only, nothing is moved or retried.
+   * @param messageId the message id.
+   * @param queueName a queue the operator picked, only for the case where a strategy legitimately
+   *   could not resolve one (the JMS framework with an unparseable queue header).
+   * @param signal optional abort signal.
+   * @returns the resolved plan.
+   */
+  public async getRecoveryPlan(
+    messageId: string,
+    queueName?: string,
+    signal?: AbortSignal,
+  ): Promise<MessageRecoveryPlan> {
+    return this.client.get<MessageRecoveryPlan>(
+      this.path(`${encodeURIComponent(messageId)}/recovery-plan`),
+      { query: { queueName }, signal },
+    );
+  }
+
+  /**
+   * Builds the pre-execution plan for a selection (§9) — one backend round trip for the whole
+   * selection, rather than one per message.
+   * @param messageIds the selected message ids.
+   * @returns the batch plan; `executableMessageIds` is exactly what execution would touch.
+   */
+  public async buildRecoveryPlan(
+    messageIds: readonly string[],
+  ): Promise<RecoveryPlanBatch> {
+    return this.client.post<RecoveryPlanBatch, { messageIds: readonly string[] }>(
+      this.path("recovery-plan"),
+      { messageIds },
+    );
+  }
+
+  /**
+   * Executes framework-aware recovery for one message (move → verify → retry, as its strategy
+   * requires). The backend is authoritative on duplicate protection — a concurrent second call is
+   * refused there, not here.
+   * @param messageId the message id.
+   * @param reason optional operator-supplied reason, captured in the audit log.
+   * @param queueName a queue the operator picked, when the strategy could not resolve one.
+   * @returns the real outcome, step by step.
+   */
+  public async recover(
+    messageId: string,
+    reason?: string,
+    queueName?: string,
+  ): Promise<MessageRecoveryOutcome> {
+    return this.client.post<MessageRecoveryOutcome, { reason?: string; queueName?: string }>(
+      this.path(`${encodeURIComponent(messageId)}/recover`),
+      { reason, queueName },
+    );
+  }
+
   private static toQuery(
     criteria: MessageSearchCriteria,
   ): Record<string, string | number | boolean | undefined> {
@@ -176,6 +256,8 @@ export default class MessageMonitoringService extends BaseService {
       durationMinMs: criteria.durationMinMs,
       durationMaxMs: criteria.durationMaxMs,
       smartFilter: criteria.smartFilter,
+      framework: criteria.framework,
+      recoveryState: criteria.recoveryState,
     };
   }
 }

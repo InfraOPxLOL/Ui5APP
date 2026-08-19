@@ -7,6 +7,7 @@ import {
   environmentSchema,
   tenantsSchema,
   queuesSchema,
+  frameworksSchema,
   refreshSchema,
   featuresSchema,
   themeSchema,
@@ -27,6 +28,7 @@ const schemas = {
   environment: environmentSchema,
   tenants: tenantsSchema,
   queues: queuesSchema,
+  frameworks: frameworksSchema,
   refresh: refreshSchema,
   features: featuresSchema,
   theme: themeSchema,
@@ -118,6 +120,133 @@ describe("schema guardrails reject invalid configuration", () => {
       tenantAuth: [entry, entry],
     });
     assert.equal(result.success, false);
+  });
+
+  it("rejects duplicate framework ids", () => {
+    const framework = { id: "TPM_V2", label: "TPM V2", priority: 1 };
+    const result = frameworksSchema.safeParse({
+      frameworks: [framework, { ...framework, priority: 2 }],
+    });
+    assert.equal(result.success, false);
+  });
+
+  it("rejects duplicate framework priorities, which would make detection order ambiguous", () => {
+    const result = frameworksSchema.safeParse({
+      frameworks: [
+        { id: "TPM_V2", label: "TPM V2", priority: 1 },
+        { id: "JMS_FRAMEWORK", label: "JMS", priority: 1 },
+      ],
+    });
+    assert.equal(result.success, false);
+  });
+
+  it("rejects a dead-letter queue with no recovery mapping", () => {
+    const result = frameworksSchema.safeParse({
+      frameworks: [
+        {
+          id: "TPM_V2",
+          label: "TPM V2",
+          priority: 1,
+          topology: {
+            traversalOrder: ["MAIN_Q", "MAIN_Q_DLQ"],
+            activeQueues: ["MAIN_Q"],
+            deadLetterQueues: ["MAIN_Q_DLQ"],
+            dlqRecoveryMap: {},
+          },
+        },
+      ],
+    });
+    assert.equal(
+      result.success,
+      false,
+      "a parked message would have nowhere to be moved back to",
+    );
+  });
+
+  it("rejects a dlqRecoveryMap target that is not an active queue", () => {
+    const result = frameworksSchema.safeParse({
+      frameworks: [
+        {
+          id: "TPM_V2",
+          label: "TPM V2",
+          priority: 1,
+          topology: {
+            traversalOrder: ["MAIN_Q", "MAIN_Q_DLQ"],
+            activeQueues: ["MAIN_Q"],
+            deadLetterQueues: ["MAIN_Q_DLQ"],
+            dlqRecoveryMap: { MAIN_Q_DLQ: "SOME_OTHER_Q" },
+          },
+        },
+      ],
+    });
+    assert.equal(result.success, false);
+  });
+
+  it("rejects a traversalOrder entry that is neither an active nor a dead-letter queue", () => {
+    const result = frameworksSchema.safeParse({
+      frameworks: [
+        {
+          id: "TPM_V2",
+          label: "TPM V2",
+          priority: 1,
+          topology: {
+            traversalOrder: ["MAIN_Q", "TYPO_Q"],
+            activeQueues: ["MAIN_Q"],
+            deadLetterQueues: [],
+            dlqRecoveryMap: {},
+          },
+        },
+      ],
+    });
+    assert.equal(result.success, false);
+  });
+
+  it("rejects a detection pattern that is not a compilable regular expression", () => {
+    const result = frameworksSchema.safeParse({
+      frameworks: [
+        {
+          id: "TPM_V2",
+          label: "TPM V2",
+          priority: 1,
+          detect: { integrationFlowPatterns: ["^SAP_TPM_(unclosed"] },
+        },
+      ],
+    });
+    assert.equal(
+      result.success,
+      false,
+      "an invalid regex must fail at boot, not at the first message it is applied to",
+    );
+  });
+
+  it("accepts a framework with no detection rules at all (queue-evidence-only detection)", () => {
+    const result = frameworksSchema.safeParse({
+      frameworks: [
+        {
+          id: "COMMON_IDOC_ROUTER",
+          label: "Common IDoc Router",
+          priority: 1,
+          topology: {
+            traversalOrder: ["Common_Router_JMS", "Common_Router_JMS_DLQ"],
+            activeQueues: ["Common_Router_JMS"],
+            deadLetterQueues: ["Common_Router_JMS_DLQ"],
+            dlqRecoveryMap: { Common_Router_JMS_DLQ: "Common_Router_JMS" },
+          },
+        },
+      ],
+    });
+    assert.equal(result.success, true);
+  });
+
+  it("rejects a framework id outside the configurable set", () => {
+    const result = frameworksSchema.safeParse({
+      frameworks: [{ id: "UNKNOWN", label: "Unknown", priority: 1 }],
+    });
+    assert.equal(
+      result.success,
+      false,
+      "UNKNOWN/NON_FRAMEWORK are detection outcomes, not configurable frameworks",
+    );
   });
 
   it("rejects a default theme that is not in availableThemes", () => {

@@ -443,6 +443,60 @@ describe("sdk/providers/RealJmsProvider", () => {
     });
   });
 
+  it("moveMessages POSTs the MoveMessagingMessages function import with the specific message ids", async () => {
+    let capturedUrl: string | undefined;
+    let capturedMethod: string | undefined;
+    let capturedBody: unknown;
+    const httpClient: IHttpClient = {
+      execute: (options) => {
+        capturedUrl = options.url;
+        capturedMethod = options.method;
+        capturedBody = options.body;
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          headers: new Map(),
+          bodyText: JSON.stringify({ operation: "MOVE", processedCount: 1 }),
+          attempts: 1,
+          durationMs: 1,
+        });
+      },
+    };
+    const provider = new RealJmsProvider(new RequestPipeline(stubResolver), httpClient);
+    await provider.moveMessages(context, "SOURCE_Q", "TARGET_Q", ["x-hex-1"]);
+
+    assert.equal(capturedUrl, `${tenant.baseUrl}/MoveMessagingMessages`);
+    assert.equal(capturedMethod, "POST");
+    assert.deepEqual(capturedBody, {
+      encoding: "json",
+      value: {
+        sourceQueue: "SOURCE_Q",
+        targetQueue: "TARGET_Q",
+        jmsMessageIds: ["x-hex-1"],
+      },
+    });
+  });
+
+  it("moveMessages makes no upstream call for an empty id list", async () => {
+    let called = false;
+    const httpClient: IHttpClient = {
+      execute: () => {
+        called = true;
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          headers: new Map(),
+          bodyText: "{}",
+          attempts: 1,
+          durationMs: 1,
+        });
+      },
+    };
+    const provider = new RealJmsProvider(new RequestPipeline(stubResolver), httpClient);
+    await provider.moveMessages(context, "SOURCE_Q", "TARGET_Q", []);
+    assert.equal(called, false, "moving nothing must not issue a request");
+  });
+
   it("getMessage reads the message by its composite key and returns undefined on 404", async () => {
     let capturedUrl: string | undefined;
     const httpClient: IHttpClient = {

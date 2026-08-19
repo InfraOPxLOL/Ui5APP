@@ -72,6 +72,9 @@ interface ODataV2Collection<T> {
  * - `MessagingMessages` — addresses one message by its composite key
  *   (`jmsMessageId` + `queueName`) for reads and DELETE.
  * - `RetryMessagingMessages` — the POST function import executing message retries.
+ * - `MoveMessagingMessages` — the POST function import moving specific messages between queues
+ *   (`sourceQueue` + `targetQueue` + `jmsMessageIds`). Backs dead-letter recovery, which must move a
+ *   parked message back to its processing queue before it can be retried.
  *
  * Note the tenant `$metadata` also declares a legacy `JmsQueues` entity set which responds
  * `501 Not Implemented` when queried directly — declared-in-metadata does not mean implemented,
@@ -83,6 +86,7 @@ export interface JmsProviderEndpoints {
   readonly messagingQueueEntitySet: string;
   readonly messageEntitySet: string;
   readonly retryFunctionImport: string;
+  readonly moveFunctionImport: string;
 }
 
 const DEFAULT_JMS_ENDPOINTS: JmsProviderEndpoints = {
@@ -90,6 +94,25 @@ const DEFAULT_JMS_ENDPOINTS: JmsProviderEndpoints = {
   messagingQueueEntitySet: "MessagingQueues",
   messageEntitySet: "MessagingMessages",
   retryFunctionImport: "RetryMessagingMessages",
+  moveFunctionImport: "MoveMessagingMessages",
+};
+
+/**
+ * Parameter names sent to {@link JmsProviderEndpoints.moveFunctionImport}. Kept beside the endpoint
+ * names (and equally overridable via the constructor) because they are upstream contract details:
+ * if a tenant's `$metadata` spells them differently, that is a configuration correction, not a code
+ * change — the same reasoning that made the entity-set names configurable in the first place.
+ */
+export interface JmsMoveParameterNames {
+  readonly sourceQueue: string;
+  readonly targetQueue: string;
+  readonly messageIds: string;
+}
+
+const DEFAULT_MOVE_PARAMETERS: JmsMoveParameterNames = {
+  sourceQueue: "sourceQueue",
+  targetQueue: "targetQueue",
+  messageIds: "jmsMessageIds",
 };
 
 /**
@@ -123,6 +146,7 @@ export class RealJmsProvider implements IJmsProvider {
     private readonly pipeline: RequestPipeline,
     httpClient: IHttpClient,
     private readonly endpoints: JmsProviderEndpoints = DEFAULT_JMS_ENDPOINTS,
+    private readonly moveParameters: JmsMoveParameterNames = DEFAULT_MOVE_PARAMETERS,
   ) {
     this.odataClient = new ODataClient(httpClient, "v2");
     this.restClient = new SdkRestClient(httpClient);
@@ -269,6 +293,35 @@ export class RealJmsProvider implements IJmsProvider {
         await this.restClient.post(
           `${tenant.baseUrl}/${this.endpoints.retryFunctionImport}`,
           { queueName, jmsMessageId: messageId },
+          opContext,
+          { headers: RealJmsProvider.jsonHeaders(tenant) },
+        );
+      },
+    });
+  }
+
+  /** @inheritdoc */
+  public async moveMessages(
+    context: ProviderContext,
+    sourceQueue: string,
+    targetQueue: string,
+    messageIds: readonly string[],
+  ): Promise<void> {
+    if (messageIds.length === 0) {
+      return;
+    }
+    return this.pipeline.run({
+      operationName: "jms.moveMessages",
+      tenantId: context.tenantId,
+      correlationId: context.correlationId,
+      execute: async (tenant, opContext) => {
+        await this.restClient.post(
+          `${tenant.baseUrl}/${this.endpoints.moveFunctionImport}`,
+          {
+            [this.moveParameters.sourceQueue]: sourceQueue,
+            [this.moveParameters.targetQueue]: targetQueue,
+            [this.moveParameters.messageIds]: [...messageIds],
+          },
           opContext,
           { headers: RealJmsProvider.jsonHeaders(tenant) },
         );

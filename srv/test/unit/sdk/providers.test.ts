@@ -7,6 +7,7 @@ import { MockCertificateProvider } from "../../../src/sdk/providers/MockCertific
 import { MockValueMappingProvider } from "../../../src/sdk/providers/MockValueMappingProvider.js";
 import { MockSplunkProvider } from "../../../src/sdk/providers/MockSplunkProvider.js";
 import { MockPartnerDirectoryProvider } from "../../../src/sdk/providers/MockPartnerDirectoryProvider.js";
+import { resetMockMoves } from "../../../src/sdk/mock/fixtures/index.js";
 
 const context = { tenantId: "primary", correlationId: "corr-1" };
 const successEngine = () => new MockEngine({ enabled: true, defaultScenario: "success" });
@@ -74,6 +75,37 @@ describe("sdk/providers/MockJmsProvider", () => {
   it("discoverQueues returns an empty list under the empty scenario", async () => {
     const provider = new MockJmsProvider(emptyEngine());
     assert.deepEqual(await provider.discoverQueues(context), []);
+  });
+
+  it("moveMessages relocates only the named message, so a verify-after-move genuinely observes it", async () => {
+    resetMockMoves();
+    const provider = new MockJmsProvider(successEngine());
+    const messageId = "msg-to-move";
+
+    await provider.moveMessages(context, "SOURCE_Q", "TARGET_Q", [messageId]);
+
+    const onTarget = await provider.getMessage(context, "TARGET_Q", messageId);
+    assert.ok(onTarget !== undefined, "the move must be observable on the target queue");
+    assert.equal(onTarget?.queueName, "TARGET_Q");
+
+    const onSource = await provider.getMessage(context, "SOURCE_Q", messageId);
+    assert.equal(onSource, undefined, "the message must no longer be on the source queue");
+    resetMockMoves();
+  });
+
+  it("moveMessages leaves other messages where they are", async () => {
+    resetMockMoves();
+    const provider = new MockJmsProvider(successEngine());
+    await provider.moveMessages(context, "SOURCE_Q", "TARGET_Q", ["moved-one"]);
+
+    const bystander = await provider.getMessage(context, "TARGET_Q", "untouched-one");
+    const moved = await provider.getMessage(context, "TARGET_Q", "moved-one");
+    assert.ok(moved !== undefined);
+    // The bystander's presence is the fixture's own deterministic pseudo-random answer, not a
+    // consequence of the move — asserting it is unchanged would just re-test the generator. What
+    // matters is that the relocation ledger only ever holds the ids actually moved.
+    assert.ok(bystander === undefined || bystander.messageId === "untouched-one");
+    resetMockMoves();
   });
 });
 

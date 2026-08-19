@@ -6,7 +6,9 @@ import type { MockEngineConfig } from "../sdk/mock/index.js";
 
 /**
  * Builds the {@link OperationsEngine} from this application's own configuration — the composition
- * root that wires `ConfigService.getQueues()` (queue topology metadata), `env.jmsQueueDiscoveryMode`
+ * root that wires `ConfigService.getQueues()` (queue topology metadata),
+ * `ConfigService.getFrameworks()` (the processing-framework registry backing framework detection and
+ * the recovery strategies), `env.jmsQueueDiscoveryMode`
  * (`JMS_QUEUE_DISCOVERY_MODE`) and the already-existing
  * {@link createIntegrationSuiteSdkClient} (mock- or real-mode SDK client, per `connectivity.json`)
  * into one `OperationsEngine`. Mirrors `sdkClientFactory.ts`'s own role one layer up: the Operations
@@ -23,5 +25,11 @@ import type { MockEngineConfig } from "../sdk/mock/index.js";
 export function createOperationsEngine(mockEngineConfig: MockEngineConfig): OperationsEngine {
   const sdk = createIntegrationSuiteSdkClient(mockEngineConfig);
   const queueConfigs = configService.getQueues();
-  return new OperationsEngine({ sdk, queueConfigs, queueDiscoveryMode: env.jmsQueueDiscoveryMode });
+  const frameworkConfigs = configService.getFrameworks();
+  return new OperationsEngine({
+    sdk,
+    queueConfigs,
+    frameworkConfigs,
+    queueDiscoveryMode: env.jmsQueueDiscoveryMode,
+  });
 }

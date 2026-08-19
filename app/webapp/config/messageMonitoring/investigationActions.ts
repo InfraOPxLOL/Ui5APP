@@ -8,7 +8,7 @@ export type InvestigationActionKind =
   | "drawerTab"
   | "future"
   | "viewDetails"
-  | "retryJms"
+  | "recover"
   | "download";
 
 /**
@@ -76,10 +76,12 @@ export const INVESTIGATION_ACTIONS: readonly InvestigationActionDefinition[] = [
     kind: "viewDetails",
   },
   {
-    id: "retry",
-    titleKey: "action.retry",
+    id: "recover",
+    titleKey: "action.recover",
     icon: "sap-icon://redo",
-    kind: "retryJms",
+    // Framework-aware since Phase 13: resolves whichever recovery strategy owns the message rather
+    // than assuming a JMS-bridge retry.
+    kind: "recover",
     permission: { anyRoleCollection: [RoleCollections.RetryOperator] },
   },
   {

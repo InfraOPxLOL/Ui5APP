@@ -89,6 +89,30 @@ export class JmsClient {
     };
   }
 
+  /**
+   * Moves specific messages between queues. See {@link IJmsProvider.moveMessages}.
+   *
+   * Acceptance is **not** proof of arrival — callers performing dead-letter recovery must verify with
+   * {@link getMessage} on the target queue before retrying.
+   * @param sourceQueue the queue the messages currently sit on.
+   * @param targetQueue the queue to move them to.
+   * @param messageIds the specific message ids to move.
+   * @param context optional tenant/correlation override.
+   */
+  public moveMessages(
+    sourceQueue: string,
+    targetQueue: string,
+    messageIds: readonly string[],
+    context?: ClientCallContext,
+  ): Promise<void> {
+    return this.provider.moveMessages(
+      resolveContext(this.defaultTenantId, context),
+      sourceQueue,
+      targetQueue,
+      messageIds,
+    );
+  }
+
   /** Reads one message by its composite key. See {@link IJmsProvider.getMessage}. */
   public getMessage(
     queueName: string,

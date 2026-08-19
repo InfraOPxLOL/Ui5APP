@@ -8,6 +8,7 @@ import {
   environmentSchema,
   tenantsSchema,
   queuesSchema,
+  frameworksSchema,
   refreshSchema,
   featuresSchema,
   themeSchema,
@@ -19,6 +20,7 @@ import {
   type EnvironmentConfig,
   type TenantConfig,
   type QueueConfig,
+  type FrameworkConfig,
   type RefreshProfile,
   type FeaturesConfig,
   type ThemeConfig,
@@ -36,6 +38,7 @@ export interface AppConfig {
   readonly environment: EnvironmentConfig;
   readonly tenants: readonly TenantConfig[];
   readonly queues: readonly QueueConfig[];
+  readonly frameworks: readonly FrameworkConfig[];
   readonly refresh: { defaultProfile: string; profiles: Record<string, RefreshProfile> };
   readonly features: FeaturesConfig;
   readonly theme: ThemeConfig;
@@ -51,7 +54,7 @@ export interface AppConfig {
  * read JSON from disk (architecture §11, reaffirmed by the Phase-3 platform mandate).
  *
  * Behaviour:
- * - Loads the ten domain files from the `config/` directory once, at first access.
+ * - Loads the eleven domain files from the `config/` directory once, at first access.
  * - Each `<name>.json` may be overlaid by a gitignored `<name>.local.json` (shallow merge) for
  *   local development.
  * - Every file is validated against its zod schema; any missing file or validation failure throws
@@ -76,6 +79,7 @@ export class ConfigService {
       environment: ConfigService.loadFile(dir, "environment", environmentSchema),
       tenants: ConfigService.loadFile(dir, "tenants", tenantsSchema).tenants,
       queues: ConfigService.loadFile(dir, "queues", queuesSchema).queues,
+      frameworks: ConfigService.loadFile(dir, "frameworks", frameworksSchema).frameworks,
       refresh: ConfigService.loadFile(dir, "refresh", refreshSchema),
       features: ConfigService.loadFile(dir, "features", featuresSchema),
       theme: ConfigService.loadFile(dir, "theme", themeSchema),
@@ -136,6 +140,27 @@ export class ConfigService {
   /** @returns all configured queues, including disabled ones (`queues.json`). */
   public getQueues(): readonly QueueConfig[] {
     return this.config.queues;
+  }
+
+  /**
+   * @returns every configured processing framework, including disabled ones and in declaration
+   *   order (`frameworks.json`). Detection callers should filter to `enabled` and sort by
+   *   `priority` — see {@link getEnabledFrameworks}.
+   */
+  public getFrameworks(): readonly FrameworkConfig[] {
+    return this.config.frameworks;
+  }
+
+  /**
+   * @returns the enabled processing frameworks, ordered by ascending `priority` — the exact order
+   *   framework detection evaluates rules in. Duplicate priorities are rejected at boot, so this
+   *   ordering is total and deterministic.
+   */
+  public getEnabledFrameworks(): readonly FrameworkConfig[] {
+    return this.config.frameworks
+      .filter((framework) => framework.enabled)
+      .slice()
+      .sort((left, right) => left.priority - right.priority);
   }
 
   /**

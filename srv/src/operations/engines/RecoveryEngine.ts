@@ -18,11 +18,32 @@ import type {
   RecoveryValidationResult,
 } from "../dto/RecoveryDto.js";
 import type { SearchResult } from "../dto/SearchDto.js";
+import type { MessageSummary } from "../dto/MessageDto.js";
+import type {
+  FrameworkDetection,
+  MessageRecoveryOutcome,
+  MessageRecoveryPlan,
+  RecoveryPlanBatch,
+} from "../dto/FrameworkDto.js";
 import type { QueueEngine } from "./QueueEngine.js";
 import type { RuntimeEngine } from "./RuntimeEngine.js";
+import type { RecoveryStrategy } from "../recovery/RecoveryStrategy.js";
+import type { RecoveryStrategyResolver } from "../recovery/RecoveryStrategyResolver.js";
+import { recoveryLockStore, RecoveryLockStore } from "../recovery/RecoveryLockStore.js";
 import { OperationsCache } from "../cache/index.js";
 import { calculateDurationMs, clampUtilization } from "../transform/index.js";
 import { recoveryStateStore, RecoveryStateStore } from "./RecoveryStateStore.js";
+
+/** Everything the message-scoped recovery API needs about one message, supplied by the caller. */
+export interface MessageRecoveryInput {
+  readonly message: MessageSummary;
+  readonly detection: FrameworkDetection;
+  readonly customHeaders: Readonly<Record<string, string>>;
+  /** Optional operator-supplied reason, captured in the retry audit log. */
+  readonly reason?: string;
+  /** A queue the operator explicitly chose, for the one case a strategy legitimately cannot resolve one. */
+  readonly operatorSelectedQueue?: string;
+}
 
 /** How many messages of a queue's parked backlog are sampled when computing "oldest message age". */
 const OLDEST_MESSAGE_SAMPLE_SIZE = 50;
@@ -49,6 +70,22 @@ function newRecoveryId(): string {
  * new configuration concept, and no queue name is ever hardcoded here. A dead-letter/retry queue with
  * no matching `config/queues.json` entry has no resolvable destination, which the validation and
  * preview surfaces both report honestly (`queueMappingExists: false`) rather than guessing one.
+ *
+ * ## Two distinct recovery surfaces
+ *
+ * Since Phase 13 this engine exposes two independent APIs that deliberately do **not** share code:
+ *
+ * - **Queue-batch recovery** (Phase 11, unchanged) — `getDashboard`/`listCandidates`/
+ *   `validateRecovery`/`previewRecovery`/`executeRecovery`/`getHistory`. Operates on a whole
+ *   dead-letter queue at a time and is what the Recovery Center workspace drives.
+ * - **Message-scoped, framework-aware recovery** (Phase 13) — {@link resolveMessageStrategy},
+ *   {@link buildRecoveryPlan}, {@link executeMessageRecovery}. Operates on one specific message,
+ *   delegating everything framework-specific to a {@link RecoveryStrategy} chosen by the injected
+ *   {@link RecoveryStrategyResolver}.
+ *
+ * **No framework logic lives in this class.** It never branches on which framework a message belongs
+ * to — it asks the resolver for a strategy and calls it. Adding a framework is a
+ * `config/frameworks.json` entry plus a strategy class; this file does not change.
  */
 export class RecoveryEngine {
   public constructor(
@@ -58,7 +95,152 @@ export class RecoveryEngine {
     private readonly queueConfigs: readonly QueueConfig[],
     private readonly cache: OperationsCache,
     private readonly stateStore: RecoveryStateStore = recoveryStateStore,
+    /** Absent only in older tests that exercise the queue-batch API alone. */
+    private readonly strategyResolver?: RecoveryStrategyResolver,
+    private readonly lockStore: RecoveryLockStore = recoveryLockStore,
   ) {}
+
+  // --- Message-scoped, framework-aware recovery (Phase 13) ----------------------
+
+  /**
+   * Picks the strategy that will handle a message, based on its framework detection result.
+   * @param detection the framework detection result.
+   * @returns the matching strategy.
+   * @throws {Error} when the engine was constructed without a resolver.
+   */
+  public resolveMessageStrategy(detection: FrameworkDetection): RecoveryStrategy {
+    if (this.strategyResolver === undefined) {
+      throw new Error(
+        "RecoveryEngine was constructed without a RecoveryStrategyResolver — message-scoped recovery is unavailable.",
+      );
+    }
+    return this.strategyResolver.resolve(detection);
+  }
+
+  /**
+   * Resolves what recovery *would* do for one message, without touching anything (§9's pre-execution
+   * step). Read-only: safe to call for a whole selection before the operator confirms.
+   *
+   * A recovery already in flight for this message is surfaced as `RETRYING`/non-executable, so a
+   * plan never invites a duplicate of an operation that is currently running.
+   *
+   * @param input the message, its detection result and its headers.
+   * @returns the resolved plan.
+   */
+  public async resolveRecoveryPlan(input: MessageRecoveryInput): Promise<MessageRecoveryPlan> {
+    const strategy = this.resolveMessageStrategy(input.detection);
+    const plan = await strategy.resolve(this.toContext(input));
+    if (!this.lockStore.isInFlight(input.message.messageId)) {
+      return plan;
+    }
+    return {
+      ...plan,
+      executable: false,
+      recoveryState: "RETRYING",
+      explanation: `A recovery for this message is already in progress. ${plan.explanation}`,
+    };
+  }
+
+  /**
+   * Builds a recovery plan for a selection of messages (§9), splitting executable from
+   * non-executable so the confirmation dialog can show every message but run only the ones that can
+   * genuinely proceed.
+   *
+   * @param inputs one entry per selected message.
+   * @returns the batch plan.
+   */
+  public async buildRecoveryPlan(
+    inputs: readonly MessageRecoveryInput[],
+  ): Promise<RecoveryPlanBatch> {
+    const plans = await Promise.all(inputs.map((input) => this.resolveRecoveryPlan(input)));
+    const executableMessageIds = plans
+      .filter((plan) => plan.executable)
+      .map((plan) => plan.messageId);
+    return {
+      plans,
+      executableMessageIds,
+      executableCount: executableMessageIds.length,
+      excludedCount: plans.length - executableMessageIds.length,
+    };
+  }
+
+  /**
+   * Executes recovery for one message: claims it, re-resolves the plan against live state, then runs
+   * the strategy's move → verify → retry sequence.
+   *
+   * The plan is deliberately re-resolved here rather than accepted from the caller — a plan built for
+   * a confirmation dialog may be seconds or minutes old, and the message may have moved, been
+   * retried by someone else, or drained in the meantime. Acting on a stale plan is exactly how a
+   * "successful" recovery of a message that was no longer there would be reported.
+   *
+   * The lock is claimed **before** any tenant call and released in a `finally`, so a crash mid-flight
+   * cannot leave a message permanently blocked (see {@link RecoveryLockStore}'s staleness handling).
+   *
+   * @param input the message, its detection result and its headers.
+   * @returns the real outcome, including every step that ran.
+   */
+  public async executeMessageRecovery(
+    input: MessageRecoveryInput,
+  ): Promise<MessageRecoveryOutcome> {
+    const messageId = input.message.messageId;
+    const startedAt = new Date().toISOString();
+    const claim = this.lockStore.tryAcquire(messageId);
+
+    if (claim.kind === "in-flight") {
+      return {
+        messageId,
+        framework: input.detection.framework,
+        status: "unavailable",
+        recoveryState: "RETRYING",
+        steps: [],
+        note: `A recovery for this message has been running since ${claim.sinceIso}. No second attempt was made.`,
+        startedAt,
+        finishedAt: new Date().toISOString(),
+      };
+    }
+    if (claim.kind === "already-processed") {
+      return {
+        messageId,
+        framework: input.detection.framework,
+        status: "already-processed",
+        recoveryState: "COMPLETED",
+        steps: [],
+        note: `This message was already recovered at ${claim.atIso}. ${claim.note}`,
+        startedAt,
+        finishedAt: new Date().toISOString(),
+      };
+    }
+
+    try {
+      const strategy = this.resolveMessageStrategy(input.detection);
+      const context = this.toContext(input);
+      const plan = await strategy.resolve(context);
+      const outcome = await strategy.execute(context, plan);
+      // Only remember attempts that genuinely reached the tenant. A plan that was never executable
+      // must stay immediately retryable once the operator fixes whatever blocked it.
+      this.lockStore.release(
+        messageId,
+        outcome.status === "accepted" || outcome.status === "successful"
+          ? outcome.note
+          : undefined,
+      );
+      return outcome;
+    } catch (error) {
+      this.lockStore.release(messageId);
+      throw error;
+    }
+  }
+
+  private toContext(input: MessageRecoveryInput) {
+    return {
+      message: input.message,
+      detection: input.detection,
+      customHeaders: input.customHeaders,
+      queue: this.queue,
+      reason: input.reason,
+      operatorSelectedQueue: input.operatorSelectedQueue,
+    };
+  }
 
   /** Composes the single aggregated view the Recovery Dashboard renders. */
   public async getDashboard(): Promise<RecoveryDashboardSummary> {

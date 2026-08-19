@@ -87,37 +87,86 @@
             </List>
           </IconTabFilter>
 
-          <IconTabFilter key="jmsRetry" text="{i18n>investigation.drawer.jmsRetry}" icon="sap-icon://redo">
+          <!--
+            Framework-aware Recovery tab (Phase 13, §8). Replaces the old JMS-only retry tab: the
+            framework, location and path all come from whichever recovery strategy owns the message,
+            and the detection evidence is shown so an UNKNOWN classification explains itself instead
+            of being a dead end.
+          -->
+          <IconTabFilter key="recovery" text="{i18n>investigation.drawer.recovery}" icon="sap-icon://redo">
             <l:VerticalLayout width="100%" class="sapUiSmallMargin">
-              <Text text="{i18n>investigation.jmsRetry.checking}" visible="{= !${view>/jmsRetry/checked} &amp;&amp; ${view>/jmsRetry/busy} }" />
-              <ObjectStatus
-                visible="{view>/jmsRetry/checked}"
-                text="{= ${view>/jmsRetry/eligible} ? ${i18n>investigation.jmsRetry.eligible} : ${i18n>investigation.jmsRetry.notEligible} }"
-                state="{= ${view>/jmsRetry/eligible} ? 'Success' : 'None' }" />
-              <ObjectAttribute
-                visible="{= ${view>/jmsRetry/checked} &amp;&amp; ${view>/jmsRetry/eligible} }"
-                title="{i18n>investigation.jmsRetry.resolvedQueue}"
-                text="{view>/jmsRetry/resolvedQueue}" />
-              <ObjectAttribute
-                visible="{= ${view>/jmsRetry/checked} &amp;&amp; ${view>/jmsRetry/eligible} }"
-                title="{i18n>investigation.jmsRetry.currentQueue}"
-                text="{view>/jmsRetry/currentQueue}" />
-              <ObjectAttribute
-                visible="{= ${view>/jmsRetry/checked} &amp;&amp; ${view>/jmsRetry/eligible} }"
-                title="{i18n>investigation.jmsRetry.retryCount}"
-                text="{view>/jmsRetry/retryCount}" />
-              <ObjectAttribute
-                visible="{= ${view>/jmsRetry/checked} &amp;&amp; ${view>/jmsRetry/reason} !== '' }"
-                title="{i18n>investigation.jmsRetry.reason}"
-                text="{view>/jmsRetry/reason}" />
-              <Button
-                text="{i18n>investigation.jmsRetry.retryButton}"
-                type="Emphasized"
-                icon="sap-icon://redo"
-                enabled="{= ${view>/jmsRetry/checked} &amp;&amp; ${view>/jmsRetry/eligible} }"
-                busy="{view>/jmsRetry/busy}"
-                press=".onRetryFromDrawerPress"
-                class="sapUiSmallMarginTop" />
+              <Text
+                text="{i18n>investigation.recovery.resolving}"
+                visible="{= !${view>/recovery/loaded} &amp;&amp; ${view>/recovery/busy} }" />
+              <Text
+                text="{i18n>investigation.recovery.notLoaded}"
+                visible="{= !${view>/recovery/loaded} &amp;&amp; !${view>/recovery/busy} }" />
+
+              <l:VerticalLayout width="100%" visible="{view>/recovery/loaded}">
+                <ObjectAttribute
+                  title="{i18n>investigation.recovery.framework}"
+                  text="{ path: 'view>/recovery/plan/framework', formatter: '.frameworkLabel' }" />
+                <ObjectStatus
+                  title="{i18n>investigation.recovery.state}"
+                  text="{ path: 'view>/recovery/plan/recoveryState', formatter: '.recoveryStateLabel' }"
+                  state="{ path: 'view>/recovery/plan/recoveryState', formatter: '.formatRecoveryStateState' }"
+                  icon="{ path: 'view>/recovery/plan/recoveryState', formatter: '.formatRecoveryStateIcon' }" />
+                <ObjectAttribute
+                  title="{i18n>investigation.recovery.currentLocation}"
+                  text="{view>/recovery/plan/currentLocation}"
+                  visible="{= ${view>/recovery/plan/currentLocation} !== undefined }" />
+                <ObjectAttribute
+                  title="{i18n>investigation.recovery.currentQueue}"
+                  text="{view>/recovery/plan/currentQueue}"
+                  visible="{= ${view>/recovery/plan/currentQueue} !== undefined }" />
+                <ObjectAttribute
+                  title="{i18n>investigation.recovery.targetQueue}"
+                  text="{view>/recovery/plan/targetQueue}"
+                  visible="{view>/recovery/plan/moveRequired}" />
+
+                <Label text="{i18n>investigation.recovery.path}" design="Bold" class="sapUiSmallMarginTop" />
+                <Text text="{view>/recovery/pathBlock}" class="investigationRecoveryPath" />
+
+                <Text
+                  text="{view>/recovery/plan/explanation}"
+                  class="sapUiSmallMarginTop"
+                  wrapping="true" />
+
+                <Button
+                  text="{i18n>investigation.recovery.recoverButton}"
+                  type="Emphasized"
+                  icon="sap-icon://redo"
+                  enabled="{= ${view>/recovery/plan/executable} &amp;&amp; ${view>/canRetry} }"
+                  busy="{view>/recovery/busy}"
+                  press=".onRecoverFromDrawerPress"
+                  class="sapUiSmallMarginTop" />
+
+                <!-- What actually happened, step by step, once a recovery has run. -->
+                <List
+                  headerText="{i18n>investigation.recovery.lastOutcome}"
+                  items="{view>/recovery/outcome/steps}"
+                  visible="{= ${view>/recovery/outcome} !== null }"
+                  noDataText=" "
+                  class="sapUiSmallMarginTop">
+                  <StandardListItem
+                    title="{view>action}"
+                    description="{view>detail}"
+                    info="{view>queueName}"
+                    icon="{= ${view>succeeded} ? 'sap-icon://accept' : 'sap-icon://error' }" />
+                </List>
+
+                <!-- Why detection concluded what it did — including the rules that did NOT match. -->
+                <List
+                  headerText="{i18n>investigation.recovery.evidence}"
+                  items="{view>/recovery/plan/detection/evidence}"
+                  noDataText="{i18n>investigation.recovery.noEvidence}"
+                  class="sapUiSmallMarginTop">
+                  <StandardListItem
+                    title="{view>rule}"
+                    description="{view>outcome}"
+                    icon="{= ${view>matched} ? 'sap-icon://accept' : 'sap-icon://less' }" />
+                </List>
+              </l:VerticalLayout>
             </l:VerticalLayout>
           </IconTabFilter>
 

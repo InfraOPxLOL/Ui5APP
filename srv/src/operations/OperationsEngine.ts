@@ -1,6 +1,7 @@
 import type { IntegrationSuiteSdkClient } from "../sdk/client/index.js";
-import type { QueueConfig } from "../config/schemas/index.js";
+import type { FrameworkConfig, QueueConfig } from "../config/schemas/index.js";
 import type { QueueDiscoveryMode } from "../config/env.js";
+import { RecoveryStrategyResolver } from "./recovery/index.js";
 import { OperationsCache } from "./cache/index.js";
 import {
   MessageEngine,
@@ -20,6 +21,7 @@ import {
   RuntimeCenterEngine,
   CertificateSecurityEngine,
   PartnerDirectoryEngine,
+  FrameworkDetectionEngine,
 } from "./engines/index.js";
 import type { DashboardSummary } from "./dto/DashboardDto.js";
 import type { HealthStatus } from "./transform/index.js";
@@ -32,6 +34,13 @@ export interface OperationsEngineOptions {
   readonly queueConfigs?: readonly QueueConfig[];
   /** Queue discovery mode (`env.jmsQueueDiscoveryMode`), for `QueueEngine`. Defaults to `"Fetch_Specific"`. */
   readonly queueDiscoveryMode?: QueueDiscoveryMode;
+  /**
+   * Processing-framework registry (`ConfigService.getFrameworks()`), for `FrameworkDetectionEngine`
+   * and the recovery strategies. Defaults to none — with an empty registry every message detects as
+   * `UNKNOWN` and every recovery falls to manual investigation, which is the correct degradation
+   * rather than a crash.
+   */
+  readonly frameworkConfigs?: readonly FrameworkConfig[];
 }
 
 /**
@@ -72,6 +81,8 @@ export class OperationsEngine {
   public readonly certificateSecurity: CertificateSecurityEngine;
   /** Partner Directory read/write access — the CoE Framework's configuration store. */
   public readonly partnerDirectory: PartnerDirectoryEngine;
+  /** Processing-framework classification (Phase 13) — backs the Message Investigation framework column. */
+  public readonly frameworkDetection: FrameworkDetectionEngine;
 
   public constructor(options: OperationsEngineOptions) {
     const cache = new OperationsCache();
@@ -88,12 +99,16 @@ export class OperationsEngine {
       cache,
       options.queueDiscoveryMode,
     );
+    const frameworkConfigs = options.frameworkConfigs ?? [];
+    this.frameworkDetection = new FrameworkDetectionEngine(frameworkConfigs);
     this.recovery = new RecoveryEngine(
       this.queue,
       sdk.jms,
       this.runtime,
       options.queueConfigs ?? [],
       cache,
+      undefined,
+      new RecoveryStrategyResolver(frameworkConfigs),
     );
     this.certificate = new CertificateEngine(sdk.certificate, cache);
     this.statistics = new StatisticsEngine(sdk.monitoring, this.runtime, cache);

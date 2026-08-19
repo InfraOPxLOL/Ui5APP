@@ -1,0 +1,96 @@
+{
+  "frameworks": [
+    {
+      "id": "JMS_FRAMEWORK",
+      "label": "JMS Framework",
+      "enabled": true,
+      "priority": 1,
+      "detect": {
+        "integrationFlowPatterns": [],
+        "correlationFlowNames": ["IF_JMS_ingress", "IF_JMS_egress"],
+        "customHeaderNames": [],
+        "customHeaderMatches": []
+      },
+      "topology": {
+        "traversalOrder": [],
+        "activeQueues": [],
+        "deadLetterQueues": [],
+        "dlqRecoveryMap": {}
+      },
+      "queueResolution": {
+        "headerName": "CH-Message-Queue",
+        "headerValuePattern": "\\[[^\\[\\]]*=\\s*([^\\]]+)\\]\\s*$",
+        "centralDeadLetterQueue": "Common_JMS_ID_DLQ"
+      }
+    },
+    {
+      "id": "TPM_V2",
+      "label": "TPM V2",
+      "enabled": true,
+      "priority": 2,
+      "detect": {
+        "integrationFlowPatterns": ["^SAP_TPM_", "_TPM_"],
+        "correlationFlowNames": [],
+        "customHeaderNames": [],
+        "customHeaderMatches": []
+      },
+      "topology": {
+        "traversalOrder": [
+          "SAP_TPM_INBOUND_Q",
+          "SAP_TPM_OUTBOUND_Q",
+          "SAP_TPM_COM_PROCESSING_OUTBOUND_DEAD_LETTER_Q",
+          "SAP_TPM_COM_RECEIVER_OUTOUND_DEAD_LETTER_Q"
+        ],
+        "activeQueues": ["SAP_TPM_INBOUND_Q", "SAP_TPM_OUTBOUND_Q"],
+        "deadLetterQueues": [
+          "SAP_TPM_COM_PROCESSING_OUTBOUND_DEAD_LETTER_Q",
+          "SAP_TPM_COM_RECEIVER_OUTOUND_DEAD_LETTER_Q"
+        ],
+        "dlqRecoveryMap": {
+          "SAP_TPM_COM_PROCESSING_OUTBOUND_DEAD_LETTER_Q": "SAP_TPM_INBOUND_Q",
+          "SAP_TPM_COM_RECEIVER_OUTOUND_DEAD_LETTER_Q": "SAP_TPM_OUTBOUND_Q"
+        }
+      }
+    },
+    {
+      "id": "COMMON_IDOC_ROUTER",
+      "label": "Common IDoc Router",
+      "enabled": true,
+      "priority": 3,
+      "detect": {
+        "integrationFlowPatterns": [],
+        "correlationFlowNames": [],
+        "customHeaderNames": [],
+        "customHeaderMatches": []
+      },
+      "topology": {
+        "traversalOrder": ["Common_Router_JMS", "Common_Router_JMS_DLQ"],
+        "activeQueues": ["Common_Router_JMS"],
+        "deadLetterQueues": ["Common_Router_JMS_DLQ"],
+        "dlqRecoveryMap": {
+          "Common_Router_JMS_DLQ": "Common_Router_JMS"
+        }
+      }
+    },
+    {
+      "id": "IDOC_STATUS_SYNC",
+      "label": "IDoc Status Sync",
+      "enabled": true,
+      "priority": 4,
+      "detect": {
+        "integrationFlowPatterns": [],
+        "correlationFlowNames": [],
+        "customHeaderNames": [],
+        "customHeaderMatches": []
+      },
+      "topology": {
+        "traversalOrder": ["Status_JMS", "Status_JMS_DLQ"],
+        "activeQueues": ["Status_JMS"],
+        "deadLetterQueues": ["Status_JMS_DLQ"],
+        "dlqRecoveryMap": {
+          "Status_JMS_DLQ": "Status_JMS"
+        }
+      }
+    }
+  ]
+}

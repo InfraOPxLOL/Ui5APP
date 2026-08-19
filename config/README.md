@@ -68,6 +68,34 @@ Array `queues[]`, names unique:
 | `retryStrategy` | `immediate` \| `fixed-interval` \| `exponential-backoff` \| `manual` | Retry policy (powers the future Retry Center). |
 | `maxRetries` | int ≥ 0 | Automatic retry ceiling (must be 0 for `manual`). |
 
+### `frameworks.json` — processing-framework registry
+Array `frameworks[]`; ids and priorities both unique. Backs framework detection
+(`operations/engines/FrameworkDetectionEngine`) and the per-framework recovery strategies
+(`operations/recovery/`). This is the **only** place a framework's iFlow signals or queue names are
+declared — none are hardcoded in the engines.
+
+| Property | Type | Meaning |
+|---|---|---|
+| `id` | `TPM_V2` \| `JMS_FRAMEWORK` \| `COMMON_IDOC_ROUTER` \| `IDOC_STATUS_SYNC` | Framework identity. `NON_FRAMEWORK`/`UNKNOWN` are detection *outcomes*, not configurable entries. |
+| `label` | string | Operator-facing name (the "Processing Framework" column). |
+| `enabled` | boolean | Disabled frameworks are skipped entirely; their messages fall through to `UNKNOWN`. |
+| `priority` | int ≥ 1 | Detection evaluation order (1 = first). Duplicates are rejected so ordering is deterministic. |
+| `detect.integrationFlowPatterns` | string[] (regex) | Matched against the message's own iFlow name. A name-shape match alone is `probable` confidence, never `confirmed`. |
+| `detect.correlationFlowNames` | string[] | Exact iFlow names that must **all** appear in the correlation group. A full match is `confirmed`. |
+| `detect.customHeaderNames` | string[] | Custom headers that must be present (full detection only). |
+| `detect.customHeaderMatches` | `{ name, valuePattern }[]` | Header present **and** value matching (full detection only). |
+| `topology.traversalOrder` | string[] | Ordered queue probe sequence when locating a message. First hit wins. |
+| `topology.activeQueues` | string[] | Queues a message can be retried from directly. |
+| `topology.deadLetterQueues` | string[] | Queues a message must be **moved out of** before retry. |
+| `topology.dlqRecoveryMap` | map: DLQ → active queue | Where each DLQ's messages are moved back to. Every DLQ needs an entry and every target must be an `activeQueues` member — enforced at boot. |
+| `queueResolution.headerName` | string | Custom header carrying a runtime-resolved queue (JMS Framework). |
+| `queueResolution.headerValuePattern` | string (regex) | First capture group is the bare queue name. |
+| `queueResolution.centralDeadLetterQueue` | string | Fixed DLQ those messages fall back to. |
+
+A framework with no `detect` rules (Common IDoc Router, IDoc Status Sync today) is still detectable
+through queue evidence during full detection — it just never matches during cheap, list-facing
+detection. That is deliberate: an unmatched message is reported `UNKNOWN` with evidence, never guessed.
+
 ### `refresh.json` — polling cadence profiles
 | Property | Type | Meaning |
 |---|---|---|

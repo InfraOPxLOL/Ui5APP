@@ -67,6 +67,27 @@ export const messageInvestigationTableConfig: InvestigationTableDefinition = {
       width: "13rem",
       visible: false,
     },
+    // Framework identity and recovery condition are two independent axes, so they are two columns —
+    // never one fused value. Both are backend-derived; the grid only renders them.
+    {
+      property: "framework",
+      labelKey: "column.framework",
+      type: "text",
+      sortable: true,
+      filterable: true,
+      groupable: true,
+      quickSearchable: true,
+      width: "11rem",
+    },
+    {
+      property: "recoveryState",
+      labelKey: "column.recoveryState",
+      type: "text",
+      sortable: true,
+      filterable: true,
+      groupable: true,
+      width: "12rem",
+    },
     {
       property: "messageType",
       labelKey: "column.sapMessageType",

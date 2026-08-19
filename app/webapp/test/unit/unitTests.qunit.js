@@ -20,6 +20,7 @@ sap.ui.define(
     "./OperationsFormatterTest.qunit",
     "./MessageMonitoringFormatterTest.qunit",
     "./DetailBreadcrumbTest.qunit",
+    "./RecoveryPathFormatterTest.qunit",
     "./TextSearchUtilsTest.qunit",
     "./PayloadCompareUtilsTest.qunit",
     "./PayloadStatisticsUtilsTest.qunit",

@@ -135,6 +135,26 @@ export class QueueEngine {
     return this.client.retryMessage({ messageId, queueName, reason });
   }
 
+  /**
+   * Moves specific messages from one queue to another — a direct passthrough to
+   * {@link JmsClient.moveMessages}, independent of `config/queues.json`'s topology (the caller,
+   * a framework recovery strategy, already knows both endpoints from `config/frameworks.json`).
+   *
+   * Deliberately message-specific, never whole-queue. Acceptance is not proof of arrival: dead-letter
+   * recovery must call {@link getMessage} against `targetQueue` afterwards to confirm the move landed
+   * before issuing a retry.
+   * @param sourceQueue the queue the messages currently sit on.
+   * @param targetQueue the queue to move them to.
+   * @param messageIds the specific message ids to move.
+   */
+  public async moveMessages(
+    sourceQueue: string,
+    targetQueue: string,
+    messageIds: readonly string[],
+  ): Promise<void> {
+    return this.client.moveMessages(sourceQueue, targetQueue, messageIds);
+  }
+
   private static toSummary(
     queueName: string,
     config: QueueConfig | undefined,
