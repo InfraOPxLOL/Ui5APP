@@ -1,6 +1,6 @@
 _schema-version: "3.3"
 ID: integration-portal
-version: 0.1.0
+version: 0.1.1
 description: Enterprise operations & observability platform for SAP Integration Suite (stateless)
 
 parameters:
