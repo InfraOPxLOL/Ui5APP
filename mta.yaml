@@ -100,7 +100,7 @@ modules:
         parameters:
           content-target: true
     build-parameters:
-      build-result: resources.zip
+      build-result: resources
       requires:
         - name: integration-portal-app
           artifacts:
