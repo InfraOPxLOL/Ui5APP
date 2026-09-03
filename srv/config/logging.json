@@ -1,0 +1,12 @@
+{
+  "level": "debug",
+  "includeCorrelationId": true,
+  "client": {
+    "shipLevel": "warn",
+    "flushIntervalMs": 10000,
+    "maxBufferEntries": 50
+  },
+  "audit": {
+    "enabled": true
+  }
+}

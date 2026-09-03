@@ -30,6 +30,11 @@ modules:
       commands:
         - npm ci
         - npm run build
+        # config/ lives at the repo root, outside this module's `path: srv`, so it is never
+        # otherwise part of the deployed droplet. Copy it into the module's own tree here so
+        # ConfigService's runtime lookup (which walks up from process.cwd(), i.e. the droplet
+        # root on CF) finds it at /home/vcap/app/config with no code change or CONFIG_DIR needed.
+        - 'node -e "require(''fs'').cpSync(''../config'', ''./config'', { recursive: true })"'
       ignore:
         - node_modules/
         - src/
@@ -63,13 +68,13 @@ modules:
           forwardAuthToken: true
 
   # -------------------------------------------------------------------------
-  # UI5 frontend deployed to the HTML5 Application Repository
+  # UI5 frontend — builds the app itself. `type: html5` is what makes MBT
+  # produce a `dist.zip` artifact other modules can reference; the content-
+  # deployer module below pulls it in via `build-parameters.requires`.
   # -------------------------------------------------------------------------
-  - name: integration-portal-app-content
-    type: com.sap.application.content
+  - name: integration-portal-app
+    type: html5
     path: app
-    parameters:
-      build-result: dist
     build-parameters:
       build-result: dist
       builder: custom
@@ -77,10 +82,30 @@ modules:
         - npm ci
         - npm run build
       supported-platforms: []
+
+  # -------------------------------------------------------------------------
+  # Content deployer — pushes the built UI5 app into the HTML5 Application
+  # Repository. `type: com.sap.application.content` packages/pushes content
+  # that ANOTHER module already built; it does not build anything itself —
+  # running its own `npm ci`/`npm run build` here (the previous shape of
+  # this module) executed fine but produced no artifact MBT recognized as
+  # this module's own deployable content, so it silently never made it into
+  # the .mtar and `cf deploy` never had anything to push.
+  # -------------------------------------------------------------------------
+  - name: integration-portal-app-content
+    type: com.sap.application.content
+    path: .
     requires:
       - name: integration-portal-html5-repo-host
         parameters:
           content-target: true
+    build-parameters:
+      build-result: resources.zip
+      requires:
+        - name: integration-portal-app
+          artifacts:
+            - dist.zip
+          target-path: resources/
 
 resources:
   - name: integration-portal-xsuaa

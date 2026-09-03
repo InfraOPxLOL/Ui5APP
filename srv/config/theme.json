@@ -1,0 +1,11 @@
+{
+  "defaultTheme": "sap_horizon",
+  "darkTheme": "sap_horizon_dark",
+  "availableThemes": ["sap_horizon", "sap_horizon_dark", "sap_horizon_hcb", "sap_horizon_hcw"],
+  "allowUserOverride": true,
+  "compactMode": "auto",
+  "accentColor": "#0070F2",
+  "logo": "",
+  "companyName": "MiddlewareOps",
+  "applicationTitle": "Integration Portal"
+}

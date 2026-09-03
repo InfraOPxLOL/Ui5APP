@@ -1,0 +1,32 @@
+{
+  "defaultProfile": "standard",
+  "profiles": {
+    "standard": {
+      "dashboardMs": 30000,
+      "liveMonitoringMs": 5000,
+      "messageMonitoringMs": 60000,
+      "jmsQueueMs": 30000,
+      "certificatesMs": 300000,
+      "analyticsMs": 120000,
+      "alertCenterMs": 15000
+    },
+    "intensive": {
+      "dashboardMs": 10000,
+      "liveMonitoringMs": 2000,
+      "messageMonitoringMs": 20000,
+      "jmsQueueMs": 10000,
+      "certificatesMs": 60000,
+      "analyticsMs": 60000,
+      "alertCenterMs": 5000
+    },
+    "relaxed": {
+      "dashboardMs": 120000,
+      "liveMonitoringMs": 15000,
+      "messageMonitoringMs": 300000,
+      "jmsQueueMs": 120000,
+      "certificatesMs": 900000,
+      "analyticsMs": 600000,
+      "alertCenterMs": 60000
+    }
+  }
+}

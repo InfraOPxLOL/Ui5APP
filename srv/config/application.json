@@ -1,0 +1,9 @@
+{
+  "id": "integration-portal",
+  "name": "Integration Portal",
+  "version": "0.1.0",
+  "description": "Enterprise operations & observability platform for SAP Integration Suite.",
+  "vendor": "MiddlewareOps",
+  "supportContact": "support@middlewareops.com",
+  "documentationUrl": "https://github.com/middlewareops/integration-portal/tree/main/docs"
+}

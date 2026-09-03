@@ -1,0 +1,32 @@
+{
+  "modules": {
+    "dashboard": { "enabled": true },
+    "messageMonitoring": { "enabled": true },
+    "payloadStudio": { "enabled": true },
+    "recoveryCenter": { "enabled": true },
+    "runtimeCenter": { "enabled": true },
+    "certificateSecurityCenter": { "enabled": true },
+    "jmsQueue": { "enabled": true },
+    "messageReplay": { "enabled": true },
+    "alertNotification": { "enabled": true },
+    "auditView": { "enabled": true },
+    "roleView": { "enabled": true },
+    "administration": { "enabled": true },
+    "apiMonitoring": { "enabled": false },
+    "integrationAdvisor": { "enabled": false },
+    "analytics": { "enabled": false },
+    "coeAdmin": { "enabled": true },
+    "coePartnersRoutes": { "enabled": true },
+    "coeRouter": { "enabled": true },
+    "coeRegistry": { "enabled": true },
+    "coeDlq": { "enabled": true },
+    "coeRuleBuilder": { "enabled": true },
+    "coePartnerDashboard": { "enabled": true }
+  },
+  "flags": {
+    "enableExperimentalExport": false,
+    "enableWebSocketLiveFeed": true,
+    "enableTenantSwitcher": false,
+    "enableThemeSwitcher": true
+  }
+}
