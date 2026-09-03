@@ -68,9 +68,9 @@ modules:
           forwardAuthToken: true
 
   # -------------------------------------------------------------------------
-  # UI5 frontend — builds the app itself. `type: html5` is what makes MBT
-  # produce a `dist.zip` artifact other modules can reference; the content-
-  # deployer module below pulls it in via `build-parameters.requires`.
+  # UI5 frontend — builds the app itself. MBT does not auto-zip a module's
+  # build-result; the explicit zip command below produces app-content.zip,
+  # which the content-deployer module pulls in via `build-parameters.requires`.
   # -------------------------------------------------------------------------
   - name: integration-portal-app
     type: html5
@@ -81,6 +81,13 @@ modules:
       commands:
         - npm ci
         - npm run build
+        # The content-deployer module below copies raw files/folders out of this module's
+        # build-result (dist/) as-is — it never zips anything on its own. To end up with the
+        # single inner zip the HTML5 Application Repository requires per app (manifest.json at
+        # its root, not nested under a dist/ prefix), we have to produce that zip ourselves here.
+        # MBT execs each command directly (no shell), so inline "cd x && y" doesn't work — hence
+        # the wrapper script.
+        - sh scripts/zip-content.sh
       supported-platforms: []
 
   # -------------------------------------------------------------------------
@@ -104,7 +111,7 @@ modules:
       requires:
         - name: integration-portal-app
           artifacts:
-            - dist.zip
+            - '*.zip'
           target-path: resources/
 
 resources:
