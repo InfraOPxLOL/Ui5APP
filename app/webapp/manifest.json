@@ -11,6 +11,9 @@
     },
     "dataSources": {}
   },
+  "sap.cloud": {
+    "service": "integration-portal"
+  },
   "sap.ui": {
     "technology": "UI5",
     "deviceTypes": {

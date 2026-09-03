@@ -91,6 +91,40 @@ modules:
       supported-platforms: []
 
   # -------------------------------------------------------------------------
+  # Destination content — tags the html5-repo-host and xsuaa service
+  # instances with a shared sap.cloud.service value via destinations in the
+  # destination service. Approuter's dynamic routing to html5-apps-repo-rt
+  # resolves "which app" through this tag; without it, content can deploy
+  # successfully yet still be unreachable (approuter logs "Service Tag index
+  # is unknown" and every request 503s even though the app is registered).
+  # manifest.json's sap.cloud.service must match the same value.
+  # -------------------------------------------------------------------------
+  - name: integration-portal-destination-content
+    type: com.sap.application.content
+    requires:
+      - name: integration-portal-xsuaa
+      - name: integration-portal-html5-repo-host
+      - name: integration-portal-destination
+        parameters:
+          content-target: true
+    parameters:
+      content:
+        instance:
+          destinations:
+            - Name: integration-portal-html5-repo-host
+              ServiceInstanceName: integration-portal-html5-repo-host
+              ServiceKeyName: integration-portal-html5-repo-host-key
+              sap.cloud.service: integration-portal
+            - Name: integration-portal-xsuaa
+              ServiceInstanceName: integration-portal-xsuaa
+              ServiceKeyName: integration-portal-xsuaa-key
+              sap.cloud.service: integration-portal
+              Authentication: OAuth2UserTokenExchange
+          existing_destinations_policy: update
+    build-parameters:
+      no-source: true
+
+  # -------------------------------------------------------------------------
   # Content deployer — pushes the built UI5 app into the HTML5 Application
   # Repository. `type: com.sap.application.content` packages/pushes content
   # that ANOTHER module already built; it does not build anything itself —
@@ -123,6 +157,8 @@ resources:
       path: ./xs-security.json
       config:
         xsappname: integration-portal-${org}-${space}
+      service-keys:
+        - name: integration-portal-xsuaa-key
 
   - name: integration-portal-destination
     type: org.cloudfoundry.managed-service
@@ -135,6 +171,8 @@ resources:
     parameters:
       service: html5-apps-repo
       service-plan: app-host
+      service-keys:
+        - name: integration-portal-html5-repo-host-key
 
   - name: integration-portal-html5-repo-runtime
     type: org.cloudfoundry.managed-service
