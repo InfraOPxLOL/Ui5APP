@@ -21,8 +21,8 @@ sap.ui.define([
 
   QUnit.test("role collections resolve through scope coverage", function (assert) {
     var viewer = new PermissionEngine({ scopes: ["Viewer"] });
-    assert.strictEqual(viewer.hasRoleCollection("IntegrationPortal_Viewer"), true);
-    assert.strictEqual(viewer.hasRoleCollection("IntegrationPortal_Administrator"), false);
+    assert.strictEqual(viewer.hasRoleCollection("ZIS_INT_PORTAL_VIEWER"), true);
+    assert.strictEqual(viewer.hasRoleCollection("ZIS_INT_PORTAL_ADMINISTRATOR"), false);
     assert.strictEqual(viewer.hasRoleCollection("PI_ADMIN"), false);
     assert.strictEqual(viewer.hasRoleCollection("does-not-exist"), false);
   });
@@ -39,25 +39,25 @@ sap.ui.define([
         "Administration.Manage",
       ],
     });
-    assert.strictEqual(admin.hasRoleCollection("IntegrationPortal_Administrator"), true);
-    assert.strictEqual(admin.hasRoleCollection("IntegrationPortal_Operator"), true);
-    assert.strictEqual(admin.hasRoleCollection("IntegrationPortal_Viewer"), true);
+    assert.strictEqual(admin.hasRoleCollection("ZIS_INT_PORTAL_ADMINISTRATOR"), true);
+    assert.strictEqual(admin.hasRoleCollection("ZIS_INT_PORTAL_OPERATOR"), true);
+    assert.strictEqual(admin.hasRoleCollection("ZIS_INT_PORTAL_VIEWER"), true);
     assert.strictEqual(admin.hasRoleCollection("PI_ADMIN"), true);
   });
 
   QUnit.test("assigned role collections lists every held collection", function (assert) {
     var viewer = new PermissionEngine({ scopes: ["Viewer"] });
     var assigned = viewer.getAssignedRoleCollections();
-    assert.ok(assigned.indexOf("IntegrationPortal_Viewer") >= 0, "viewer collection assigned");
+    assert.ok(assigned.indexOf("ZIS_INT_PORTAL_VIEWER") >= 0, "viewer collection assigned");
     assert.ok(assigned.indexOf("PI_OPERATIONS_VIEWER") >= 0, "operations viewer assigned");
     assert.ok(
-      assigned.indexOf("IntegrationPortal_Administrator") < 0,
+      assigned.indexOf("ZIS_INT_PORTAL_ADMINISTRATOR") < 0,
       "administrator not assigned to a viewer",
     );
   });
 
   QUnit.test("isSatisfied evaluates AND/OR requirement semantics", function (assert) {
-    // Full Operator scope set so IntegrationPortal_Operator (Operator + MessageReplay.Execute +
+    // Full Operator scope set so ZIS_INT_PORTAL_OPERATOR (Operator + MessageReplay.Execute +
     // JmsQueue.Purge, per RoleCollections.ts) is genuinely held by this engine.
     var engine = new PermissionEngine({
       scopes: ["Viewer", "Operator", "MessageReplay.Execute", "JmsQueue.Purge"],
@@ -67,7 +67,7 @@ sap.ui.define([
     assert.strictEqual(engine.isSatisfied({ allScopes: ["Administrator"] }), false);
     assert.strictEqual(engine.isSatisfied({ anyScope: ["Administrator", "Operator"] }), true);
     assert.strictEqual(
-      engine.isSatisfied({ anyRoleCollection: ["IntegrationPortal_Operator"] }),
+      engine.isSatisfied({ anyRoleCollection: ["ZIS_INT_PORTAL_OPERATOR"] }),
       true,
     );
     assert.strictEqual(

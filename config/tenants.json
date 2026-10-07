@@ -5,7 +5,7 @@
       "name": "Primary CPI Tenant",
       "description": "Trial Integration Suite tenant used for development.",
       "destinationName": "INTEGRATIONPORTAL_CPI_PRIMARY",
-      "baseUrl": "https://d0e06a1ftrial.it-cpitrial05.cfapps.us10-001.hana.ondemand.com/api/v1",
+      "baseUrl": "https://64ad297atrial.it-cpitrial06.cfapps.us10-001.hana.ondemand.com/api/v1",
       "region": "us10-001",
       "environment": "dev",
       "enabled": true,

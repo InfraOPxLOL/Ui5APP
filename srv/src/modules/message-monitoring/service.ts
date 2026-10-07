@@ -8,6 +8,7 @@ import { HttpError } from "../../core/errors/HttpError.js";
 import type { MessageRecoveryInput } from "../../operations/engines/RecoveryEngine.js";
 import type {
   FrameworkDetection,
+  MessageBusinessRole,
   ProcessingFramework,
   RecoveryState,
 } from "../../operations/dto/index.js";
@@ -73,6 +74,10 @@ export interface MessageListQuery {
   readonly applicationId?: string;
   readonly integrationFlow?: string;
   readonly correlationId?: string;
+  readonly mplId?: string;
+  readonly senderInterchangeControl?: string;
+  readonly receiverInterchangeControl?: string;
+  readonly businessRole?: MessageBusinessRole;
   readonly queue?: string;
   readonly search?: string;
   readonly dateFrom?: string;
@@ -602,6 +607,14 @@ export class MessageMonitoringService {
     if (query.customStatus !== undefined) builder.customStatus(query.customStatus);
     if (query.applicationId !== undefined) builder.applicationId(query.applicationId);
     if (query.integrationFlow !== undefined) builder.integrationFlow(query.integrationFlow);
+    if (query.mplId !== undefined) builder.mplId(query.mplId);
+    if (query.senderInterchangeControl !== undefined) {
+      builder.senderInterchangeControl(query.senderInterchangeControl);
+    }
+    if (query.receiverInterchangeControl !== undefined) {
+      builder.receiverInterchangeControl(query.receiverInterchangeControl);
+    }
+    if (query.businessRole !== undefined) builder.businessRole(query.businessRole);
     if (query.search !== undefined) builder.search(query.search);
     if (query.dateFrom !== undefined) builder.dateFrom(query.dateFrom);
     if (query.dateTo !== undefined) builder.dateTo(query.dateTo);
@@ -711,7 +724,10 @@ export class MessageMonitoringService {
       if (query.severity !== undefined && entry.item.severity !== query.severity) {
         return false;
       }
-      if (query.correlationId !== undefined && entry.item.correlationId !== query.correlationId) {
+      if (
+        query.correlationId !== undefined &&
+        !entry.item.correlationId.toLowerCase().includes(query.correlationId.toLowerCase())
+      ) {
         return false;
       }
       if (query.framework !== undefined && entry.detection.framework !== query.framework) {
@@ -918,6 +934,9 @@ export class MessageMonitoringService {
       applicationId: item.applicationId ?? "",
       messageType: item.messageType ?? "",
       customStatus: item.customStatus ?? "",
+      senderInterchangeControl: item.senderInterchangeControl ?? "",
+      receiverInterchangeControl: item.receiverInterchangeControl ?? "",
+      businessRole: item.businessRole ?? "",
       framework: entry.detection.framework,
       frameworkConfidence: entry.detection.confidence,
       recoveryState: entry.recoveryState,

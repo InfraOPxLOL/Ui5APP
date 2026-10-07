@@ -29,6 +29,13 @@ export interface ProviderPagedResult<T> {
 
 // --- Monitoring ---------------------------------------------------------------------------------
 
+/**
+ * Which side of the B2B exchange a message record represents. A classification over the message
+ * itself (not a trading-partner master-data concept) — `"both"` covers messages that are not
+ * meaningfully one-sided (e.g. an internal system-to-system hop).
+ */
+export type MessageBusinessRole = "sender" | "receiver" | "both";
+
 /** A message processing log (MPL) entry. */
 export interface MessageProcessingLog {
   readonly messageId: string;
@@ -45,6 +52,16 @@ export interface MessageProcessingLog {
   readonly applicationId: string | undefined;
   /** The upstream application-defined message type (CPI `ApplicationMessageType`), when recorded. */
   readonly messageType: string | undefined;
+  /**
+   * The sender-side EDI interchange control number (B2B Monitoring's `BusinessDocument.
+   * SenderInterchangeControlNumber`), when the message was part of an EDI interchange. `undefined`
+   * for messages with no interchange envelope (most non-EDI flows).
+   */
+  readonly senderInterchangeControl: string | undefined;
+  /** The receiver-side counterpart of {@link senderInterchangeControl}. */
+  readonly receiverInterchangeControl: string | undefined;
+  /** Which side of the exchange this record represents. */
+  readonly businessRole: MessageBusinessRole | undefined;
 }
 
 /** Filter criteria for querying message processing logs. */

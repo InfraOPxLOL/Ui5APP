@@ -5,7 +5,7 @@
     {
       "tenantId": "primary",
       "type": "oauth-client-credentials",
-      "oauthTokenUrl": "https://d0e06a1ftrial.authentication.us10.hana.ondemand.com/oauth/token"
+      "oauthTokenUrl": "https://64ad297atrial.authentication.us10.hana.ondemand.com/oauth/token"
     }
   ]
 }

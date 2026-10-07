@@ -14,6 +14,9 @@ export type OpsSeverity = "info" | "warning" | "error" | "critical";
 /** UI classification of retry eligibility, derived server-side from `status`/`customStatus`. */
 export type RetryStatus = "retryable" | "escalated" | "not-applicable";
 
+/** Which side of the B2B exchange a message record represents. */
+export type MessageBusinessRole = "sender" | "receiver" | "both";
+
 /**
  * Which processing framework a message belongs to — an **identity**, mirroring the backend's
  * `ProcessingFramework`.
@@ -162,6 +165,9 @@ export interface MessageMonitoringItem {
   readonly applicationId: string | undefined;
   readonly messageType: string | undefined;
   readonly customStatus: string | undefined;
+  readonly senderInterchangeControl: string | undefined;
+  readonly receiverInterchangeControl: string | undefined;
+  readonly businessRole: MessageBusinessRole | undefined;
   readonly tenantId: string;
   readonly environment: string;
   readonly retryStatus: RetryStatus;
@@ -335,6 +341,10 @@ export interface MessageSearchCriteria {
   applicationId?: string;
   integrationFlow?: string;
   correlationId?: string;
+  mplId?: string;
+  senderInterchangeControl?: string;
+  receiverInterchangeControl?: string;
+  businessRole?: MessageBusinessRole;
   queue?: string;
   search?: string;
   dateFrom?: string;

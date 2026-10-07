@@ -23,7 +23,6 @@ export interface GridState {
   pageSize: number;
   sortBy: string;
   sortDirection: "asc" | "desc";
-  quickSearchTerm: string;
   groupByProperty: string;
   density: "compact" | "cozy";
 }
@@ -97,6 +96,8 @@ export interface MessageMonitoringState {
   newSavedSearchName: string;
   newLayoutName: string;
   advancedSearchOpen: boolean;
+  /** Whether the Advanced Search Panel's secondary "More Parameters" section is expanded. */
+  moreParametersOpen: boolean;
   contextCollapsed: boolean;
   /**
    * Processing-framework filter; `""` means all frameworks. Replaces the old `jmsFilter` toggle —
@@ -134,7 +135,6 @@ export default class MessageMonitoringModel extends JSONModel {
         pageSize: 50,
         sortBy: "startTime",
         sortDirection: "desc",
-        quickSearchTerm: "",
         groupByProperty: "",
         density: "compact",
       },
@@ -151,6 +151,7 @@ export default class MessageMonitoringModel extends JSONModel {
       newSavedSearchName: "",
       newLayoutName: "",
       advancedSearchOpen: false,
+      moreParametersOpen: false,
       contextCollapsed: false,
       frameworkFilter: "",
       recoveryStateFilter: "",

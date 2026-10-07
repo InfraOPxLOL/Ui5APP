@@ -61,7 +61,7 @@ sap.ui.define([
     context.initialize("test");
     assert.deepEqual(context.getResolvedPermissions(), ["Operator", "Viewer"]);
     var collections = context.getAssignedRoleCollections();
-    assert.ok(collections.indexOf("IntegrationPortal_Viewer") >= 0, "viewer collection resolved");
+    assert.ok(collections.indexOf("ZIS_INT_PORTAL_VIEWER") >= 0, "viewer collection resolved");
     assert.ok(collections.indexOf("PI_OPERATIONS_ADMIN") >= 0, "operations admin resolved");
   });
 

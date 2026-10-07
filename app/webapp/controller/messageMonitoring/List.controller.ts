@@ -15,6 +15,7 @@ import InvestigationGrid from "../../library/controls/InvestigationGrid";
 import ClipboardUtils from "../../core/utils/ClipboardUtils";
 import DownloadUtils from "../../core/utils/DownloadUtils";
 import DeepLinkHelper from "../../core/utils/DeepLinkHelper";
+import TimeUtils from "../../core/utils/TimeUtils";
 import { FileTypes, type FileTypeKey } from "../../core/constants/FileTypes";
 import UserContext from "../../shell/context/UserContext";
 import { RoleCollections } from "../../shell/permissions/RoleCollections";
@@ -148,6 +149,8 @@ export default class ListController extends BaseController {
   private listAbort: AbortController | undefined;
   private contextAbort: AbortController | undefined;
   private detailAbort: AbortController | undefined;
+  /** Debounces the top-bar quick search so a keystroke burst issues one request, not one per key. */
+  private readonly debouncedQuickSearch = TimeUtils.debounce(() => this.onSearchExecute(), 300);
 
   /** Lifecycle hook: wires the grid, context menu, deep-link handling and loads the first page. */
   public onInit(): void {
@@ -183,6 +186,7 @@ export default class ListController extends BaseController {
 
   /** Lifecycle hook: aborts in-flight requests and destroys owned controls. */
   public onExit(): void {
+    this.debouncedQuickSearch.cancel();
     this.listAbort?.abort();
     this.contextAbort?.abort();
     this.detailAbort?.abort();
@@ -252,11 +256,28 @@ export default class ListController extends BaseController {
 
   // --- Advanced Search Panel ---------------------------------------------------
 
+  /**
+   * Top-bar quick search: writes the typed term into `/criteria/search` (the same free-text
+   * criterion the Advanced Search Panel's own "Free text" field drives) and re-runs the search,
+   * debounced so a keystroke burst issues one request instead of one per character.
+   */
+  public onQuickSearchChange(event: Event): void {
+    const value = event.getParameter("newValue" as never) as string | undefined;
+    this.model().setProperty("/criteria/search", value ?? "");
+    this.debouncedQuickSearch();
+  }
+
   /** Executes the current Advanced Search Panel criteria (§ Advanced Search). */
   public onSearchExecute(): void {
     this.model().setProperty("/grid/page", 1);
     this.model().setProperty("/activeSmartFilter", "");
     void this.refresh();
+  }
+
+  /** Toggles the Advanced Search Panel's secondary "More Parameters" section. */
+  public onToggleMoreParameters(): void {
+    const open = this.model().getProperty("/moreParametersOpen") as boolean;
+    this.model().setProperty("/moreParametersOpen", !open);
   }
 
   /** Clears all Advanced Search Panel criteria. */

@@ -1,5 +1,7 @@
 import type { Severity } from "../transform/index.js";
-import type { MessageErrorDetail } from "../../core/providers/types.js";
+import type { MessageBusinessRole, MessageErrorDetail } from "../../core/providers/types.js";
+
+export type { MessageBusinessRole };
 
 /**
  * The business-friendly, list-shaped view of one message processing log — the only message shape
@@ -23,6 +25,12 @@ export interface MessageSummary {
   readonly applicationId: string | undefined;
   readonly messageType: string | undefined;
   readonly customStatus: string | undefined;
+  /** The sender-side EDI interchange control number, when the message carries one. */
+  readonly senderInterchangeControl: string | undefined;
+  /** The receiver-side counterpart of {@link senderInterchangeControl}. */
+  readonly receiverInterchangeControl: string | undefined;
+  /** Which side of the exchange this record represents. */
+  readonly businessRole: MessageBusinessRole | undefined;
 }
 
 /**

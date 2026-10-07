@@ -17,7 +17,7 @@ re-validates every request. The engine only answers questions consistently in on
 
 Two families are catalogued:
 
-- **Provisioned today** — `IntegrationPortal_Viewer` / `_Operator` / `_Administrator`, matching
+- **Provisioned today** — `ZIS_INT_PORTAL_VIEWER` / `_OPERATOR` / `_ADMINISTRATOR`, matching
   `xs-security.json` exactly.
 - **Roadmap `PI_*` collections** (§7: `PI_OPERATIONS_VIEWER`, `PI_RETRY_ADMIN`, `PI_ADMIN`, …). The
   security descriptor is frozen, so each `PI_*` collection is expressed against the **real** scopes
@@ -49,7 +49,7 @@ engine is **immutable** — a permission change (login, tenant switch) builds a 
 ```ts
 const engine = new PermissionEngine({ scopes: ["Viewer", "Operator"] });
 engine.hasScope("Viewer");                                  // true
-engine.hasRoleCollection("IntegrationPortal_Administrator"); // false
+engine.hasRoleCollection("ZIS_INT_PORTAL_ADMINISTRATOR"); // false
 engine.isSatisfied({ allScopes: ["Administration.Manage"] }); // false
-engine.getAssignedRoleCollections();                         // ["IntegrationPortal_Viewer", ...]
+engine.getAssignedRoleCollections();                         // ["ZIS_INT_PORTAL_VIEWER", ...]
 ```

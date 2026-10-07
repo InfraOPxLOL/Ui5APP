@@ -301,9 +301,9 @@ expects.
 
 | Role collection | Scopes granted |
 |---|---|
-| `IntegrationPortal_Viewer` | `Viewer` |
-| `IntegrationPortal_Operator` | `Viewer`, `Operator`, `MessageReplay.Execute`, `JmsQueue.Purge` |
-| `IntegrationPortal_Administrator` | `Viewer`, `Operator`, `Administrator`, `MessageReplay.Execute`, `JmsQueue.Purge`, `Administration.Manage` |
+| `ZIS_INT_PORTAL_VIEWER` | `Viewer` |
+| `ZIS_INT_PORTAL_OPERATOR` | `Viewer`, `Operator`, `MessageReplay.Execute`, `JmsQueue.Purge` |
+| `ZIS_INT_PORTAL_ADMINISTRATOR` | `Viewer`, `Operator`, `Administrator`, `MessageReplay.Execute`, `JmsQueue.Purge`, `Administration.Manage` |
 
 `tenant-mode: "dedicated"` — this app is provider-account-scoped per subaccount, not a
 multi-tenant SaaS application (no subscription/onboarding flow). `token-validity: 900` seconds,
@@ -401,7 +401,7 @@ behind XSUAA.
 ### 7.2 What you actually do after `cf deploy` to make login work
 
 1. **Role collection assignment** (BTP cockpit → Security → Role Collections, or Identity
-   Provisioning if automated): assign `IntegrationPortal_Viewer`/`_Operator`/`_Administrator` to
+   Provisioning if automated): assign `ZIS_INT_PORTAL_VIEWER`/`_OPERATOR`/`_ADMINISTRATOR` to
    real users or groups. **This app has no admin screen for this** — `roleView`/`role-view` is
    explicitly read-only (it reflects the caller's *own* resolved scopes so the UI can gate itself; it
    never assigns or stores role membership). Role assignment always happens in BTP/XSUAA, by design

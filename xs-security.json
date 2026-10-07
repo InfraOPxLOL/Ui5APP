@@ -42,17 +42,17 @@
   ],
   "role-collections": [
     {
-      "name": "IntegrationPortal_Viewer",
+      "name": "ZIS_INT_PORTAL_VIEWER",
       "description": "Integration Portal - Viewer",
       "role-template-references": ["$XSAPPNAME.Viewer"]
     },
     {
-      "name": "IntegrationPortal_Operator",
+      "name": "ZIS_INT_PORTAL_OPERATOR",
       "description": "Integration Portal - Operator",
       "role-template-references": ["$XSAPPNAME.Operator"]
     },
     {
-      "name": "IntegrationPortal_Administrator",
+      "name": "ZIS_INT_PORTAL_ADMINISTRATOR",
       "description": "Integration Portal - Administrator",
       "role-template-references": ["$XSAPPNAME.Administrator"]
     }

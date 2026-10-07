@@ -166,6 +166,10 @@ export class MessageEngine {
       customStatus: query.customStatus,
       durationMinMs: query.durationMinMs,
       durationMaxMs: query.durationMaxMs,
+      mplId: query.mplId,
+      senderInterchangeControl: query.senderInterchangeControl,
+      receiverInterchangeControl: query.receiverInterchangeControl,
+      businessRole: query.businessRole,
     };
   }
 
@@ -210,6 +214,9 @@ export class MessageEngine {
       applicationId: log.applicationId,
       messageType: log.messageType,
       customStatus: log.customStatus,
+      senderInterchangeControl: log.senderInterchangeControl,
+      receiverInterchangeControl: log.receiverInterchangeControl,
+      businessRole: log.businessRole,
     };
   }
 }

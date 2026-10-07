@@ -53,15 +53,28 @@ export class FilterEngine<T> {
     );
   }
 
+  /**
+   * Case-insensitive substring match, tolerant of a missing field — the shared shape for every
+   * free-typed text criterion below. Operators search by what they remember (a partial sender name,
+   * a fragment of an id), not by pasting the exact stored value, so exact `===` matching is a bug,
+   * not a stricter filter.
+   */
+  private static containsIgnoreCase(value: unknown, field: string | undefined): boolean {
+    if (field === undefined) {
+      return false;
+    }
+    return field.toLowerCase().includes((value as string).toLowerCase());
+  }
+
   /** @returns a {@link FilterEngine} pre-registered with every `MessageSummary` filter criterion Phase 6 lists. */
   public static forMessages(): FilterEngine<MessageSummary> {
     return new FilterEngine<MessageSummary>()
       .register("status", (value, item) => item.status === value)
-      .register("messageType", (value, item) => item.messageType === value)
-      .register("applicationId", (value, item) => item.applicationId === value)
-      .register("sender", (value, item) => item.sender === value)
-      .register("receiver", (value, item) => item.receiver === value)
-      .register("customStatus", (value, item) => item.customStatus === value)
+      .register("messageType", (value, item) => FilterEngine.containsIgnoreCase(value, item.messageType))
+      .register("applicationId", (value, item) => FilterEngine.containsIgnoreCase(value, item.applicationId))
+      .register("sender", (value, item) => FilterEngine.containsIgnoreCase(value, item.sender))
+      .register("receiver", (value, item) => FilterEngine.containsIgnoreCase(value, item.receiver))
+      .register("customStatus", (value, item) => FilterEngine.containsIgnoreCase(value, item.customStatus))
       .register("integrationFlow", (value, item) => item.integrationFlow === value)
       .register("dateFrom", (value, item) => item.startTime >= (value as string))
       .register("dateTo", (value, item) => item.startTime <= (value as string))
@@ -72,7 +85,17 @@ export class FilterEngine<T> {
       .register(
         "durationMaxMs",
         (value, item) => (item.processingTimeMs ?? Number.NEGATIVE_INFINITY) <= (value as number),
-      );
+      )
+      .register("mplId", (value, item) => FilterEngine.containsIgnoreCase(value, item.messageId))
+      .register(
+        "senderInterchangeControl",
+        (value, item) => FilterEngine.containsIgnoreCase(value, item.senderInterchangeControl),
+      )
+      .register(
+        "receiverInterchangeControl",
+        (value, item) => FilterEngine.containsIgnoreCase(value, item.receiverInterchangeControl),
+      )
+      .register("businessRole", (value, item) => item.businessRole === value);
   }
 
   /** @returns a {@link FilterEngine} pre-registered with every `RuntimeSummary` filter criterion Phase 6 lists. */

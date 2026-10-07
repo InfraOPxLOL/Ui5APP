@@ -34,6 +34,9 @@ const LOGS: MessageProcessingLog[] = [
     customStatus: undefined,
     applicationId: "APP1",
     messageType: "ORDERS",
+    senderInterchangeControl: undefined,
+    receiverInterchangeControl: undefined,
+    businessRole: undefined,
   },
   {
     messageId: "m2",
@@ -48,6 +51,9 @@ const LOGS: MessageProcessingLog[] = [
     customStatus: undefined,
     applicationId: "APP1",
     messageType: "INVOIC",
+    senderInterchangeControl: undefined,
+    receiverInterchangeControl: undefined,
+    businessRole: undefined,
   },
   {
     messageId: "m3",
@@ -62,6 +68,9 @@ const LOGS: MessageProcessingLog[] = [
     customStatus: undefined,
     applicationId: "APP2",
     messageType: "ORDERS",
+    senderInterchangeControl: undefined,
+    receiverInterchangeControl: undefined,
+    businessRole: undefined,
   },
 ];
 

@@ -10,7 +10,7 @@
  *
  * Two families of role collection are declared:
  * - the collections actually provisioned today in `xs-security.json`
- *   (`IntegrationPortal_Viewer` / `_Operator` / `_Administrator`), and
+ *   (`ZIS_INT_PORTAL_VIEWER` / `_OPERATOR` / `_ADMINISTRATOR`), and
  * - the finer-grained `PI_*` collections the product roadmap targets (§7). Because the security
  *   descriptor is frozen, each `PI_*` collection is expressed here in terms of the **real** scopes
  *   that exist today; provisioning the matching XSUAA role collections is a deployment concern, not
@@ -36,15 +36,15 @@ export type Scope = (typeof Scopes)[keyof typeof Scopes];
 
 /**
  * Stable identifiers for every role collection the shell knows about. Includes both the currently
- * provisioned `IntegrationPortal_*` collections and the roadmap `PI_*` collections (§7). Treated as
+ * provisioned `ZIS_INT_PORTAL_*` collections and the roadmap `PI_*` collections (§7). Treated as
  * an open vocabulary: {@link RoleCollectionId} is `string`-assignable so future collections need no
  * type change, while these constants give call-sites autocomplete and typo-safety.
  */
 export const RoleCollections = {
   // Currently provisioned in xs-security.json.
-  IntegrationPortalViewer: "IntegrationPortal_Viewer",
-  IntegrationPortalOperator: "IntegrationPortal_Operator",
-  IntegrationPortalAdministrator: "IntegrationPortal_Administrator",
+  IntegrationPortalViewer: "ZIS_INT_PORTAL_VIEWER",
+  IntegrationPortalOperator: "ZIS_INT_PORTAL_OPERATOR",
+  IntegrationPortalAdministrator: "ZIS_INT_PORTAL_ADMINISTRATOR",
 
   // Roadmap collections (§7) — expressed against today's real scopes until provisioned.
   OperationsViewer: "PI_OPERATIONS_VIEWER",

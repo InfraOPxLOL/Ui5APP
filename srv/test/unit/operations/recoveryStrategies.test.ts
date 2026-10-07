@@ -106,6 +106,9 @@ function message(overrides: Partial<MessageSummary> = {}): MessageSummary {
     applicationId: undefined,
     messageType: undefined,
     customStatus: undefined,
+    senderInterchangeControl: undefined,
+    receiverInterchangeControl: undefined,
+    businessRole: undefined,
     ...overrides,
   };
 }

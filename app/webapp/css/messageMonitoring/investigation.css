@@ -32,6 +32,13 @@
 .investigationCriteriaForm .sapMSlt {
   min-width: 8rem;
 }
+.investigationMoreParametersToggle {
+  margin: 0.25rem 0;
+}
+.investigationMoreParametersPanel {
+  border-top: 1px solid var(--sapList_BorderColor, rgba(127, 127, 127, 0.3));
+  padding-top: 0.25rem;
+}
 .investigationDetailPage {
   overflow: auto;
 }

@@ -1,4 +1,4 @@
-import type { ProviderPage } from "../../core/providers/types.js";
+import type { MessageBusinessRole, ProviderPage } from "../../core/providers/types.js";
 
 /** Sort direction for {@link OperationsQueryBuilder.sortBy}. */
 export type OperationsSortDirection = "asc" | "desc";
@@ -29,6 +29,11 @@ export interface OperationsQuery {
   readonly queue?: string;
   readonly certificate?: string;
   readonly runtimeStatus?: string;
+  /** The MPL id (an alias of `messageId` in this domain) — matched as a case-insensitive substring. */
+  readonly mplId?: string;
+  readonly senderInterchangeControl?: string;
+  readonly receiverInterchangeControl?: string;
+  readonly businessRole?: MessageBusinessRole;
   /** 1-based page number. */
   readonly page: number;
   readonly pageSize: number;
@@ -142,6 +147,26 @@ export class OperationsQueryBuilder {
 
   public runtimeStatus(value: string): this {
     this.state.runtimeStatus = value;
+    return this;
+  }
+
+  public mplId(value: string): this {
+    this.state.mplId = value;
+    return this;
+  }
+
+  public senderInterchangeControl(value: string): this {
+    this.state.senderInterchangeControl = value;
+    return this;
+  }
+
+  public receiverInterchangeControl(value: string): this {
+    this.state.receiverInterchangeControl = value;
+    return this;
+  }
+
+  public businessRole(value: MessageBusinessRole): this {
+    this.state.businessRole = value;
     return this;
   }
 

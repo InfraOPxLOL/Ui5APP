@@ -3,7 +3,7 @@
  * to consume (architecture: Phase 6, DTO Layer, §14). No SDK/core domain type or CPI shape is ever
  * re-exported here; every engine maps into one of these before returning.
  */
-export type { MessageSummary, MessageDetails } from "./MessageDto.js";
+export type { MessageSummary, MessageDetails, MessageBusinessRole } from "./MessageDto.js";
 export type { RuntimeSummary } from "./RuntimeDto.js";
 export type { QueueSummary, QueuedMessageSummary } from "./QueueDto.js";
 export type { CertificateSummary } from "./CertificateDto.js";

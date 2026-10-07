@@ -246,6 +246,13 @@ export class RealMonitoringProvider implements IMonitoringProvider {
       customStatus: raw.CustomStatus,
       applicationId: raw.ApplicationMessageId,
       messageType: raw.ApplicationMessageType,
+      // The documented OData v1 Monitoring API's `MessageProcessingLogs` entity carries neither
+      // interchange control numbers nor a business-role classification — those live on B2B
+      // Monitoring's separate `BusinessDocument` entity, which this provider does not query yet. An
+      // honest, documented gap (matching `sapStandardHeaders`'s own gap above), not a guess.
+      senderInterchangeControl: undefined,
+      receiverInterchangeControl: undefined,
+      businessRole: undefined,
     };
   }
 }

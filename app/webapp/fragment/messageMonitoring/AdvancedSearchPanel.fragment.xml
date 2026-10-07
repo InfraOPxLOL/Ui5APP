@@ -1,6 +1,15 @@
 <!--
   Advanced Search Panel (§ Advanced Search) — the collapsible criteria panel below the top filter bar.
 
+  Two tiers, by design (the module's mandated report/selection fields vs. everything else):
+  - The primary criteria grid always shown here holds exactly the fields the investigation report
+    is built around — Sender & Receiver, Message Type, Interchange Control (sender/receiver pair),
+    Date Range, MPL ID, Correlation ID, Application ID — so the panel opens onto a short, scannable
+    set instead of every filter the backend happens to support.
+  - Everything else (status/severity/custom status/queue/free text/duration/business role/the
+    attachment & payload post-filters) lives under the "More Parameters" sub-toggle
+    (`view>/moreParametersOpen`), collapsed by default.
+
   Laid out as a responsive multi-column `SimpleForm`/`ColumnLayout` (4 columns XL → 1 column S) rather
   than a stack of full-width rows: every criterion here is a short token (a status word, a partner id,
   a message type), so full-width inputs wasted the whole viewport and pushed the results grid off
@@ -32,7 +41,7 @@
       </FlexBox>
     </HBox>
 
-    <!-- Criteria grid: 4 columns on XL, 3 on L, 2 on M, 1 on S -->
+    <!-- Primary criteria grid: the module's mandated field set only. 4 columns on XL, 3 on L, 2 on M, 1 on S -->
     <form:SimpleForm
       editable="true"
       layout="ColumnLayout"
@@ -46,48 +55,29 @@
       class="investigationCriteriaForm">
       <form:content>
 
-        <Label text="{i18n>investigation.search.status}" labelFor="critStatus" />
-        <Select id="critStatus" selectedKey="{view>/criteria/status}" autoAdjustWidth="true">
-          <core:Item key="" text="{i18n>investigation.search.any}" />
-          <core:Item key="COMPLETED" text="COMPLETED" />
-          <core:Item key="FAILED" text="FAILED" />
-          <core:Item key="PROCESSING" text="PROCESSING" />
-          <core:Item key="RETRY" text="RETRY" />
-          <core:Item key="ESCALATED" text="ESCALATED" />
-        </Select>
-
-        <Label text="{i18n>investigation.search.severity}" labelFor="critSeverity" />
-        <Select id="critSeverity" selectedKey="{view>/criteria/severity}" autoAdjustWidth="true">
-          <core:Item key="" text="{i18n>investigation.search.any}" />
-          <core:Item key="info" text="Info" />
-          <core:Item key="warning" text="Warning" />
-          <core:Item key="error" text="Error" />
-          <core:Item key="critical" text="Critical" />
-        </Select>
-
-        <Label text="{i18n>column.applicationId}" labelFor="critAppId" />
-        <Input id="critAppId" value="{view>/criteria/applicationId}" placeholder="IDOC-2828…" />
-
-        <Label text="{i18n>investigation.search.sapMessageType}" labelFor="critMessageType" />
-        <Input id="critMessageType" value="{view>/criteria/messageType}" placeholder="DESADV" />
-
         <Label text="{i18n>investigation.search.sapSender}" labelFor="critSender" />
         <Input id="critSender" value="{view>/criteria/sender}" placeholder="Shopify" />
 
         <Label text="{i18n>investigation.search.sapReceiver}" labelFor="critReceiver" />
         <Input id="critReceiver" value="{view>/criteria/receiver}" placeholder="HML" />
 
-        <Label text="{i18n>column.customStatus}" labelFor="critCustomStatus" />
-        <Input id="critCustomStatus" value="{view>/criteria/customStatus}" />
+        <Label text="{i18n>investigation.search.sapMessageType}" labelFor="critMessageType" />
+        <Input id="critMessageType" value="{view>/criteria/messageType}" placeholder="DESADV" />
+
+        <Label text="{i18n>column.applicationId}" labelFor="critAppId" />
+        <Input id="critAppId" value="{view>/criteria/applicationId}" placeholder="IDOC-2828…" />
+
+        <Label text="{i18n>investigation.search.senderInterchangeControl}" labelFor="critSenderIcn" />
+        <Input id="critSenderIcn" value="{view>/criteria/senderInterchangeControl}" placeholder="ICN-S-…" />
+
+        <Label text="{i18n>investigation.search.receiverInterchangeControl}" labelFor="critReceiverIcn" />
+        <Input id="critReceiverIcn" value="{view>/criteria/receiverInterchangeControl}" placeholder="ICN-R-…" />
+
+        <Label text="{i18n>column.mplId}" labelFor="critMplId" />
+        <Input id="critMplId" value="{view>/criteria/mplId}" />
 
         <Label text="{i18n>column.correlationId}" labelFor="critCorrelationId" />
         <Input id="critCorrelationId" value="{view>/criteria/correlationId}" />
-
-        <Label text="{i18n>column.queue}" labelFor="critQueue" />
-        <Input id="critQueue" value="{view>/criteria/queue}" placeholder="Common_JMS_ID_…" />
-
-        <Label text="{i18n>investigation.search.freeText}" labelFor="critSearch" />
-        <Input id="critSearch" value="{view>/criteria/search}" />
 
         <Label text="{i18n>investigation.search.dateFrom}" labelFor="critDateFrom" />
         <DateTimePicker id="critDateFrom" value="{view>/criteria/dateFrom}" />
@@ -95,27 +85,92 @@
         <Label text="{i18n>investigation.search.dateTo}" labelFor="critDateTo" />
         <DateTimePicker id="critDateTo" value="{view>/criteria/dateTo}" />
 
-        <!-- Only controls implementing sap.ui.core.IFormContent are valid SimpleForm content —
-             a layout container (HBox/VBox) here throws and kills the whole form render. -->
-        <Label text="{i18n>investigation.search.durationMin}" labelFor="critDurationMin" />
-        <StepInput id="critDurationMin" min="0" step="100" value="{view>/criteria/durationMinMs}" />
-
-        <Label text="{i18n>investigation.search.durationMax}" labelFor="critDurationMax" />
-        <StepInput id="critDurationMax" min="0" step="100" value="{view>/criteria/durationMaxMs}" />
-
       </form:content>
     </form:SimpleForm>
 
-    <!-- Boolean post-filters: kept outside the form so they can sit inline on one compact row -->
-    <HBox alignItems="Center" wrap="Wrap" class="investigationSearchFlags">
-      <CheckBox
-        text="{i18n>investigation.search.hasAttachments}"
-        selected="{view>/criteria/hasAttachments}"
-        class="sapUiMediumMarginEnd" />
-      <CheckBox
-        text="{i18n>investigation.search.hasPayload}"
-        selected="{view>/criteria/hasPayload}" />
+    <!-- More Parameters: every secondary criterion, collapsed by default -->
+    <HBox alignItems="Center" class="investigationMoreParametersToggle">
+      <Button
+        text="{i18n>investigation.search.moreParameters}"
+        icon="{= ${view>/moreParametersOpen} ? 'sap-icon://slim-arrow-down' : 'sap-icon://slim-arrow-right' }"
+        type="Transparent"
+        press=".onToggleMoreParameters" />
     </HBox>
+
+    <VBox visible="{view>/moreParametersOpen}" class="investigationMoreParametersPanel">
+      <items>
+        <form:SimpleForm
+          editable="true"
+          layout="ColumnLayout"
+          columnsXL="4"
+          columnsL="3"
+          columnsM="2"
+          labelSpanXL="12"
+          labelSpanL="12"
+          labelSpanM="12"
+          labelSpanS="12"
+          class="investigationCriteriaForm">
+          <form:content>
+
+            <Label text="{i18n>investigation.search.status}" labelFor="critStatus" />
+            <Select id="critStatus" selectedKey="{view>/criteria/status}" autoAdjustWidth="true">
+              <core:Item key="" text="{i18n>investigation.search.any}" />
+              <core:Item key="COMPLETED" text="COMPLETED" />
+              <core:Item key="FAILED" text="FAILED" />
+              <core:Item key="PROCESSING" text="PROCESSING" />
+              <core:Item key="RETRY" text="RETRY" />
+              <core:Item key="ESCALATED" text="ESCALATED" />
+            </Select>
+
+            <Label text="{i18n>investigation.search.severity}" labelFor="critSeverity" />
+            <Select id="critSeverity" selectedKey="{view>/criteria/severity}" autoAdjustWidth="true">
+              <core:Item key="" text="{i18n>investigation.search.any}" />
+              <core:Item key="info" text="Info" />
+              <core:Item key="warning" text="Warning" />
+              <core:Item key="error" text="Error" />
+              <core:Item key="critical" text="Critical" />
+            </Select>
+
+            <Label text="{i18n>column.customStatus}" labelFor="critCustomStatus" />
+            <Input id="critCustomStatus" value="{view>/criteria/customStatus}" />
+
+            <Label text="{i18n>investigation.search.businessRole}" labelFor="critBusinessRole" />
+            <Select id="critBusinessRole" selectedKey="{view>/criteria/businessRole}" autoAdjustWidth="true">
+              <core:Item key="" text="{i18n>investigation.search.any}" />
+              <core:Item key="sender" text="{i18n>investigation.search.businessRole.sender}" />
+              <core:Item key="receiver" text="{i18n>investigation.search.businessRole.receiver}" />
+              <core:Item key="both" text="{i18n>investigation.search.businessRole.both}" />
+            </Select>
+
+            <Label text="{i18n>column.queue}" labelFor="critQueue" />
+            <Input id="critQueue" value="{view>/criteria/queue}" placeholder="Common_JMS_ID_…" />
+
+            <Label text="{i18n>investigation.search.freeText}" labelFor="critSearch" />
+            <Input id="critSearch" value="{view>/criteria/search}" />
+
+            <!-- Only controls implementing sap.ui.core.IFormContent are valid SimpleForm content —
+                 a layout container (HBox/VBox) here throws and kills the whole form render. -->
+            <Label text="{i18n>investigation.search.durationMin}" labelFor="critDurationMin" />
+            <StepInput id="critDurationMin" min="0" step="100" value="{view>/criteria/durationMinMs}" />
+
+            <Label text="{i18n>investigation.search.durationMax}" labelFor="critDurationMax" />
+            <StepInput id="critDurationMax" min="0" step="100" value="{view>/criteria/durationMaxMs}" />
+
+          </form:content>
+        </form:SimpleForm>
+
+        <!-- Boolean post-filters: kept outside the form so they can sit inline on one compact row -->
+        <HBox alignItems="Center" wrap="Wrap" class="investigationSearchFlags">
+          <CheckBox
+            text="{i18n>investigation.search.hasAttachments}"
+            selected="{view>/criteria/hasAttachments}"
+            class="sapUiMediumMarginEnd" />
+          <CheckBox
+            text="{i18n>investigation.search.hasPayload}"
+            selected="{view>/criteria/hasPayload}" />
+        </HBox>
+      </items>
+    </VBox>
 
     <!-- Actions + saved searches, on one compact row -->
     <HBox alignItems="Center" wrap="Wrap" class="investigationSearchActions">

@@ -31,6 +31,9 @@ export const frameworkSchema = z.enum([
   "UNKNOWN",
 ]);
 
+/** Which side of the B2B exchange a message record represents. */
+export const businessRoleSchema = z.enum(["sender", "receiver", "both"]);
+
 /** The recovery conditions a message can be filtered by (§7) — the axis independent of framework. */
 export const recoveryStateSchema = z.enum([
   "RECOVERABLE",
@@ -55,6 +58,10 @@ export const listQuerySchema = z.object({
   applicationId: z.string().optional(),
   integrationFlow: z.string().optional(),
   correlationId: z.string().optional(),
+  mplId: z.string().optional(),
+  senderInterchangeControl: z.string().optional(),
+  receiverInterchangeControl: z.string().optional(),
+  businessRole: businessRoleSchema.optional(),
   queue: z.string().optional(),
   search: z.string().optional(),
   dateFrom: z.string().optional(),

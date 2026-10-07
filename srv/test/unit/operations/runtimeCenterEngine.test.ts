@@ -73,6 +73,9 @@ const allMessages: MessageProcessingLog[] = [
     customStatus: undefined,
     applicationId: undefined,
     messageType: undefined,
+    senderInterchangeControl: undefined,
+    receiverInterchangeControl: undefined,
+    businessRole: undefined,
   },
   {
     messageId: "m2",
@@ -87,6 +90,9 @@ const allMessages: MessageProcessingLog[] = [
     customStatus: undefined,
     applicationId: undefined,
     messageType: undefined,
+    senderInterchangeControl: undefined,
+    receiverInterchangeControl: undefined,
+    businessRole: undefined,
   },
   {
     messageId: "m3",
@@ -101,6 +107,9 @@ const allMessages: MessageProcessingLog[] = [
     customStatus: undefined,
     applicationId: undefined,
     messageType: undefined,
+    senderInterchangeControl: undefined,
+    receiverInterchangeControl: undefined,
+    businessRole: undefined,
   },
   {
     messageId: "m4",
@@ -115,6 +124,9 @@ const allMessages: MessageProcessingLog[] = [
     customStatus: undefined,
     applicationId: undefined,
     messageType: undefined,
+    senderInterchangeControl: undefined,
+    receiverInterchangeControl: undefined,
+    businessRole: undefined,
   },
 ];
 

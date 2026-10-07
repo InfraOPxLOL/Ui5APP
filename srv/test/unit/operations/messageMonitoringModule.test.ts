@@ -134,7 +134,7 @@ describe("modules/message-monitoring/MessageMonitoringService.list", () => {
     }
   });
 
-  it("filters by exact correlationId", async () => {
+  it("filters by correlationId, matched as a case-insensitive substring", async () => {
     const unfiltered = await newService().list({ page: 1, pageSize: 20 });
     const target = unfiltered.items[0];
     assert.ok(target !== undefined);
@@ -142,6 +142,44 @@ describe("modules/message-monitoring/MessageMonitoringService.list", () => {
     assert.ok(page.items.length > 0);
     for (const row of page.items) {
       assert.equal(row.correlationId, target.correlationId);
+    }
+    // A partial, differently-cased fragment must still find it — operators search by what they
+    // remember, not by pasting the full exact id.
+    const partial = target.correlationId.slice(0, -1).toUpperCase();
+    const partialPage = await newService().list({ correlationId: partial, pageSize: 50 });
+    assert.ok(partialPage.items.some((row) => row.correlationId === target.correlationId));
+  });
+
+  it("filters by mplId as a case-insensitive substring of the message id", async () => {
+    const unfiltered = await newService().list({ page: 1, pageSize: 20 });
+    const target = unfiltered.items[0];
+    assert.ok(target !== undefined);
+    const fragment = target.messageId.slice(0, -1).toUpperCase();
+    const page = await newService().list({ mplId: fragment, pageSize: 50 });
+    assert.ok(page.items.some((row) => row.messageId === target.messageId));
+  });
+
+  it("filters by sender/receiver as a partial, case-insensitive match", async () => {
+    const page = await newService().list({ sender: "sap_s4hana", pageSize: 50 });
+    assert.ok(page.items.length > 0);
+    for (const row of page.items) {
+      assert.ok(row.sender.toLowerCase().includes("sap_s4hana"));
+    }
+  });
+
+  it("filters by sender/receiver interchange control and business role", async () => {
+    const unfiltered = await newService().list({ page: 1, pageSize: 50 });
+    const withIcn = unfiltered.items.find((row) => row.senderInterchangeControl !== undefined);
+    assert.ok(withIcn !== undefined, "fixture set must include at least one EDI interchange message");
+    const page = await newService().list({
+      senderInterchangeControl: withIcn.senderInterchangeControl,
+      pageSize: 50,
+    });
+    assert.ok(page.items.some((row) => row.messageId === withIcn.messageId));
+
+    const byRole = await newService().list({ businessRole: "both", pageSize: 50 });
+    for (const row of byRole.items) {
+      assert.equal(row.businessRole, "both");
     }
   });
 

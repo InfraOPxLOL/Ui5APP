@@ -62,8 +62,8 @@
             <SearchField
               width="16rem"
               placeholder="{i18n>investigation.quickSearch}"
-              liveChange=".onSearchExecute"
-              value="{view>/grid/quickSearchTerm}" />
+              liveChange=".onQuickSearchChange"
+              value="{view>/criteria/search}" />
             <!--
               Framework and recovery condition are two independent axes, so they are two independent
               selects. Both are real server-side criteria (the backend classifies the whole working

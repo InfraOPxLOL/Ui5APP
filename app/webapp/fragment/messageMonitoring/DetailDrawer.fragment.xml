@@ -63,6 +63,13 @@
               <ObjectAttribute title="{i18n>column.correlationId}" text="{view>/drawer/detail/correlationId}" />
               <ObjectAttribute title="{i18n>column.applicationId}" text="{view>/drawer/detail/applicationId}" />
               <ObjectAttribute title="{i18n>column.sapMessageType}" text="{view>/drawer/detail/messageType}" />
+              <ObjectAttribute
+                title="{i18n>column.senderInterchangeControl}"
+                text="{view>/drawer/detail/senderInterchangeControl}" />
+              <ObjectAttribute
+                title="{i18n>column.receiverInterchangeControl}"
+                text="{view>/drawer/detail/receiverInterchangeControl}" />
+              <ObjectAttribute title="{i18n>column.businessRole}" text="{view>/drawer/detail/businessRole}" />
               <ObjectAttribute title="{i18n>column.customStatus}" text="{view>/drawer/detail/customStatus}" />
               <ObjectAttribute title="{i18n>column.environment}" text="{view>/drawer/detail/environment}" />
               <ObjectAttribute title="{i18n>column.tenant}" text="{view>/drawer/detail/tenantId}" />

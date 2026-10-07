@@ -2,6 +2,7 @@ import type {
   MessageProcessingLog,
   MessageErrorDetail,
   MessageHeader,
+  MessageBusinessRole,
 } from "../../../core/providers/types.js";
 import { SeededRandom } from "../SeededRandom.js";
 
@@ -96,6 +97,7 @@ const SENDERS = ["SAP_S4HANA", "SAP_Ariba", "SAP_SuccessFactors", "PARTNER_EDI_G
 const RECEIVERS = ["SAP_S4HANA", "SFTP_PARTNER_OUT", "SAP_BTP_DESTINATION", "PARTNER_EDI_GATEWAY"];
 const MESSAGE_TYPES = ["ORDERS", "INVOIC", "DESADV", "MATMAS", "DEBMAS"];
 const APPLICATIONS = ["S4HANA_CLOUD", "ARIBA_NETWORK", "SUCCESSFACTORS", "EDI_GATEWAY"];
+const BUSINESS_ROLES: readonly MessageBusinessRole[] = ["sender", "receiver", "both"];
 
 /**
  * Generates a deterministic (given `seed`) list of realistic {@link MessageProcessingLog} entries
@@ -112,9 +114,13 @@ export function generateMessageLogs(count: number, seed = 42): MessageProcessing
     const startTime = new Date(now - index * 60000 - rng.int(0, 59000)).toISOString();
     const isTerminal = status === "COMPLETED" || status === "FAILED";
     const processingTimeMs = isTerminal ? rng.int(80, 45000) : undefined;
+    // Only EDI-interchange flows carry interchange control numbers (~70% of generated messages) —
+    // the remainder stay `undefined`, the honest value for a message with no interchange envelope.
+    const isEdiInterchange = rng.chance(0.7);
+    const slot = seed * 1000 + index;
     return {
-      messageId: `msg-${(seed * 1000 + index).toString(16)}`,
-      correlationId: `corr-${(seed * 1000 + index).toString(16)}`,
+      messageId: `msg-${slot.toString(16)}`,
+      correlationId: `corr-${slot.toString(16)}`,
       integrationFlow: rng.pick(FLOWS),
       status,
       startTime,
@@ -127,6 +133,9 @@ export function generateMessageLogs(count: number, seed = 42): MessageProcessing
       customStatus: status === "ESCALATED" ? "MANUAL_REVIEW_REQUIRED" : undefined,
       applicationId: rng.pick(APPLICATIONS),
       messageType: rng.pick(MESSAGE_TYPES),
+      senderInterchangeControl: isEdiInterchange ? `ICN-S-${slot.toString(16)}` : undefined,
+      receiverInterchangeControl: isEdiInterchange ? `ICN-R-${slot.toString(16)}` : undefined,
+      businessRole: rng.pick(BUSINESS_ROLES),
     };
   });
   if (seed === 42 && count >= 6) {

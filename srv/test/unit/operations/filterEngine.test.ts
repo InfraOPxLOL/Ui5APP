@@ -23,6 +23,9 @@ function messageFixture(overrides: Partial<MessageSummary>): MessageSummary {
     applicationId: undefined,
     messageType: undefined,
     customStatus: undefined,
+    senderInterchangeControl: undefined,
+    receiverInterchangeControl: undefined,
+    businessRole: undefined,
     ...overrides,
   };
 }
@@ -139,6 +142,41 @@ describe("operations/engines/FilterEngine static factories", () => {
     assert.equal(engine.apply(messages, { messageType: "INVOIC" }).length, 1);
     assert.equal(engine.apply(messages, { durationMinMs: 1000 }).length, 1);
     assert.equal(engine.apply(messages, { durationMaxMs: 1000 }).length, 1);
+  });
+
+  it("forMessages matches text criteria as a case-insensitive substring, not an exact value", () => {
+    const messages = [
+      messageFixture({ sender: "Shopify_Prod", receiver: "HML_Receiver" }),
+      messageFixture({ sender: "SAP_S4HANA", receiver: "Other" }),
+    ];
+    const engine = FilterEngine.forMessages();
+    // A partial, differently-cased fragment must still match — the bug this fixes was requiring the
+    // full, exact, case-sensitive stored value.
+    assert.equal(engine.apply(messages, { sender: "shop" }).length, 1);
+    assert.equal(engine.apply(messages, { receiver: "hml" }).length, 1);
+    assert.equal(engine.apply(messages, { sender: "nonexistent" }).length, 0);
+  });
+
+  it("forMessages filters by mplId (an alias of messageId), interchange control and business role", () => {
+    const messages = [
+      messageFixture({
+        messageId: "msg-abc-123",
+        senderInterchangeControl: "ICN-S-1",
+        receiverInterchangeControl: "ICN-R-1",
+        businessRole: "sender",
+      }),
+      messageFixture({
+        messageId: "msg-def-456",
+        senderInterchangeControl: "ICN-S-2",
+        receiverInterchangeControl: undefined,
+        businessRole: "both",
+      }),
+    ];
+    const engine = FilterEngine.forMessages();
+    assert.equal(engine.apply(messages, { mplId: "abc" }).length, 1);
+    assert.equal(engine.apply(messages, { senderInterchangeControl: "icn-s" }).length, 2);
+    assert.equal(engine.apply(messages, { receiverInterchangeControl: "ICN-R-1" }).length, 1);
+    assert.equal(engine.apply(messages, { businessRole: "both" }).length, 1);
   });
 
   it("forCertificates filters by alias substring and expiry horizon", () => {
