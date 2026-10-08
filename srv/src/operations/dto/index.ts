@@ -70,3 +70,16 @@ export type {
   CertificateTimelineEventKind,
   CertificateTimelineEvent,
 } from "./CertificateSecurityDto.js";
+export type {
+  InterchangeStatusCategory,
+  InterchangePartyDto,
+  InterchangeSummary,
+  InterchangeEventDto,
+  InterchangePayloadDto,
+  InterchangePayloadFormat,
+  InterchangePayloadContentDto,
+  InterchangeErrorDto,
+  InterchangeDetailDto,
+  InterchangeStatusCount,
+  InterchangeStatusSummary,
+} from "./B2bDto.js";

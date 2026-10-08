@@ -23,3 +23,4 @@ export {
   CertificateSecurityStateStore,
   certificateSecurityStateStore,
 } from "./CertificateSecurityStateStore.js";
+export { B2bEngine } from "./B2bEngine.js";

@@ -19,11 +19,17 @@ export interface OperationsQuickAction {
 /** The operational quick actions the workspace ships with (§5). */
 export const OPERATIONS_QUICK_ACTIONS: readonly OperationsQuickAction[] = [
   {
-    id: "messages",
-    titleKey: "ops.qa.messages",
-    icon: "sap-icon://message-information",
-    route: RouteNames.MessageMonitoring,
+    id: "reportServer",
+    titleKey: "ops.qa.reportServer",
+    icon: "sap-icon://business-objects-experience",
+    route: RouteNames.ReportServer,
     emphasized: true,
+  },
+  {
+    id: "failedTransactions",
+    titleKey: "ops.qa.failedTransactions",
+    icon: "sap-icon://message-error",
+    route: RouteNames.FailedTransactions,
   },
   { id: "retry", titleKey: "ops.qa.retry", icon: "sap-icon://redo", route: RouteNames.JmsQueue },
   {

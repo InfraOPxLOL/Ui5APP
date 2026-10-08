@@ -7,6 +7,7 @@ import {
   MockMonitoringProvider,
   MockPartnerDirectoryProvider,
   MockPayloadProvider,
+  MockB2bMonitoringProvider,
   MockRuntimeProvider,
   MockSplunkProvider,
   MockValueMappingProvider,
@@ -16,6 +17,8 @@ import {
   RealMonitoringProvider,
   RealPartnerDirectoryProvider,
   RealPayloadProvider,
+  RealB2bMonitoringProvider,
+  type B2bMonitoringEndpoints,
   RealRuntimeProvider,
   RealValueMappingProvider,
   type AlertNotificationServiceConfig,
@@ -32,6 +35,7 @@ import { JmsClient } from "./JmsClient.js";
 import { PayloadClient } from "./PayloadClient.js";
 import { SplunkClient } from "./SplunkClient.js";
 import { PartnerDirectoryClient } from "./PartnerDirectoryClient.js";
+import { B2bMonitoringClient } from "./B2bMonitoringClient.js";
 import { CertificateClient } from "./CertificateClient.js";
 import { ValueMappingClient } from "./ValueMappingClient.js";
 import { SecurityMaterialClient } from "./SecurityMaterialClient.js";
@@ -57,6 +61,8 @@ export interface RealProviderDependencies {
   readonly httpClient: IHttpClient;
   /** Overrides the default JMS entity-set names (see `RealJmsProvider`'s doc comment). */
   readonly jmsEndpoints?: JmsProviderEndpoints;
+  /** Overrides the default B2B Monitoring entity-set/navigation names. */
+  readonly b2bEndpoints?: B2bMonitoringEndpoints;
   /** Overrides the default Value Mapping entity-set name (see `RealValueMappingProvider`'s doc comment). */
   readonly valueMappingEndpoints?: ValueMappingProviderEndpoints;
   /**
@@ -138,6 +144,8 @@ export class IntegrationSuiteSdkClient {
    * otherwise.
    */
   public readonly partnerDirectory: PartnerDirectoryClient;
+  /** Trading Partner Management B2B Monitor (interchanges, payloads, processing events). */
+  public readonly b2b: B2bMonitoringClient;
 
   private readonly mockEngine: MockEngine;
   private readonly providerMode: IntegrationSuiteProviderMode;
@@ -186,6 +194,10 @@ export class IntegrationSuiteSdkClient {
         new RealPartnerDirectoryProvider(pipeline, httpClient),
         tenantId,
       );
+      this.b2b = new B2bMonitoringClient(
+        new RealB2bMonitoringProvider(pipeline, httpClient, options.real.b2bEndpoints),
+        tenantId,
+      );
       return;
     }
 
@@ -211,6 +223,7 @@ export class IntegrationSuiteSdkClient {
       new MockPartnerDirectoryProvider(),
       tenantId,
     );
+    this.b2b = new B2bMonitoringClient(new MockB2bMonitoringProvider(this.mockEngine), tenantId);
   }
 
   /** @returns whether the SDK is currently serving mock data (`providerMode !== "real"`). */

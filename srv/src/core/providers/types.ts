@@ -71,6 +71,8 @@ export interface MessageLogFilter {
   readonly from?: string;
   readonly to?: string;
   readonly search?: string;
+  /** Exact match on the MPL `CorrelationId` — every processing run of one business message. */
+  readonly correlationId?: string;
 }
 
 /** A single error detail attached to a failed message. */
@@ -119,6 +121,17 @@ export interface QueuedMessage {
   readonly enqueuedAt: string;
   readonly retryCount: number;
   readonly sizeBytes: number | undefined;
+  /** Whether the broker flagged the message as failed (`MessagingMessage.failed`). */
+  readonly failed?: boolean;
+  /** The MPL that last processed the message — the link to processing logs and B2B interchanges. */
+  readonly mplId?: string;
+  readonly correlationId?: string;
+  readonly sender?: string;
+  readonly receiver?: string;
+  readonly messageType?: string;
+  readonly applicationId?: string;
+  readonly nextRetryAt?: string;
+  readonly expiresAt?: string;
 }
 
 // --- Payloads -------------------------------------------------------------------------------------
@@ -261,4 +274,100 @@ export interface SplunkMessageEvent {
   readonly correlationId: string;
   readonly requestPayload: SplunkPayloadBody | undefined;
   readonly responsePayload: SplunkPayloadBody | undefined;
+}
+
+// --- B2B monitoring (Trading Partner Management) -------------------------------------------------
+
+/** One side (sender or receiver) of a B2B interchange, as recorded by TPM's B2B Monitor. */
+export interface B2bPartySide {
+  readonly tradingPartnerName: string | undefined;
+  readonly communicationPartnerName: string | undefined;
+  readonly systemId: string | undefined;
+  readonly adapterType: string | undefined;
+  readonly documentStandard: string | undefined;
+  readonly messageType: string | undefined;
+  readonly interchangeControlNumber: string | undefined;
+  readonly groupControlNumber: string | undefined;
+  readonly messageNumber: string | undefined;
+}
+
+/** One B2B interchange (`BusinessDocument`). Status strings are passed through verbatim. */
+export interface B2bInterchange {
+  readonly id: string;
+  readonly overallStatus: string;
+  readonly processingStatus: string | undefined;
+  readonly startedAt: string | undefined;
+  readonly endedAt: string | undefined;
+  readonly documentCreationTime: string | undefined;
+  readonly interchangeName: string | undefined;
+  readonly direction: string | undefined;
+  readonly agreementTypeName: string | undefined;
+  readonly transactionTypeName: string | undefined;
+  readonly transactionDocumentType: string | undefined;
+  readonly receiverTechnicalAckStatus: string | undefined;
+  readonly receiverFunctionalAckStatus: string | undefined;
+  readonly archivingStatus: string | undefined;
+  readonly retryAllowed: boolean;
+  readonly resendAllowed: boolean;
+  readonly sender: B2bPartySide;
+  readonly receiver: B2bPartySide;
+}
+
+/** Server-side filter for interchange listings. Every field is optional and ANDed. */
+export interface B2bInterchangeFilter {
+  /** ISO lower bound on `StartedAt`. */
+  readonly from?: string;
+  /** ISO upper bound on `StartedAt`. */
+  readonly to?: string;
+  /** Exact `OverallStatus` value. */
+  readonly overallStatus?: string;
+  readonly senderPartner?: string;
+  readonly receiverPartner?: string;
+  /** Matches either side's document standard. */
+  readonly documentStandard?: string;
+  /** Matches either side's message type. */
+  readonly messageType?: string;
+  /** Matches either side's interchange control number. */
+  readonly controlNumber?: string;
+}
+
+/** One processing event of an interchange. `monitoringId` links to an MPL when `monitoringType` says so. */
+export interface B2bProcessingEvent {
+  readonly id: string;
+  readonly eventType: string;
+  readonly date: string | undefined;
+  readonly monitoringType: string | undefined;
+  readonly monitoringId: string | undefined;
+}
+
+/** Metadata for one stored interchange payload (`BusinessDocumentPayload`, a media entity). */
+export interface B2bPayloadInfo {
+  readonly id: string;
+  readonly payloadId: string | undefined;
+  readonly direction: string | undefined;
+  readonly processingState: string | undefined;
+  readonly contentType: string | undefined;
+  readonly containerContentType: string | undefined;
+}
+
+/** A payload with its content: UTF-8 text for textual types, base64 otherwise. */
+export interface B2bPayloadContent extends B2bPayloadInfo {
+  readonly content: string;
+  readonly encoding: "text" | "base64";
+}
+
+/** An error recorded against an interchange. */
+export interface B2bErrorDetail {
+  readonly id: string;
+  readonly errorInformation: string;
+  readonly errorCategory: string | undefined;
+  readonly transientError: boolean | undefined;
+}
+
+/** An interchange with everything recorded against it. */
+export interface B2bInterchangeDetail {
+  readonly interchange: B2bInterchange;
+  readonly events: readonly B2bProcessingEvent[];
+  readonly payloads: readonly B2bPayloadInfo[];
+  readonly errors: readonly B2bErrorDetail[];
 }

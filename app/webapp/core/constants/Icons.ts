@@ -9,6 +9,8 @@ export const Icons = {
   module: {
     dashboard: "sap-icon://home",
     messageMonitoring: "sap-icon://message-information",
+    reportServer: "sap-icon://business-objects-experience",
+    failedTransactions: "sap-icon://message-error",
     payloadStudio: "sap-icon://source-code",
     recoveryCenter: "sap-icon://synchronize",
     runtimeCenter: "sap-icon://chain-link",

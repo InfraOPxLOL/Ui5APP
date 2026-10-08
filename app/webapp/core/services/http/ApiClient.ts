@@ -45,19 +45,17 @@ export default class ApiClient {
   ): Promise<TResponse> {
     const method: HttpMethod = options.method ?? "GET";
     const url = this.buildUrl(path, options.query);
-    const headers = await this.buildHeaders(method, options.headers);
 
-    let response: Response;
-    try {
-      response = await fetch(url, {
-        method,
-        headers,
-        body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-        signal: options.signal,
-        credentials: "same-origin",
-      });
-    } catch (cause) {
-      throw new NetworkError("The request could not be completed.", { cause });
+    let response = await this.send(url, method, options);
+    // The approuter rejects a stale CSRF token with 403 + `X-CSRF-Token: Required`; fetch a fresh
+    // token and retry once instead of failing every mutating request until a page reload.
+    if (
+      method !== "GET" &&
+      response.status === 403 &&
+      response.headers.get("X-CSRF-Token")?.toLowerCase() === "required"
+    ) {
+      this.csrfToken = undefined;
+      response = await this.send(url, method, options);
     }
 
     if (!response.ok) {
@@ -103,6 +101,25 @@ export default class ApiClient {
     }
     const qs = search.toString();
     return qs ? `${full}?${qs}` : full;
+  }
+
+  private async send<TBody>(
+    url: string,
+    method: HttpMethod,
+    options: ApiRequestOptions<TBody>,
+  ): Promise<Response> {
+    const headers = await this.buildHeaders(method, options.headers);
+    try {
+      return await fetch(url, {
+        method,
+        headers,
+        body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+        signal: options.signal,
+        credentials: "same-origin",
+      });
+    } catch (cause) {
+      throw new NetworkError("The request could not be completed.", { cause });
+    }
   }
 
   private async buildHeaders(
@@ -154,10 +171,6 @@ export default class ApiClient {
       });
     }
     if (envelope !== undefined) {
-      // Reset a stale CSRF token so the next mutating request re-fetches it.
-      if (response.status === 403) {
-        this.csrfToken = undefined;
-      }
       return errorFromEnvelope(envelope);
     }
     return new BackendError(response.statusText || "Request failed.", {

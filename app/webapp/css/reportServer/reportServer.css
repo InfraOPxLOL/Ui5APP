@@ -1,0 +1,35 @@
+/* Report Server — B2B interchanges (TPM B2B Monitor). Theme variables only. */
+
+.reportServerTiles {
+  gap: 0.5rem;
+  padding: 0.75rem 1rem 0.25rem;
+}
+
+.reportServerTile.sapMGT {
+  margin: 0;
+}
+
+.reportServerFilters {
+  gap: 0.75rem;
+  padding: 0.5rem 1rem 0.75rem;
+  border-bottom: 1px solid var(--sapList_BorderColor);
+}
+
+.reportServerFilterActions {
+  padding-bottom: 0.125rem;
+}
+
+.reportServerHint {
+  color: var(--sapContent_LabelColor);
+  font-size: var(--sapFontSmallSize);
+}
+
+.reportServerMono {
+  font-family: var(--sapFontMonospaceFamily, monospace);
+  font-size: var(--sapFontSmallSize);
+  color: var(--sapContent_LabelColor);
+}
+
+.reportServerPager {
+  border-top: 1px solid var(--sapList_BorderColor);
+}

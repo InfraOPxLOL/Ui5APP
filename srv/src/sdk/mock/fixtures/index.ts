@@ -31,6 +31,7 @@ export {
   generateQueueStates,
   generateQueuedMessages,
   generateSingleMessage,
+  generateTpmDlqMessages,
   recordMockMove,
   resetMockMoves,
   MOCK_DISCOVERED_QUEUE_NAMES,
@@ -43,3 +44,18 @@ export { generatePayloadAttachments } from "./PayloadFixtures.js";
 export { generateApis } from "./ApiFixtures.js";
 export { generateApplications } from "./ApplicationFixtures.js";
 export { generateSplunkHecEvent, type SplunkHecEvent } from "./SplunkFixtures.js";
+export {
+  TPM_DLQ_SCENARIOS,
+  MOCK_OWN_COMPANY,
+  findTpmDlqScenario,
+  generateTpmScenarioRuns,
+  priorRunMplId,
+  scenarioFailedAt,
+  type TpmDlqScenario,
+} from "./TpmScenarioFixtures.js";
+export {
+  generateInterchanges,
+  generateInterchangeDetail,
+  generatePayloadContent,
+  findInterchangeIdByMplId,
+} from "./B2bFixtures.js";

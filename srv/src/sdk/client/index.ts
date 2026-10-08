@@ -17,4 +17,5 @@ export { AlertNotificationClient } from "./AlertNotificationClient.js";
 export { DesignTimeClient } from "./DesignTimeClient.js";
 export { SplunkClient } from "./SplunkClient.js";
 export { PartnerDirectoryClient } from "./PartnerDirectoryClient.js";
+export { B2bMonitoringClient } from "./B2bMonitoringClient.js";
 export { resolveContext, type ClientCallContext } from "./ClientCallContext.js";

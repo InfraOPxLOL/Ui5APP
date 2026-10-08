@@ -71,6 +71,12 @@
           "uri": "css/payloadStudio/payloadStudio.css"
         },
         {
+          "uri": "css/reportServer/reportServer.css"
+        },
+        {
+          "uri": "css/failedTransactions/failedTransactions.css"
+        },
+        {
           "uri": "css/recoveryCenter/recoveryCenter.css"
         },
         {
@@ -116,6 +122,16 @@
           "name": "payloadStudio",
           "pattern": "payloadStudio:?query:",
           "target": "payloadStudio"
+        },
+        {
+          "name": "reportServer",
+          "pattern": "reportServer/:interchangeId:",
+          "target": "reportServer"
+        },
+        {
+          "name": "failedTransactions",
+          "pattern": "failedTransactions",
+          "target": "failedTransactions"
         },
         {
           "name": "recoveryCenter",
@@ -231,6 +247,20 @@
         "messageMonitoring": {
           "type": "View",
           "name": "com.middlewareops.integrationportal.view.messageMonitoring.List",
+          "viewType": "XML",
+          "controlAggregation": "pages",
+          "controlId": "moduleContainer"
+        },
+        "reportServer": {
+          "type": "View",
+          "name": "com.middlewareops.integrationportal.view.reportServer.ReportServer",
+          "viewType": "XML",
+          "controlAggregation": "pages",
+          "controlId": "moduleContainer"
+        },
+        "failedTransactions": {
+          "type": "View",
+          "name": "com.middlewareops.integrationportal.view.failedTransactions.FailedTransactions",
           "viewType": "XML",
           "controlAggregation": "pages",
           "controlId": "moduleContainer"

@@ -224,6 +224,9 @@ export class RealMonitoringProvider implements IMonitoringProvider {
     if (filter.search !== undefined && filter.search !== "") {
       and(ODataFilter.contains("IntegrationFlowName", filter.search));
     }
+    if (filter.correlationId !== undefined) {
+      and(ODataFilter.eq("CorrelationId", filter.correlationId));
+    }
     return expression;
   }
 

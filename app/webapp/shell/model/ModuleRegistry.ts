@@ -29,6 +29,22 @@ export default class ModuleRegistry {
       phase: 1,
     },
     {
+      id: "reportServer",
+      titleKey: "module.reportServer",
+      icon: Icons.module.reportServer,
+      route: "reportServer",
+      group: "monitoring",
+      phase: 13,
+    },
+    {
+      id: "failedTransactions",
+      titleKey: "module.failedTransactions",
+      icon: Icons.module.failedTransactions,
+      route: "failedTransactions",
+      group: "monitoring",
+      phase: 13,
+    },
+    {
       id: "payloadStudio",
       titleKey: "module.payloadStudio",
       icon: Icons.module.payloadStudio,

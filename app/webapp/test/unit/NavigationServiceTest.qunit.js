@@ -85,7 +85,12 @@ sap.ui.define([
       return m.id;
     });
     assert.ok(ops.indexOf("dashboard") < 0, "disabled dashboard hidden");
-    assert.ok(ops.indexOf("messageMonitoring") >= 0, "other modules still visible");
+    assert.ok(ops.indexOf("reportServer") >= 0, "other modules still visible");
+    assert.ok(ops.indexOf("failedTransactions") >= 0, "failed transactions visible");
+    assert.ok(
+      ops.indexOf("messageMonitoring") < 0,
+      "message monitoring is a drill-down, not a sidebar destination",
+    );
   });
 
   QUnit.test("landing workspaces require an authorized module", function (assert) {

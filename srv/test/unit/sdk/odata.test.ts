@@ -35,6 +35,17 @@ describe("sdk/odata/ODataFilter", () => {
     );
   });
 
+  it("renders contains as substringof for OData v2 (Cloud Integration rejects contains with 400)", () => {
+    assert.equal(
+      ODataFilter.contains("IntegrationFlowName", "Order").render("v2"),
+      "substringof('Order',IntegrationFlowName)",
+    );
+    assert.equal(
+      ODataFilter.startswith("IntegrationFlowName", "SAP").render("v2"),
+      "startswith(IntegrationFlowName,'SAP')",
+    );
+  });
+
   it("combines expressions with AND, each parenthesized", () => {
     const expr = ODataFilter.and(
       ODataFilter.eq("status", "FAILED"),

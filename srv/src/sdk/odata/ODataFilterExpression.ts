@@ -38,6 +38,10 @@ export class ODataFunctionExpression implements ODataFilterExpression {
   ) {}
 
   public render(version: ODataVersion): string {
+    // OData v2 has no `contains`; Cloud Integration answers it with 400 "Invalid filter expression".
+    if (this.fn === "contains" && version === "v2") {
+      return `substringof(${renderODataLiteral(this.value, version)},${this.field})`;
+    }
     return `${this.fn}(${this.field},${renderODataLiteral(this.value, version)})`;
   }
 }

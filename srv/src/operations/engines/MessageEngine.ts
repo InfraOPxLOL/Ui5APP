@@ -83,7 +83,9 @@ export class MessageEngine {
         // No `core/providers` contract exposes SAP-standard (system) headers per-message today —
         // `sapStandardHeaders` stays an honest, documented gap; `customHeaders` is real.
         sapStandardHeaders: {},
-        customHeaders: Object.fromEntries(customHeaders.map((header) => [header.name, header.value])),
+        customHeaders: Object.fromEntries(
+          customHeaders.map((header) => [header.name, header.value]),
+        ),
       };
       return details;
     });
@@ -125,6 +127,26 @@ export class MessageEngine {
       return page.items
         .map(MessageEngine.toSummary)
         .filter((item) => item.correlationId === correlationId);
+    });
+  }
+
+  /**
+   * Every processing run recorded for one correlation id, newest first. Filtered server-side on
+   * `CorrelationId`, so — unlike {@link findByCorrelationId} — older runs outside the newest-500
+   * working set are still found (bounded only by CPI's log retention and `limit`).
+   * @param correlationId the correlation id to match.
+   * @param limit the maximum number of runs to read.
+   * @returns the matching runs, newest first.
+   */
+  public async listRunsByCorrelationId(
+    correlationId: string,
+    limit = 200,
+  ): Promise<readonly MessageSummary[]> {
+    return this.cache.dedupe(`message.runsByCorrelation:${correlationId}`, async () => {
+      const page = await this.client.queryMessageLogs({ correlationId }, { skip: 0, top: limit });
+      return page.items
+        .map(MessageEngine.toSummary)
+        .sort((a, b) => b.startTime.localeCompare(a.startTime));
     });
   }
 

@@ -23,7 +23,14 @@ export const DEFAULT_WORKSPACES: readonly WorkspaceDefinition[] = [
     order: 10,
     showOnLanding: true,
     showInSidebar: true,
-    moduleIds: ["dashboard", "messageMonitoring", "payloadStudio", "alertNotification"],
+    moduleIds: [
+      "dashboard",
+      "reportServer",
+      "failedTransactions",
+      "messageMonitoring",
+      "payloadStudio",
+      "alertNotification",
+    ],
     defaultRoute: "dashboard",
   },
   {
@@ -148,12 +155,30 @@ export const DEFAULT_MODULE_METADATA: readonly ShellModuleMetadata[] = [
     showInSidebar: true,
   },
   {
+    moduleId: "reportServer",
+    workspace: Workspaces.Operations,
+    permission: { anyRoleCollection: [RoleCollections.MessageViewer] },
+    navigationOrder: 15,
+    showLandingCard: true,
+    showInSidebar: true,
+  },
+  {
+    moduleId: "failedTransactions",
+    workspace: Workspaces.Operations,
+    permission: { anyRoleCollection: [RoleCollections.MessageViewer] },
+    navigationOrder: 18,
+    showLandingCard: true,
+    showInSidebar: true,
+  },
+  {
     moduleId: "messageMonitoring",
     workspace: Workspaces.Operations,
     permission: { anyRoleCollection: [RoleCollections.MessageViewer] },
     navigationOrder: 20,
-    showLandingCard: true,
-    showInSidebar: true,
+    // A technical drill-down now: Report Server, Failed Transactions, Dashboard and other modules
+    // deep-link into it for a single processing log, but it is not a business-persona destination.
+    showLandingCard: false,
+    showInSidebar: false,
   },
   {
     moduleId: "payloadStudio",

@@ -6,6 +6,12 @@ import {
   MOCK_JMS_RESOLVED_QUEUE,
   MOCK_JMS_SOURCE_MESSAGE_ID,
 } from "./MessageFixtures.js";
+import {
+  TPM_DLQ_SCENARIOS,
+  findTpmDlqScenario,
+  scenarioFailedAt,
+  type TpmDlqScenario,
+} from "./TpmScenarioFixtures.js";
 
 /** The fixed mock dead-letter queue name — mirrors the real, single `Common_JMS_ID_DLQ` convention. */
 export const MOCK_CENTRAL_DLQ_QUEUE = "Common_JMS_ID_DLQ";
@@ -66,6 +72,39 @@ export function generateQueuedMessages(
   }));
 }
 
+/** A TPM DLQ scenario as the broker would list it on `queueName`. */
+function scenarioMessage(scenario: TpmDlqScenario, queueName: string): QueuedMessage {
+  return {
+    messageId: scenario.jmsMessageId,
+    queueName,
+    enqueuedAt: scenarioFailedAt(scenario).toISOString(),
+    retryCount: scenario.jmsRetryCount,
+    sizeBytes: 8192,
+    failed: true,
+    mplId: scenario.mplId,
+    correlationId: scenario.correlationId,
+    sender: scenario.senderPartner,
+    receiver: scenario.receiverPartner,
+    messageType: scenario.messageType,
+    applicationId: scenario.controlNumber,
+  };
+}
+
+/**
+ * The TPM dead-letter messages currently on `queueName`, newest first, or `undefined` when the queue
+ * is not one of the TPM dead-letter queues. A message moved away by {@link recordMockMove} is gone.
+ */
+export function generateTpmDlqMessages(queueName: string): QueuedMessage[] | undefined {
+  const parked = TPM_DLQ_SCENARIOS.filter((scenario) => scenario.queueName === queueName);
+  if (parked.length === 0) {
+    return undefined;
+  }
+  return parked
+    .filter((scenario) => !relocatedMessages.has(scenario.jmsMessageId))
+    .map((scenario) => scenarioMessage(scenario, queueName))
+    .sort((a, b) => b.enqueuedAt.localeCompare(a.enqueuedAt));
+}
+
 /**
  * Where a message has been relocated to by a mock `MoveMessagingMessages` call, keyed by message id.
  *
@@ -123,21 +162,40 @@ export function generateSingleMessage(
 ): QueuedMessage | undefined {
   const relocatedTo = relocatedMessages.get(messageId);
   if (relocatedTo !== undefined) {
-    return relocatedTo === queueName
+    if (relocatedTo !== queueName) {
+      return undefined;
+    }
+    const moved = findTpmDlqScenario(messageId);
+    return moved !== undefined
       ? {
+          ...scenarioMessage(moved, queueName),
+          enqueuedAt: new Date().toISOString(),
+          failed: false,
+        }
+      : {
           messageId,
           queueName,
           enqueuedAt: new Date().toISOString(),
           retryCount: 0,
           sizeBytes: 4096,
-        }
-      : undefined;
+        };
   }
 
   if (messageId === MOCK_JMS_SOURCE_MESSAGE_ID) {
     return queueName === MOCK_JMS_RESOLVED_QUEUE
-      ? { messageId, queueName, enqueuedAt: new Date(Date.now() - 120_000).toISOString(), retryCount: 2, sizeBytes: 4096 }
+      ? {
+          messageId,
+          queueName,
+          enqueuedAt: new Date(Date.now() - 120_000).toISOString(),
+          retryCount: 2,
+          sizeBytes: 4096,
+        }
       : undefined;
+  }
+
+  const scenario = findTpmDlqScenario(messageId);
+  if (scenario !== undefined) {
+    return scenario.queueName === queueName ? scenarioMessage(scenario, queueName) : undefined;
   }
 
   if (MOCK_FRAMEWORK_ABSENT_MESSAGE_IDS.has(messageId)) {

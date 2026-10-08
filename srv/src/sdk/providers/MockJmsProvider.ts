@@ -11,6 +11,7 @@ import {
   generateQueueStates,
   generateQueuedMessages,
   generateSingleMessage,
+  generateTpmDlqMessages,
   recordMockMove,
   MOCK_DISCOVERED_QUEUE_NAMES,
 } from "../mock/fixtures/index.js";
@@ -51,9 +52,11 @@ export class MockJmsProvider implements IJmsProvider {
     const all = await this.mockEngine.resolve({
       operationKey: "jms.listMessages",
       tenantId: context.tenantId,
-      generateSuccess: () => generateQueuedMessages(queueName, 30),
+      generateSuccess: () =>
+        generateTpmDlqMessages(queueName) ?? generateQueuedMessages(queueName, 30),
       generateEmpty: () => [],
-      generateLarge: () => generateQueuedMessages(queueName, 250),
+      generateLarge: () =>
+        generateTpmDlqMessages(queueName) ?? generateQueuedMessages(queueName, 250),
     });
     return { items: all.slice(page.skip, page.skip + page.top), total: all.length };
   }

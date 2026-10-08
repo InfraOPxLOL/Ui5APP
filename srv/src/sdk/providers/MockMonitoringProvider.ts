@@ -13,6 +13,7 @@ import {
   generateCustomHeaders,
   generateErrorDetails,
   generateMessageLogs,
+  generateTpmScenarioRuns,
 } from "../mock/fixtures/index.js";
 
 /**
@@ -37,7 +38,17 @@ export class MockMonitoringProvider implements IMonitoringProvider {
       generateEmpty: () => [],
       generateLarge: () => generateMessageLogs(250),
     });
-    const filtered = all.filter((log) => MockMonitoringProvider.matchesFilter(log, filter));
+    // A correlation lookup also sees the TPM DLQ scenarios' earlier runs, so retry history has depth.
+    const pool =
+      filter.correlationId === undefined
+        ? all
+        : [
+            ...all,
+            ...generateTpmScenarioRuns().filter(
+              (run) => !all.some((log) => log.messageId === run.messageId),
+            ),
+          ];
+    const filtered = pool.filter((log) => MockMonitoringProvider.matchesFilter(log, filter));
     return {
       items: filtered.slice(page.skip, page.skip + page.top),
       total: filtered.length,
@@ -54,7 +65,11 @@ export class MockMonitoringProvider implements IMonitoringProvider {
       tenantId: context.tenantId,
       generateSuccess: () => generateMessageLogs(50),
     });
-    return all.find((log) => log.messageId === messageId);
+    // The TPM DLQ scenarios' runs are linked from Failed Transactions and the Report Server.
+    return (
+      all.find((log) => log.messageId === messageId) ??
+      generateTpmScenarioRuns().find((run) => run.messageId === messageId)
+    );
   }
 
   /** @inheritdoc */
@@ -114,6 +129,9 @@ export class MockMonitoringProvider implements IMonitoringProvider {
       return false;
     }
     if (filter.to !== undefined && log.startTime > filter.to) {
+      return false;
+    }
+    if (filter.correlationId !== undefined && log.correlationId !== filter.correlationId) {
       return false;
     }
     if (filter.search !== undefined && filter.search !== "") {

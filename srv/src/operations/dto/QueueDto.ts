@@ -30,4 +30,15 @@ export interface QueuedMessageSummary {
   readonly retryCount: number;
   readonly sizeBytes: number | undefined;
   readonly sizeHuman: string;
+  /** Whether the broker flagged the message as failed. */
+  readonly failed?: boolean;
+  /** The MPL that last processed the message. */
+  readonly mplId?: string;
+  readonly correlationId?: string;
+  readonly sender?: string;
+  readonly receiver?: string;
+  readonly messageType?: string;
+  readonly applicationId?: string;
+  readonly nextRetryAt?: string;
+  readonly expiresAt?: string;
 }

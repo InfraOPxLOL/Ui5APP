@@ -15,6 +15,7 @@ export { MockValueMappingProvider } from "./MockValueMappingProvider.js";
 export { MockSplunkProvider } from "./MockSplunkProvider.js";
 export { decodeGzipBase64Text } from "./SplunkPayloadCodec.js";
 export { MockPartnerDirectoryProvider } from "./MockPartnerDirectoryProvider.js";
+export { MockB2bMonitoringProvider } from "./MockB2bMonitoringProvider.js";
 
 /**
  * Live, Integration-Suite-backed implementations of the same Phase-3 provider contracts (Phase 5 —
@@ -33,4 +34,9 @@ export {
 } from "./RealValueMappingProvider.js";
 export { RealAlertProvider, type AlertNotificationServiceConfig } from "./RealAlertProvider.js";
 export { RealPartnerDirectoryProvider } from "./RealPartnerDirectoryProvider.js";
+export {
+  RealB2bMonitoringProvider,
+  DEFAULT_B2B_ENDPOINTS,
+  type B2bMonitoringEndpoints,
+} from "./RealB2bMonitoringProvider.js";
 export { parseODataV2DateTime, toODataV2KeyLiteral } from "./RealProviderSupport.js";

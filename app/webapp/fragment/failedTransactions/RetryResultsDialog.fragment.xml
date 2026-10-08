@@ -1,0 +1,38 @@
+<core:FragmentDefinition
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core">
+  <Dialog
+    id="retryResultsDialog"
+    title="{i18n>results.title}"
+    contentWidth="48rem"
+    resizable="true"
+    draggable="true">
+    <content>
+      <MessageStrip text="{view>/resultsHeadline}" type="Information" showIcon="true" class="sapUiSmallMargin" />
+      <Table items="{view>/results}">
+        <columns>
+          <Column><Text text="{i18n>results.message}" /></Column>
+          <Column width="9rem"><Text text="{i18n>results.outcome}" /></Column>
+          <Column><Text text="{i18n>results.detail}" /></Column>
+        </columns>
+        <items>
+          <ColumnListItem>
+            <cells>
+              <VBox>
+                <Text text="{view>messageId}" />
+                <Text text="{view>queueName}" class="failedTransactionsHint" />
+              </VBox>
+              <ObjectStatus
+                text="{path: 'view>outcome/status', formatter: '.fmt.outcome'}"
+                state="{path: 'view>outcome/status', formatter: '.formatter.outcomeState'}" />
+              <Text text="{path: 'view>', formatter: '.formatter.stoppedAt'}" />
+            </cells>
+          </ColumnListItem>
+        </items>
+      </Table>
+    </content>
+    <endButton>
+      <Button text="{i18n>action.close}" press=".onCloseResults" />
+    </endButton>
+  </Dialog>
+</core:FragmentDefinition>

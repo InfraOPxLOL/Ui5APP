@@ -22,6 +22,7 @@ import {
   CertificateSecurityEngine,
   PartnerDirectoryEngine,
   FrameworkDetectionEngine,
+  B2bEngine,
 } from "./engines/index.js";
 import type { DashboardSummary } from "./dto/DashboardDto.js";
 import type { HealthStatus } from "./transform/index.js";
@@ -83,6 +84,10 @@ export class OperationsEngine {
   public readonly partnerDirectory: PartnerDirectoryEngine;
   /** Processing-framework classification (Phase 13) — backs the Message Investigation framework column. */
   public readonly frameworkDetection: FrameworkDetectionEngine;
+  /** Trading Partner Management B2B Monitor (Report Server, failed-message to interchange links). */
+  public readonly b2b: B2bEngine;
+  /** The framework configuration this engine was built with (DLQ topology for Failed Transactions). */
+  public readonly frameworkConfigs: readonly FrameworkConfig[];
 
   public constructor(options: OperationsEngineOptions) {
     const cache = new OperationsCache();
@@ -127,6 +132,8 @@ export class OperationsEngine {
     );
     this.certificateSecurity = new CertificateSecurityEngine(this.certificate, cache);
     this.partnerDirectory = new PartnerDirectoryEngine(sdk.partnerDirectory, cache);
+    this.b2b = new B2bEngine(sdk.b2b, cache);
+    this.frameworkConfigs = frameworkConfigs;
   }
 
   /**

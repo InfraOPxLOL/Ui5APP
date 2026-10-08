@@ -6,8 +6,6 @@ import type {
   MessageRecoveryOutcome,
   MessageRecoveryPlan,
   MessageSearchCriteria,
-  ProcessingFramework,
-  RecoveryState,
   RelatedMessageGroup,
   SmartFilter,
 } from "../../service/messageMonitoring/MessageInvestigationTypes";
@@ -99,17 +97,6 @@ export interface MessageMonitoringState {
   /** Whether the Advanced Search Panel's secondary "More Parameters" section is expanded. */
   moreParametersOpen: boolean;
   contextCollapsed: boolean;
-  /**
-   * Processing-framework filter; `""` means all frameworks. Replaces the old `jmsFilter` toggle —
-   * unlike that one, this is a real server-side criterion, not a post-filter over the loaded page.
-   */
-  frameworkFilter: ProcessingFramework | "";
-  /** Recovery-condition filter; `""` means all states. Independent of `frameworkFilter`. */
-  recoveryStateFilter: RecoveryState | "";
-  /** The selectable framework options, resolved to display labels at init. */
-  frameworkOptions: { key: ProcessingFramework | ""; text: string }[];
-  /** The selectable recovery-state options, resolved to display labels at init. */
-  recoveryStateOptions: { key: RecoveryState | ""; text: string }[];
   detailPageOpen: boolean;
   canRetry: boolean;
   context: ContextPanelState;
@@ -153,10 +140,6 @@ export default class MessageMonitoringModel extends JSONModel {
       advancedSearchOpen: false,
       moreParametersOpen: false,
       contextCollapsed: false,
-      frameworkFilter: "",
-      recoveryStateFilter: "",
-      frameworkOptions: [],
-      recoveryStateOptions: [],
       detailPageOpen: false,
       canRetry: false,
       context: { busy: false, context: null, related: [] },

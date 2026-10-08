@@ -416,7 +416,27 @@ export class RealJmsProvider implements IJmsProvider {
       retryCount: RealJmsProvider.toCount(raw.retryCount),
       // `MessagingMessages` exposes no size property — unknown, never fabricated.
       sizeBytes: undefined,
+      failed: raw.failed,
+      mplId: RealJmsProvider.text(raw.mplId),
+      correlationId: RealJmsProvider.text(raw.correlationId),
+      sender: RealJmsProvider.text(raw.sender),
+      receiver: RealJmsProvider.text(raw.receiver),
+      messageType: RealJmsProvider.text(raw.messageType),
+      applicationId: RealJmsProvider.text(raw.applicationId),
+      nextRetryAt: RealJmsProvider.optionalEpochToIso(raw.nextRetry),
+      expiresAt: RealJmsProvider.optionalEpochToIso(raw.expirationDate),
     };
+  }
+
+  /** Like {@link epochMsToIso}, but `0` (the broker's "not set") reads as absent. */
+  private static optionalEpochToIso(value: string | number | undefined): string | undefined {
+    return value === undefined || Number(value) <= 0
+      ? undefined
+      : RealJmsProvider.epochMsToIso(value);
+  }
+
+  private static text(value: string | undefined): string | undefined {
+    return value === undefined || value === "" ? undefined : value;
   }
 
   /** Parses an OData v2 numeric value (`Edm.Int64` arrives as a JSON string) into a number, `0` when absent. */

@@ -1,0 +1,47 @@
+/* Failed Transactions — TPM dead-letter queues. Theme variables only. */
+
+.failedTransactionsTiles {
+  gap: 0.5rem;
+  padding: 0.75rem 1rem 0.25rem;
+}
+
+.failedTransactionsTile.sapMGT {
+  margin: 0;
+}
+
+.failedTransactionsToolbar {
+  padding: 0 1rem;
+}
+
+.failedTransactionsHint {
+  color: var(--sapContent_LabelColor);
+  font-size: var(--sapFontSmallSize);
+}
+
+.failedTransactionsMono {
+  font-family: var(--sapFontMonospaceFamily, monospace);
+  font-size: var(--sapFontSmallSize);
+  color: var(--sapContent_LabelColor);
+}
+
+.failedTransactionsCounters {
+  gap: 1.5rem;
+  padding: 0.25rem 0 0.5rem;
+}
+
+.failedTransactionsCounter .sapMObjectNumber {
+  font-size: var(--sapFontHeader3Size);
+}
+
+/* Detail header: the long queue name wraps instead of running under the Retry button. */
+.failedTransactionsDetailTitle {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-right: 0.5rem;
+  overflow-wrap: anywhere;
+}
+
+/* Integration flow ids have no natural break points (SAP_TPM_COM_OutboundProcessing). */
+.failedTransactionsBreakAnywhere {
+  overflow-wrap: anywhere;
+}

@@ -41,37 +41,8 @@ import type {
   MessageMonitoringItem,
   MessageRecoveryOutcome,
   MessageSearchCriteria,
-  ProcessingFramework,
-  RecoveryState,
   SmartFilter,
 } from "../../service/messageMonitoring/MessageInvestigationTypes";
-
-/**
- * The framework filter's options, in the order they appear. `""` is "all frameworks"; the rest
- * mirror the backend's `ProcessingFramework` union exactly.
- */
-const FRAMEWORK_FILTER_KEYS: readonly (ProcessingFramework | "")[] = [
-  "",
-  "TPM_V2",
-  "JMS_FRAMEWORK",
-  "COMMON_IDOC_ROUTER",
-  "IDOC_STATUS_SYNC",
-  "NON_FRAMEWORK",
-  "UNKNOWN",
-];
-
-/**
- * The recovery-state filter's options. A deliberate subset of the full `RecoveryState` union: the
- * states that only ever arise *during* or *after* an execution (`RETRYING`, `COMPLETED`,
- * `FAILED_AGAIN`) are not useful list filters, since the list carries the indicative pre-execution
- * value.
- */
-const RECOVERY_STATE_FILTER_KEYS: readonly (RecoveryState | "")[] = [
-  "",
-  "RECOVERABLE",
-  "MANUAL_INVESTIGATION_REQUIRED",
-  "UNSUPPORTED",
-];
 
 /** Maps an export format to the shared {@link FileTypes} registry key (extension + MIME type). */
 const EXPORT_FILE_TYPE: Readonly<Record<MessageExportFormat, FileTypeKey>> = {
@@ -175,7 +146,6 @@ export default class ListController extends BaseController {
     this.model().setProperty("/savedLayouts", [...this.gridLayouts.getAll()]);
     this.model().setProperty("/actions", this.buildActionsViewModel());
     this.model().setProperty("/canRetry", this.hasRole(RoleCollections.RetryOperator));
-    this.buildFilterOptions();
     this.applyPanelLayout();
     this.getRouter()
       .getRoute("messageMonitoring")
@@ -681,75 +651,6 @@ export default class ListController extends BaseController {
   /** Closes the Recovery Plan dialog. */
   public onRecoveryPlanClose(): void {
     this.recoveryPlanDialog?.close();
-  }
-
-  // --- Framework / recovery-state filters (§1, §8) ---------------------------------
-
-  /**
-   * Applies the processing-framework filter.
-   *
-   * Unlike the JMS/Non-JMS toggle this replaces, the filter is a **server-side criterion**: the
-   * backend classifies the whole working set before paginating, so filtering by framework returns a
-   * correct total and a full result set. The old toggle could only post-filter the rows already
-   * loaded, and had to issue one classification request per row to do it.
-   */
-  public onFrameworkFilterChange(event: Event): void {
-    const key = ((event.getParameter("selectedItem" as never) as { getKey(): string } | undefined)
-      ?.getKey() ?? "") as ProcessingFramework | "";
-    this.model().setProperty("/frameworkFilter", key);
-    this.applyCriteriaFilters();
-  }
-
-  /** Applies the recovery-condition filter — the axis independent of framework. */
-  public onRecoveryStateFilterChange(event: Event): void {
-    const key = ((event.getParameter("selectedItem" as never) as { getKey(): string } | undefined)
-      ?.getKey() ?? "") as RecoveryState | "";
-    this.model().setProperty("/recoveryStateFilter", key);
-    this.applyCriteriaFilters();
-  }
-
-  /** Folds both filter selections into the search criteria and reloads from the backend. */
-  private applyCriteriaFilters(): void {
-    const model = this.model();
-    const criteria = { ...(model.getProperty("/criteria") as MessageSearchCriteria) };
-    const framework = model.getProperty("/frameworkFilter") as ProcessingFramework | "";
-    const recoveryState = model.getProperty("/recoveryStateFilter") as RecoveryState | "";
-
-    if (framework === "") {
-      delete criteria.framework;
-    } else {
-      criteria.framework = framework;
-    }
-    if (recoveryState === "") {
-      delete criteria.recoveryState;
-    } else {
-      criteria.recoveryState = recoveryState;
-    }
-
-    model.setProperty("/criteria", criteria);
-    model.setProperty("/grid/page", 1);
-    void this.refresh();
-  }
-
-  /** Builds the two filter dropdowns' options, resolving each key to its i18n label. */
-  private buildFilterOptions(): void {
-    this.model().setProperty(
-      "/frameworkOptions",
-      FRAMEWORK_FILTER_KEYS.map((key) => ({
-        key,
-        text: key === "" ? this.getText("investigation.framework.all") : this.frameworkLabel(key),
-      })),
-    );
-    this.model().setProperty(
-      "/recoveryStateOptions",
-      RECOVERY_STATE_FILTER_KEYS.map((key) => ({
-        key,
-        text:
-          key === ""
-            ? this.getText("investigation.recoveryState.all")
-            : this.recoveryStateLabel(key),
-      })),
-    );
   }
 
   /** Resolves a framework's display label (binding-facing delegate for the grid column). */

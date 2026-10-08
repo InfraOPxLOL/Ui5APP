@@ -2,6 +2,8 @@
   "modules": {
     "dashboard": { "enabled": true },
     "messageMonitoring": { "enabled": true },
+    "reportServer": { "enabled": true },
+    "failedTransactions": { "enabled": true },
     "payloadStudio": { "enabled": true },
     "recoveryCenter": { "enabled": true },
     "runtimeCenter": { "enabled": true },

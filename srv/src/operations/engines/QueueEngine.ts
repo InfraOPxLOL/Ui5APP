@@ -189,6 +189,15 @@ export class QueueEngine {
       retryCount: message.retryCount,
       sizeBytes: message.sizeBytes,
       sizeHuman: formatBytesHuman(message.sizeBytes),
+      failed: message.failed,
+      mplId: message.mplId,
+      correlationId: message.correlationId,
+      sender: message.sender,
+      receiver: message.receiver,
+      messageType: message.messageType,
+      applicationId: message.applicationId,
+      nextRetryAt: message.nextRetryAt,
+      expiresAt: message.expiresAt,
     };
   }
 }

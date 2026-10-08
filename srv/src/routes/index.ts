@@ -5,6 +5,8 @@ import { logger } from "../core/logging/logger.js";
 
 import { dashboardRouter } from "../modules/dashboard/routes.js";
 import { messageMonitoringRouter } from "../modules/message-monitoring/routes.js";
+import { reportServerRouter } from "../modules/report-server/routes.js";
+import { failedTransactionsRouter } from "../modules/failed-transactions/routes.js";
 import { jmsQueueRouter } from "../modules/jms-queue/routes.js";
 import { messageReplayRouter } from "../modules/message-replay/routes.js";
 import { alertNotificationRouter } from "../modules/alert-notification/routes.js";
@@ -77,6 +79,8 @@ apiRouter.use("/runtime-center", runtimeCenterRouter);
 apiRouter.use("/certificate-security-center", certificateSecurityCenterRouter);
 apiRouter.use("/dashboard", dashboardRouter);
 apiRouter.use("/message-monitoring", messageMonitoringRouter);
+apiRouter.use("/report-server", reportServerRouter);
+apiRouter.use("/failed-transactions", failedTransactionsRouter);
 apiRouter.use("/jms-queue", jmsQueueRouter);
 apiRouter.use("/message-replay", messageReplayRouter);
 apiRouter.use("/alert-notification", alertNotificationRouter);
