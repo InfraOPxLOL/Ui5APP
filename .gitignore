@@ -25,3 +25,9 @@ npm-debug.log*
 Thumbs.db
 .che/
 .scp/
+
+# MTA build byproducts (mbt build copies config/ into srv/ and stages HTML5 content here)
+srv/config/
+resources/
+Makefile_*.mta
+.*_mta_build_tmp/
