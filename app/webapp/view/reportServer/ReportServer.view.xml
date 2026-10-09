@@ -4,24 +4,49 @@
   xmlns="sap.m"
   xmlns:mvc="sap.ui.core.mvc"
   xmlns:core="sap.ui.core"
-  xmlns:l="sap.ui.layout"
-  xmlns:form="sap.ui.layout.form"
-  xmlns:codeeditor="sap.ui.codeeditor">
+  xmlns:l="sap.ui.layout">
   <Page
     id="page"
-    title="{i18n>title}"
     class="integrationPortalModulePage reportServerPage">
-    <headerContent>
-      <Button
-        icon="sap-icon://refresh"
-        tooltip="{i18n>action.refresh}"
-        press=".onRefresh" />
-      <Button
-        icon="sap-icon://excel-attachment"
-        tooltip="{i18n>action.export}"
-        enabled="{= ${view>/items}.length > 0 }"
-        press=".onExport" />
-    </headerContent>
+    <customHeader>
+      <OverflowToolbar class="reportServerHeader">
+        <Title text="{i18n>title}" level="H2" />
+        <!-- Saved views: the user's own filter sets, the standard view first. -->
+        <VariantManagement
+          id="views"
+          items="{view>/views}"
+          selectedKey="{view>/selectedViewKey}"
+          defaultKey="{view>/defaultViewKey}"
+          modified="{view>/viewModified}"
+          supportFavorites="false"
+          supportPublic="false"
+          supportContexts="false"
+          supportApplyAutomatically="false"
+          supportExecuteOnSelection="false"
+          select=".onViewSelect"
+          save=".onViewSave"
+          manage=".onViewManage"
+          class="sapUiSmallMarginBegin">
+          <items>
+            <VariantItem key="{view>key}" title="{view>title}" rename="{view>rename}" remove="{view>remove}" />
+          </items>
+        </VariantManagement>
+        <ToolbarSpacer />
+        <Button
+          icon="sap-icon://share-2"
+          tooltip="{i18n>action.shareView}"
+          press=".onShareView" />
+        <Button
+          icon="sap-icon://refresh"
+          tooltip="{i18n>action.refresh}"
+          press=".onRefresh" />
+        <Button
+          icon="sap-icon://excel-attachment"
+          tooltip="{i18n>action.export}"
+          enabled="{= ${view>/items}.length > 0 }"
+          press=".onExport" />
+      </OverflowToolbar>
+    </customHeader>
     <content>
       <VBox class="reportServerBody" height="100%">
 
@@ -32,56 +57,39 @@
           visible="{= ${view>/unavailableMessage} !== '' }"
           class="sapUiSmallMargin" />
 
-        <!-- Status tiles: one per status the tenant reports; pressing one filters the list. -->
-        <HBox
-          items="{view>/tiles}"
-          wrap="Wrap"
-          class="reportServerTiles"
-          visible="{= ${view>/unavailableMessage} === '' }">
-          <GenericTile
-            header="{= ${view>category} === 'all' ? ${i18n>kpi.all} : ${view>status} }"
-            subheader="{= ${view>key} === ${view>/filters/status} ? ${i18n>kpi.active} : '' }"
-            frameType="OneByHalf"
-            class="reportServerTile"
-            press=".onTilePress">
-            <customData>
-              <core:CustomData key="status" value="{view>key}" />
-            </customData>
-            <TileContent>
-              <NumericContent
-                value="{view>count}"
-                valueColor="{view>valueColor}"
-                withMargin="false"
-                animateTextChange="false" />
-            </TileContent>
-          </GenericTile>
-        </HBox>
-        <Text
-          text="{i18n>kpi.truncated}"
-          visible="{view>/summaryTruncated}"
-          class="sapUiSmallMarginBegin reportServerHint" />
-
-        <!-- Filters -->
+        <!-- Search: time window and the common fields; "More filters" opens the advanced fields. -->
         <FlexBox
           wrap="Wrap"
           alignItems="End"
           class="reportServerFilters"
           visible="{= ${view>/unavailableMessage} === '' }">
           <VBox>
+            <Label text="{i18n>filter.timeWindow}" labelFor="timePreset" />
+            <Select
+              id="timePreset"
+              selectedKey="{view>/filters/timePreset}"
+              items="{view>/timePresets}"
+              showSecondaryValues="true"
+              width="12rem"
+              change=".onTimePresetChange">
+              <core:ListItem key="{view>key}" text="{view>text}" additionalText="{view>code}" />
+            </Select>
+          </VBox>
+          <VBox visible="{= ${view>/filters/timePreset} === 'custom' }">
             <Label text="{i18n>filter.dateFrom}" labelFor="dateFrom" />
             <DateTimePicker id="dateFrom" dateValue="{view>/filters/dateFrom}" width="13rem" />
           </VBox>
-          <VBox>
+          <VBox visible="{= ${view>/filters/timePreset} === 'custom' }">
             <Label text="{i18n>filter.dateTo}" labelFor="dateTo" />
             <DateTimePicker id="dateTo" dateValue="{view>/filters/dateTo}" width="13rem" />
           </VBox>
           <VBox>
             <Label text="{i18n>filter.senderPartner}" labelFor="senderPartner" />
-            <Input id="senderPartner" value="{view>/filters/senderPartner}" width="12rem" submit=".onSearch" />
+            <Input id="senderPartner" value="{view>/filters/senderPartner}" width="11rem" submit=".onSearch" />
           </VBox>
           <VBox>
             <Label text="{i18n>filter.receiverPartner}" labelFor="receiverPartner" />
-            <Input id="receiverPartner" value="{view>/filters/receiverPartner}" width="12rem" submit=".onSearch" />
+            <Input id="receiverPartner" value="{view>/filters/receiverPartner}" width="11rem" submit=".onSearch" />
           </VBox>
           <VBox>
             <Label text="{i18n>filter.documentStandard}" labelFor="documentStandard" />
@@ -97,13 +105,122 @@
           </VBox>
           <VBox>
             <Label text="{i18n>filter.controlNumber}" labelFor="controlNumber" />
-            <Input id="controlNumber" value="{view>/filters/controlNumber}" width="10rem" submit=".onSearch" />
+            <Input id="controlNumber" value="{view>/filters/controlNumber}" width="9rem" submit=".onSearch" />
           </VBox>
-          <HBox class="reportServerFilterActions">
+          <HBox class="reportServerFilterActions" alignItems="Center">
             <Button text="{i18n>action.search}" type="Emphasized" icon="sap-icon://search" press=".onSearch" />
             <Button text="{i18n>action.clear}" type="Transparent" press=".onClear" class="sapUiTinyMarginBegin" />
+            <ToggleButton
+              text="{= ${view>/advancedCount} > 0 ? ${i18n>filter.more} + ' (' + ${view>/advancedCount} + ')' : ${i18n>filter.more} }"
+              icon="sap-icon://filter"
+              type="Transparent"
+              pressed="{view>/advanced}"
+              class="sapUiTinyMarginBegin" />
           </HBox>
         </FlexBox>
+
+        <!-- Advanced search -->
+        <FlexBox
+          wrap="Wrap"
+          alignItems="End"
+          class="reportServerFilters reportServerAdvanced"
+          visible="{= ${view>/advanced} &amp;&amp; ${view>/unavailableMessage} === '' }">
+          <VBox>
+            <Label text="{i18n>filter.interchangeId}" labelFor="interchangeId" />
+            <Input id="interchangeId" value="{view>/filters/interchangeId}" width="14rem" submit=".onSearch" />
+          </VBox>
+          <VBox>
+            <Label text="{i18n>filter.mplId}" labelFor="mplId" />
+            <Input id="mplId" value="{view>/filters/mplId}" width="14rem" submit=".onSearch" />
+          </VBox>
+          <VBox>
+            <Label text="{i18n>filter.direction}" labelFor="direction" />
+            <ComboBox id="direction" value="{view>/filters/direction}" width="9rem">
+              <core:Item key="INBOUND" text="INBOUND" />
+              <core:Item key="OUTBOUND" text="OUTBOUND" />
+            </ComboBox>
+          </VBox>
+          <VBox>
+            <Label text="{i18n>filter.agreement}" labelFor="agreement" />
+            <Input id="agreement" value="{view>/filters/agreement}" width="12rem" submit=".onSearch" />
+          </VBox>
+          <VBox>
+            <Label text="{i18n>filter.transactionType}" labelFor="transactionType" />
+            <Input id="transactionType" value="{view>/filters/transactionType}" width="12rem" submit=".onSearch" />
+          </VBox>
+          <VBox>
+            <Label text="{i18n>filter.interchangeName}" labelFor="interchangeName" />
+            <Input id="interchangeName" value="{view>/filters/interchangeName}" width="12rem" submit=".onSearch" />
+          </VBox>
+          <VBox>
+            <Label text="{i18n>filter.systemId}" labelFor="systemId" />
+            <Input id="systemId" value="{view>/filters/systemId}" width="10rem" submit=".onSearch" />
+          </VBox>
+          <VBox>
+            <Label text="{i18n>filter.adapterType}" labelFor="adapterType" />
+            <ComboBox id="adapterType" value="{view>/filters/adapterType}" width="9rem">
+              <core:Item key="AS2" text="AS2" />
+              <core:Item key="AS4" text="AS4" />
+              <core:Item key="SFTP" text="SFTP" />
+              <core:Item key="HTTP" text="HTTP" />
+              <core:Item key="IDOC" text="IDOC" />
+              <core:Item key="SOAP" text="SOAP" />
+              <core:Item key="ProcessDirect" text="ProcessDirect" />
+            </ComboBox>
+          </VBox>
+          <VBox>
+            <Label text="{i18n>filter.groupControlNumber}" labelFor="groupControlNumber" />
+            <Input id="groupControlNumber" value="{view>/filters/groupControlNumber}" width="9rem" submit=".onSearch" />
+          </VBox>
+          <VBox>
+            <Label text="{i18n>filter.messageNumber}" labelFor="messageNumber" />
+            <Input id="messageNumber" value="{view>/filters/messageNumber}" width="9rem" submit=".onSearch" />
+          </VBox>
+          <VBox>
+            <Label text="{i18n>filter.processingStatus}" labelFor="processingStatus" />
+            <Input id="processingStatus" value="{view>/filters/processingStatus}" width="9rem" submit=".onSearch" />
+          </VBox>
+          <VBox>
+            <Label text="{i18n>filter.technicalAck}" labelFor="technicalAckStatus" />
+            <Input id="technicalAckStatus" value="{view>/filters/technicalAckStatus}" width="9rem" submit=".onSearch" />
+          </VBox>
+          <VBox>
+            <Label text="{i18n>filter.functionalAck}" labelFor="functionalAckStatus" />
+            <Input id="functionalAckStatus" value="{view>/filters/functionalAckStatus}" width="9rem" submit=".onSearch" />
+          </VBox>
+        </FlexBox>
+
+        <!-- Status tiles: one per status the tenant reports; pressing one filters the list. -->
+        <HBox
+          items="{view>/tiles}"
+          wrap="Wrap"
+          class="reportServerTiles"
+          visible="{= ${view>/unavailableMessage} === '' }">
+          <GenericTile
+            header="{= ${view>category} === 'all' ? ${i18n>kpi.all} : ${view>status} }"
+            frameType="OneByHalf"
+            class="reportServerTile"
+            press=".onTilePress">
+            <customData>
+              <core:CustomData key="status" value="{view>key}" />
+              <core:CustomData
+                key="active"
+                value="{= ${view>key} === ${view>/filters/status} ? 'true' : 'false' }"
+                writeToDom="true" />
+            </customData>
+            <TileContent>
+              <NumericContent
+                value="{view>count}"
+                valueColor="{view>valueColor}"
+                withMargin="false"
+                animateTextChange="false" />
+            </TileContent>
+          </GenericTile>
+        </HBox>
+        <Text
+          text="{i18n>kpi.truncated}"
+          visible="{view>/summaryTruncated}"
+          class="sapUiSmallMarginBegin reportServerHint" />
 
         <l:Splitter
           height="100%"
@@ -165,7 +282,7 @@
               </Toolbar>
             </ScrollContainer>
 
-            <!-- Detail -->
+            <!-- Detail: the shared interchange panel -->
             <ScrollContainer height="100%" vertical="true">
               <layoutData>
                 <l:SplitterLayoutData size="auto" />
@@ -175,162 +292,23 @@
                   text="{i18n>detail.noneSelected}"
                   type="Information"
                   showIcon="true"
-                  visible="{= ${view>/detail} === null }" />
+                  visible="{= ${b2b>/detail} === null }" />
 
-                <VBox visible="{= ${view>/detail} !== null }">
-                  <HBox alignItems="Center" justifyContent="SpaceBetween" class="sapUiSmallMarginBottom">
-                    <VBox>
-                      <Title text="{= ${view>/detail/interchange/interchangeName} || ${view>/detail/interchange/id} }" level="H3" wrapping="true" />
-                      <Text text="{view>/detail/interchange/id}" class="reportServerMono" />
+                <VBox visible="{= ${b2b>/detail} !== null }">
+                  <HBox alignItems="Start" justifyContent="SpaceBetween" class="sapUiSmallMarginBottom">
+                    <VBox class="reportServerDetailTitle">
+                      <Title text="{= ${b2b>/detail/interchange/interchangeName} || ${b2b>/detail/interchange/id} }" level="H3" wrapping="true" />
+                      <Text text="{b2b>/detail/interchange/id}" class="reportServerMono" />
                     </VBox>
                     <ObjectStatus
-                      text="{view>/detail/interchange/overallStatus}"
-                      state="{path: 'view>/detail/interchange/statusCategory', formatter: '.formatter.statusState'}"
-                      icon="{path: 'view>/detail/interchange/statusCategory', formatter: '.formatter.statusIcon'}"
+                      text="{b2b>/detail/interchange/overallStatus}"
+                      state="{path: 'b2b>/detail/interchange/statusCategory', formatter: '.formatter.statusState'}"
+                      icon="{path: 'b2b>/detail/interchange/statusCategory', formatter: '.formatter.statusIcon'}"
                       inverted="true" />
                   </HBox>
-
                   <IconTabBar expandable="false" class="reportServerTabs">
                     <items>
-
-                      <!-- Overview: sender and receiver, mirroring the B2B Monitor -->
-                      <IconTabFilter key="overview" text="{i18n>tab.overview}" icon="sap-icon://hint">
-                        <l:Grid defaultSpan="XL6 L6 M12 S12" vSpacing="0">
-                          <form:SimpleForm title="{i18n>side.sender}" editable="false" layout="ResponsiveGridLayout" labelSpanL="5" labelSpanM="5">
-                            <Label text="{i18n>field.partner}" /><Text text="{view>/detail/interchange/sender/tradingPartnerName}" />
-                            <Label text="{i18n>field.systemId}" /><Text text="{view>/detail/interchange/sender/systemId}" />
-                            <Label text="{i18n>field.documentStandard}" /><Text text="{view>/detail/interchange/sender/documentStandard}" />
-                            <Label text="{i18n>field.messageType}" /><Text text="{view>/detail/interchange/sender/messageType}" />
-                            <Label text="{i18n>field.interchangeControl}" /><Text text="{view>/detail/interchange/sender/interchangeControlNumber}" />
-                            <Label text="{i18n>field.groupControl}" /><Text text="{view>/detail/interchange/sender/groupControlNumber}" />
-                            <Label text="{i18n>field.adapter}" /><Text text="{view>/detail/interchange/sender/adapterType}" />
-                          </form:SimpleForm>
-                          <form:SimpleForm title="{i18n>side.receiver}" editable="false" layout="ResponsiveGridLayout" labelSpanL="5" labelSpanM="5">
-                            <Label text="{i18n>field.partner}" /><Text text="{view>/detail/interchange/receiver/tradingPartnerName}" />
-                            <Label text="{i18n>field.systemId}" /><Text text="{view>/detail/interchange/receiver/systemId}" />
-                            <Label text="{i18n>field.documentStandard}" /><Text text="{view>/detail/interchange/receiver/documentStandard}" />
-                            <Label text="{i18n>field.messageType}" /><Text text="{view>/detail/interchange/receiver/messageType}" />
-                            <Label text="{i18n>field.interchangeControl}" /><Text text="{view>/detail/interchange/receiver/interchangeControlNumber}" />
-                            <Label text="{i18n>field.groupControl}" /><Text text="{view>/detail/interchange/receiver/groupControlNumber}" />
-                            <Label text="{i18n>field.adapter}" /><Text text="{view>/detail/interchange/receiver/adapterType}" />
-                          </form:SimpleForm>
-                        </l:Grid>
-                        <form:SimpleForm title="{i18n>side.processing}" editable="false" layout="ResponsiveGridLayout" labelSpanL="3" labelSpanM="4" columnsL="2" columnsXL="2">
-                          <Label text="{i18n>field.started}" /><Text text="{path: 'view>/detail/interchange/startedAt', formatter: '.fmt.dateTime'}" />
-                          <Label text="{i18n>field.ended}" /><Text text="{path: 'view>/detail/interchange/endedAt', formatter: '.fmt.dateTime'}" />
-                          <Label text="{i18n>field.duration}" /><Text text="{view>/detail/interchange/durationHuman}" />
-                          <Label text="{i18n>field.direction}" /><Text text="{view>/detail/interchange/direction}" />
-                          <Label text="{i18n>field.agreement}" /><Text text="{view>/detail/interchange/agreementTypeName}" />
-                          <Label text="{i18n>field.transaction}" /><Text text="{view>/detail/interchange/transactionTypeName}" />
-                          <Label text="{i18n>field.technicalAck}" /><Text text="{view>/detail/interchange/receiverTechnicalAckStatus}" />
-                          <Label text="{i18n>field.functionalAck}" /><Text text="{view>/detail/interchange/receiverFunctionalAckStatus}" />
-                        </form:SimpleForm>
-                      </IconTabFilter>
-
-                      <!-- Payloads -->
-                      <IconTabFilter
-                        key="payloads"
-                        text="{i18n>tab.payloads}"
-                        icon="sap-icon://document-text"
-                        count="{= ${view>/detail/payloads}.length }">
-                        <List
-                          items="{view>/detail/payloads}"
-                          mode="SingleSelectMaster"
-                          selectionChange=".onPayloadSelect"
-                          noDataText="{i18n>payloads.empty}">
-                          <StandardListItem
-                            title="{= ${view>direction} === 'OUTBOUND' ? ${i18n>payloads.outbound} : ${i18n>payloads.inbound} }"
-                            description="{view>contentType}"
-                            info="{view>processingState}"
-                            icon="{= ${view>direction} === 'OUTBOUND' ? 'sap-icon://outbox' : 'sap-icon://inbox' }" />
-                        </List>
-                        <VBox visible="{= ${view>/payload} !== null }" busy="{view>/payloadBusy}" busyIndicatorDelay="0" class="sapUiSmallMarginTop">
-                          <Toolbar>
-                            <Text text="{view>/payload/label}" />
-                            <ToolbarSpacer />
-                            <Button icon="sap-icon://copy" tooltip="{i18n>action.copy}" press=".onCopyPayload" />
-                            <Button icon="sap-icon://download" tooltip="{i18n>action.download}" press=".onDownloadPayload" />
-                          </Toolbar>
-                          <codeeditor:CodeEditor
-                            value="{view>/payload/text}"
-                            type="{view>/payload/editorType}"
-                            editable="false"
-                            lineNumbers="true"
-                            height="22rem"
-                            visible="{= !${view>/payload/isBinary} }" />
-                          <MessageStrip
-                            text="{i18n>payloads.binary}"
-                            type="Information"
-                            showIcon="true"
-                            visible="{view>/payload/isBinary}" />
-                        </VBox>
-                      </IconTabFilter>
-
-                      <!-- Events -->
-                      <IconTabFilter
-                        key="events"
-                        text="{i18n>tab.events}"
-                        icon="sap-icon://history"
-                        count="{= ${view>/detail/events}.length }">
-                        <Table items="{view>/detail/events}" noDataText="{i18n>events.empty}">
-                          <columns>
-                            <Column width="11rem"><Text text="{i18n>events.when}" /></Column>
-                            <Column><Text text="{i18n>events.event}" /></Column>
-                            <Column><Text text="{i18n>events.processingLog}" /></Column>
-                          </columns>
-                          <items>
-                            <ColumnListItem>
-                              <cells>
-                                <Text text="{path: 'view>date', formatter: '.fmt.dateTime'}" />
-                                <ObjectStatus text="{view>eventType}" />
-                                <Link text="{view>monitoringId}" enabled="{= !!${view>monitoringId} }" press=".onOpenProcessingLog" />
-                              </cells>
-                            </ColumnListItem>
-                          </items>
-                        </Table>
-                      </IconTabFilter>
-
-                      <!-- Errors -->
-                      <IconTabFilter
-                        key="errors"
-                        text="{i18n>tab.errors}"
-                        icon="sap-icon://message-error"
-                        iconColor="{= ${view>/detail/errors}.length > 0 ? 'Negative' : 'Default' }"
-                        count="{= ${view>/detail/errors}.length }">
-                        <VBox items="{view>/detail/errors}">
-                          <MessageStrip
-                            text="{view>errorInformation}"
-                            type="Error"
-                            showIcon="true"
-                            class="sapUiTinyMarginBottom" />
-                        </VBox>
-                        <Text text="{i18n>errors.none}" visible="{= ${view>/detail/errors}.length === 0 }" />
-                      </IconTabFilter>
-
-                      <!-- Linked processing logs -->
-                      <IconTabFilter
-                        key="logs"
-                        text="{i18n>tab.processingLogs}"
-                        icon="sap-icon://chain-link"
-                        count="{= ${view>/detail/linkedProcessingLogs}.length }">
-                        <Table items="{view>/detail/linkedProcessingLogs}" noDataText="{i18n>logs.empty}">
-                          <columns>
-                            <Column><Text text="{i18n>logs.mplId}" /></Column>
-                            <Column width="11rem"><Text text="{i18n>logs.first}" /></Column>
-                            <Column><Text text="{i18n>logs.events}" /></Column>
-                          </columns>
-                          <items>
-                            <ColumnListItem>
-                              <cells>
-                                <Link text="{view>mplId}" press=".onOpenProcessingLog" />
-                                <Text text="{path: 'view>firstEventAt', formatter: '.fmt.dateTime'}" />
-                                <Text text="{path: 'view>eventTypes', formatter: '.fmt.join'}" />
-                              </cells>
-                            </ColumnListItem>
-                          </items>
-                        </Table>
-                      </IconTabFilter>
-
+                      <core:Fragment fragmentName="com.middlewareops.integrationportal.fragment.b2b.InterchangeTabs" type="XML" />
                     </items>
                   </IconTabBar>
                 </VBox>

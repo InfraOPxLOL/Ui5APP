@@ -2,7 +2,13 @@ import type { JmsClient } from "../../sdk/client/JmsClient.js";
 import type { RetryResponseDto } from "../../sdk/dto/RetryDto.js";
 import type { QueueConfig } from "../../config/schemas/index.js";
 import type { QueueDiscoveryMode } from "../../config/env.js";
-import type { ProviderPage, QueueRuntimeInfo, QueuedMessage } from "../../core/providers/types.js";
+import type {
+  JmsMessagePayload,
+  JmsOperationResult,
+  ProviderPage,
+  QueueRuntimeInfo,
+  QueuedMessage,
+} from "../../core/providers/types.js";
 import type { QueueSummary, QueuedMessageSummary } from "../dto/QueueDto.js";
 import type { SearchResult } from "../dto/SearchDto.js";
 import { OperationsCache } from "../cache/index.js";
@@ -146,13 +152,27 @@ export class QueueEngine {
    * @param sourceQueue the queue the messages currently sit on.
    * @param targetQueue the queue to move them to.
    * @param messageIds the specific message ids to move.
+   * @returns the tenant's reported processed count — `0` means nothing moved.
    */
   public async moveMessages(
     sourceQueue: string,
     targetQueue: string,
     messageIds: readonly string[],
-  ): Promise<void> {
+  ): Promise<JmsOperationResult> {
     return this.client.moveMessages(sourceQueue, targetQueue, messageIds);
+  }
+
+  /**
+   * Reads one queued message's body straight from the broker.
+   * @param queueName the queue the message sits on.
+   * @param messageId the JMS message id.
+   * @returns the body, or `undefined` when the message is no longer on that queue.
+   */
+  public async getMessagePayload(
+    queueName: string,
+    messageId: string,
+  ): Promise<JmsMessagePayload | undefined> {
+    return this.client.getMessagePayload(queueName, messageId);
   }
 
   private static toSummary(

@@ -24,6 +24,14 @@ export async function getDetail(req: Request, res: Response): Promise<void> {
   );
 }
 
+/** GET /:messageId/payload?queue= — the parked message's body, read from the broker. */
+export async function getPayload(req: Request, res: Response): Promise<void> {
+  const q = req.query as Record<string, string>;
+  res.json(
+    await failedTransactionsService.getPayload(req.params.messageId as string, q.queue as string),
+  );
+}
+
 /** POST /:messageId/retry — move back to the mapped main queue, verify, retry. */
 export async function retry(req: Request, res: Response): Promise<void> {
   const body = req.body as { queueName: string; reason?: string };

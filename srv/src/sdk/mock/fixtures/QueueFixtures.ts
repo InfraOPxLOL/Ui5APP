@@ -1,4 +1,8 @@
-import type { QueueRuntimeInfo, QueuedMessage } from "../../../core/providers/types.js";
+import type {
+  JmsMessagePayload,
+  QueueRuntimeInfo,
+  QueuedMessage,
+} from "../../../core/providers/types.js";
 import { SeededRandom } from "../SeededRandom.js";
 import {
   MOCK_FRAMEWORK_ABSENT_MESSAGE_IDS,
@@ -6,6 +10,7 @@ import {
   MOCK_JMS_RESOLVED_QUEUE,
   MOCK_JMS_SOURCE_MESSAGE_ID,
 } from "./MessageFixtures.js";
+import { generateInterchanges, generatePayloadContent } from "./B2bFixtures.js";
 import {
   TPM_DLQ_SCENARIOS,
   findTpmDlqScenario,
@@ -237,4 +242,31 @@ function hashSeed(seed: number, ...parts: readonly string[]): number {
     }
   }
   return Math.abs(hash);
+}
+
+/**
+ * The body of a mock queued message: a TPM dead-letter scenario carries the EDI document of its
+ * interchange; anything else a small XML document. `undefined` when the message is not on the queue.
+ */
+export function generateQueuedMessagePayload(
+  queueName: string,
+  messageId: string,
+): JmsMessagePayload | undefined {
+  if (generateSingleMessage(queueName, messageId) === undefined) {
+    return undefined;
+  }
+  const scenario = findTpmDlqScenario(messageId);
+  const edi =
+    scenario === undefined
+      ? undefined
+      : generatePayloadContent(generateInterchanges(0), `${scenario.interchangeId}-in`)?.content;
+  const content =
+    edi ??
+    [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      `<Message id="${messageId}" queue="${queueName}">`,
+      "  <Status>FAILED</Status>",
+      "</Message>",
+    ].join("\n");
+  return { content, encoding: "text", sizeBytes: Buffer.byteLength(content, "utf8") };
 }

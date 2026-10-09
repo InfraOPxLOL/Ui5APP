@@ -1,0 +1,166 @@
+<!--
+  The tabs of one B2B interchange: its sender and receiver, stored documents, processing events,
+  errors and linked processing logs. Shared by the Report Server and Failed Transactions; place it
+  inside an IconTabBar's items. Binds to the "b2b" model and "b2bI18n" bundle and calls the
+  InterchangePanel presenter the host controller exposes as `b2b`.
+-->
+<core:FragmentDefinition
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core"
+  xmlns:l="sap.ui.layout"
+  xmlns:form="sap.ui.layout.form"
+  xmlns:codeeditor="sap.ui.codeeditor">
+
+  <!-- Interchange: sender and receiver, mirroring the B2B Monitor -->
+  <IconTabFilter
+    key="interchange"
+    text="{b2bI18n>tab.interchange}"
+    icon="sap-icon://business-objects-experience"
+    visible="{= !!${b2b>/detail} }">
+    <l:Grid defaultSpan="XL6 L6 M12 S12" vSpacing="0">
+      <form:SimpleForm title="{b2bI18n>side.sender}" editable="false" layout="ResponsiveGridLayout" labelSpanL="5" labelSpanM="5">
+        <Label text="{b2bI18n>field.partner}" /><Text text="{b2b>/detail/interchange/sender/tradingPartnerName}" />
+        <Label text="{b2bI18n>field.communicationPartner}" /><Text text="{b2b>/detail/interchange/sender/communicationPartnerName}" />
+        <Label text="{b2bI18n>field.systemId}" /><Text text="{b2b>/detail/interchange/sender/systemId}" />
+        <Label text="{b2bI18n>field.documentStandard}" /><Text text="{b2b>/detail/interchange/sender/documentStandard}" />
+        <Label text="{b2bI18n>field.messageType}" /><Text text="{b2b>/detail/interchange/sender/messageType}" />
+        <Label text="{b2bI18n>field.interchangeControl}" /><Text text="{b2b>/detail/interchange/sender/interchangeControlNumber}" />
+        <Label text="{b2bI18n>field.groupControl}" /><Text text="{b2b>/detail/interchange/sender/groupControlNumber}" />
+        <Label text="{b2bI18n>field.messageNumber}" /><Text text="{b2b>/detail/interchange/sender/messageNumber}" />
+        <Label text="{b2bI18n>field.adapter}" /><Text text="{b2b>/detail/interchange/sender/adapterType}" />
+      </form:SimpleForm>
+      <form:SimpleForm title="{b2bI18n>side.receiver}" editable="false" layout="ResponsiveGridLayout" labelSpanL="5" labelSpanM="5">
+        <Label text="{b2bI18n>field.partner}" /><Text text="{b2b>/detail/interchange/receiver/tradingPartnerName}" />
+        <Label text="{b2bI18n>field.communicationPartner}" /><Text text="{b2b>/detail/interchange/receiver/communicationPartnerName}" />
+        <Label text="{b2bI18n>field.systemId}" /><Text text="{b2b>/detail/interchange/receiver/systemId}" />
+        <Label text="{b2bI18n>field.documentStandard}" /><Text text="{b2b>/detail/interchange/receiver/documentStandard}" />
+        <Label text="{b2bI18n>field.messageType}" /><Text text="{b2b>/detail/interchange/receiver/messageType}" />
+        <Label text="{b2bI18n>field.interchangeControl}" /><Text text="{b2b>/detail/interchange/receiver/interchangeControlNumber}" />
+        <Label text="{b2bI18n>field.groupControl}" /><Text text="{b2b>/detail/interchange/receiver/groupControlNumber}" />
+        <Label text="{b2bI18n>field.messageNumber}" /><Text text="{b2b>/detail/interchange/receiver/messageNumber}" />
+        <Label text="{b2bI18n>field.adapter}" /><Text text="{b2b>/detail/interchange/receiver/adapterType}" />
+      </form:SimpleForm>
+    </l:Grid>
+    <form:SimpleForm title="{b2bI18n>side.processing}" editable="false" layout="ResponsiveGridLayout" labelSpanL="4" labelSpanM="4" columnsL="2" columnsXL="2">
+      <Label text="{b2bI18n>field.started}" /><Text text="{path: 'b2b>/detail/interchange/startedAt', formatter: '.b2b.fmt.dateTime'}" />
+      <Label text="{b2bI18n>field.ended}" /><Text text="{path: 'b2b>/detail/interchange/endedAt', formatter: '.b2b.fmt.dateTime'}" />
+      <Label text="{b2bI18n>field.duration}" /><Text text="{b2b>/detail/interchange/durationHuman}" />
+      <Label text="{b2bI18n>field.direction}" /><Text text="{b2b>/detail/interchange/direction}" />
+      <Label text="{b2bI18n>field.agreement}" /><Text text="{b2b>/detail/interchange/agreementTypeName}" />
+      <Label text="{b2bI18n>field.transaction}" /><Text text="{b2b>/detail/interchange/transactionTypeName}" />
+      <Label text="{b2bI18n>field.processingStatus}" /><Text text="{b2b>/detail/interchange/processingStatus}" />
+      <Label text="{b2bI18n>field.technicalAck}" /><Text text="{b2b>/detail/interchange/receiverTechnicalAckStatus}" />
+      <Label text="{b2bI18n>field.functionalAck}" /><Text text="{b2b>/detail/interchange/receiverFunctionalAckStatus}" />
+      <Label text="{b2bI18n>field.interchangeId}" /><Text text="{b2b>/detail/interchange/id}" class="b2bMono" />
+    </form:SimpleForm>
+  </IconTabFilter>
+
+  <!-- Documents: what was received and sent -->
+  <IconTabFilter
+    key="documents"
+    text="{b2bI18n>tab.payloads}"
+    icon="sap-icon://document-text"
+    count="{= ${b2b>/detail/payloads}.length }"
+    visible="{= !!${b2b>/detail} }">
+    <List
+      items="{b2b>/detail/payloads}"
+      mode="SingleSelectMaster"
+      selectionChange=".b2b.onPayloadSelect"
+      noDataText="{b2bI18n>payloads.empty}">
+      <StandardListItem
+        title="{= ${b2b>direction} === 'OUTBOUND' ? ${b2bI18n>payloads.outbound} : ${b2bI18n>payloads.inbound} }"
+        description="{b2b>contentType}"
+        info="{b2b>processingState}"
+        icon="{= ${b2b>direction} === 'OUTBOUND' ? 'sap-icon://outbox' : 'sap-icon://inbox' }" />
+    </List>
+    <Text
+      text="{b2bI18n>payloads.pick}"
+      visible="{= ${b2b>/payload} === null &amp;&amp; ${b2b>/detail/payloads}.length > 0 }"
+      class="b2bHint sapUiSmallMarginTop" />
+    <VBox visible="{= ${b2b>/payload} !== null }" busy="{b2b>/payloadBusy}" busyIndicatorDelay="0" class="sapUiSmallMarginTop">
+      <Toolbar>
+        <Text text="{b2b>/payload/label}" />
+        <ToolbarSpacer />
+        <Button icon="sap-icon://copy" tooltip="{b2bI18n>action.copy}" press=".b2b.onCopyPayload" enabled="{= !${b2b>/payload/isBinary} }" />
+        <Button icon="sap-icon://download" tooltip="{b2bI18n>action.download}" press=".b2b.onDownloadPayload" />
+        <Button icon="sap-icon://inspect" tooltip="{b2bI18n>action.openInPayloadStudio}" press=".b2b.onOpenPayloadInStudio" />
+      </Toolbar>
+      <codeeditor:CodeEditor
+        value="{b2b>/payload/text}"
+        type="{b2b>/payload/editorType}"
+        editable="false"
+        lineNumbers="true"
+        height="22rem"
+        visible="{= !${b2b>/payload/isBinary} }" />
+      <MessageStrip
+        text="{b2bI18n>payloads.binary}"
+        type="Information"
+        showIcon="true"
+        visible="{= !!${b2b>/payload/isBinary} }" />
+    </VBox>
+  </IconTabFilter>
+
+  <!-- Processing events -->
+  <IconTabFilter
+    key="events"
+    text="{b2bI18n>tab.events}"
+    icon="sap-icon://history"
+    count="{= ${b2b>/detail/events}.length }"
+    visible="{= !!${b2b>/detail} }">
+    <Table items="{b2b>/detail/events}" noDataText="{b2bI18n>events.empty}" contextualWidth="Auto">
+      <columns>
+        <Column width="10rem"><Text text="{b2bI18n>events.when}" /></Column>
+        <Column><Text text="{b2bI18n>events.event}" /></Column>
+        <Column minScreenWidth="520px" demandPopin="true" popinDisplay="Inline"><Text text="{b2bI18n>events.processingLog}" /></Column>
+      </columns>
+      <items>
+        <ColumnListItem>
+          <cells>
+            <Text text="{path: 'b2b>date', formatter: '.b2b.fmt.dateTime'}" />
+            <ObjectStatus text="{b2b>eventType}" />
+            <Link text="{b2b>monitoringId}" enabled="{= !!${b2b>monitoringId} }" wrapping="false" press=".b2b.onOpenProcessingLog" />
+          </cells>
+        </ColumnListItem>
+      </items>
+    </Table>
+  </IconTabFilter>
+
+  <!-- Errors -->
+  <IconTabFilter
+    key="errors"
+    text="{b2bI18n>tab.errors}"
+    icon="sap-icon://message-error"
+    iconColor="{= ${b2b>/detail/errors}.length > 0 ? 'Negative' : 'Default' }"
+    count="{= ${b2b>/detail/errors}.length }"
+    visible="{= !!${b2b>/detail} }">
+    <VBox items="{b2b>/detail/errors}">
+      <MessageStrip text="{b2b>errorInformation}" type="Error" showIcon="true" class="sapUiTinyMarginBottom" />
+    </VBox>
+    <Text text="{b2bI18n>errors.none}" visible="{= ${b2b>/detail/errors}.length === 0 }" />
+  </IconTabFilter>
+
+  <!-- Linked processing logs -->
+  <IconTabFilter
+    key="logs"
+    text="{b2bI18n>tab.processingLogs}"
+    icon="sap-icon://chain-link"
+    count="{= ${b2b>/detail/linkedProcessingLogs}.length }"
+    visible="{= !!${b2b>/detail} }">
+    <Table items="{b2b>/detail/linkedProcessingLogs}" noDataText="{b2bI18n>logs.empty}" contextualWidth="Auto">
+      <columns>
+        <Column><Text text="{b2bI18n>logs.mplId}" /></Column>
+        <Column width="10rem"><Text text="{b2bI18n>logs.first}" /></Column>
+        <Column minScreenWidth="520px" demandPopin="true" popinDisplay="Inline"><Text text="{b2bI18n>logs.events}" /></Column>
+      </columns>
+      <items>
+        <ColumnListItem>
+          <cells>
+            <Link text="{b2b>mplId}" wrapping="false" press=".b2b.onOpenProcessingLog" />
+            <Text text="{path: 'b2b>firstEventAt', formatter: '.b2b.fmt.dateTime'}" />
+            <Text text="{path: 'b2b>eventTypes', formatter: '.b2b.fmt.join'}" />
+          </cells>
+        </ColumnListItem>
+      </items>
+    </Table>
+  </IconTabFilter>
+</core:FragmentDefinition>

@@ -382,6 +382,45 @@ export class RealB2bMonitoringProvider implements IB2bMonitoringProvider {
         ),
       );
     }
+    const exact: readonly [string, string | undefined][] = [
+      ["Id", filter.interchangeId],
+      ["InterchangeDirection", filter.direction],
+      ["ProcessingStatus", filter.processingStatus],
+      ["ReceiverTechnicalAckStatus", filter.technicalAckStatus],
+      ["ReceiverFunctionalAckStatus", filter.functionalAckStatus],
+    ];
+    for (const [field, value] of exact) {
+      if (value !== undefined) {
+        parts.push(ODataFilter.eq(field, value));
+      }
+    }
+    const partial: readonly [string, string | undefined][] = [
+      ["AgreementTypeName", filter.agreementTypeName],
+      ["TransactionTypeName", filter.transactionTypeName],
+      ["InterchangeName", filter.interchangeName],
+    ];
+    for (const [field, value] of partial) {
+      if (value !== undefined) {
+        parts.push(ODataFilter.contains(field, value));
+      }
+    }
+    // Sender or receiver side — either one matching is enough.
+    const eitherSide: readonly [string, string | undefined, "eq" | "contains"][] = [
+      ["SystemId", filter.systemId, "contains"],
+      ["AdapterType", filter.adapterType, "eq"],
+      ["GroupControlNumber", filter.groupControlNumber, "contains"],
+      ["MessageNumber", filter.messageNumber, "contains"],
+    ];
+    for (const [field, value, match] of eitherSide) {
+      if (value !== undefined) {
+        parts.push(
+          ODataFilter.or(
+            ODataFilter[match](`Sender${field}`, value),
+            ODataFilter[match](`Receiver${field}`, value),
+          ),
+        );
+      }
+    }
     if (parts.length === 0) {
       return undefined;
     }

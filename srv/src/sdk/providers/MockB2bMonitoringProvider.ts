@@ -132,6 +132,39 @@ export class MockB2bMonitoringProvider implements IB2bMonitoringProvider {
     ) {
       return false;
     }
-    return true;
+    const exact: readonly [string | undefined, string | undefined][] = [
+      [row.id, filter.interchangeId],
+      [row.direction, filter.direction],
+      [row.processingStatus, filter.processingStatus],
+      [row.receiverTechnicalAckStatus, filter.technicalAckStatus],
+      [row.receiverFunctionalAckStatus, filter.functionalAckStatus],
+    ];
+    if (exact.some(([value, wanted]) => wanted !== undefined && value !== wanted)) {
+      return false;
+    }
+    const partial: readonly [string | undefined, string | undefined][] = [
+      [row.agreementTypeName, filter.agreementTypeName],
+      [row.transactionTypeName, filter.transactionTypeName],
+      [row.interchangeName, filter.interchangeName],
+    ];
+    if (partial.some(([value, wanted]) => wanted !== undefined && !includes(value, wanted))) {
+      return false;
+    }
+    const sides = [row.sender, row.receiver];
+    if (
+      filter.adapterType !== undefined &&
+      !sides.some((side) => side.adapterType === filter.adapterType)
+    ) {
+      return false;
+    }
+    const eitherSide: readonly [keyof B2bInterchange["sender"], string | undefined][] = [
+      ["systemId", filter.systemId],
+      ["groupControlNumber", filter.groupControlNumber],
+      ["messageNumber", filter.messageNumber],
+    ];
+    return eitherSide.every(
+      ([field, wanted]) =>
+        wanted === undefined || sides.some((side) => includes(side[field], wanted)),
+    );
   }
 }

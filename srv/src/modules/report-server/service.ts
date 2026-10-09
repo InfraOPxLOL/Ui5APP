@@ -24,6 +24,20 @@ export interface ReportServerFilterQuery {
   readonly documentStandard?: string;
   readonly messageType?: string;
   readonly controlNumber?: string;
+  readonly interchangeId?: string;
+  /** A processing log id; resolved to the interchange it belongs to. */
+  readonly mplId?: string;
+  readonly direction?: string;
+  readonly agreement?: string;
+  readonly transactionType?: string;
+  readonly interchangeName?: string;
+  readonly systemId?: string;
+  readonly adapterType?: string;
+  readonly groupControlNumber?: string;
+  readonly messageNumber?: string;
+  readonly processingStatus?: string;
+  readonly technicalAckStatus?: string;
+  readonly functionalAckStatus?: string;
 }
 
 export interface ReportServerListQuery extends ReportServerFilterQuery {
@@ -46,20 +60,29 @@ export class ReportServerService {
   public async list(query: ReportServerListQuery): Promise<ReportServerListResponse> {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? DEFAULT_PAGE_SIZE;
+    const engine = this.engineFactory();
+    const filter = await ReportServerService.guard(() =>
+      ReportServerService.toFilter(engine, query),
+    );
+    if (filter === undefined) {
+      return { items: [], total: 0, page, pageSize, tookMs: 0 };
+    }
     const result = await ReportServerService.guard(() =>
-      this.engineFactory().b2b.queryInterchanges(ReportServerService.toFilter(query), {
-        skip: (page - 1) * pageSize,
-        top: pageSize,
-      }),
+      engine.b2b.queryInterchanges(filter, { skip: (page - 1) * pageSize, top: pageSize }),
     );
     return { items: result.items, total: result.total, page, pageSize, tookMs: result.tookMs };
   }
 
   /** Counts interchanges per status for the KPI strip. */
   public async summary(query: ReportServerFilterQuery): Promise<ReportServerSummary> {
-    return ReportServerService.guard(() =>
-      this.engineFactory().b2b.getStatusSummary(ReportServerService.toFilter(query)),
+    const engine = this.engineFactory();
+    const filter = await ReportServerService.guard(() =>
+      ReportServerService.toFilter(engine, query),
     );
+    if (filter === undefined) {
+      return { counts: [], total: 0, truncated: false };
+    }
+    return ReportServerService.guard(() => engine.b2b.getStatusSummary(filter));
   }
 
   /** One interchange with events, payloads, errors and the processing logs its events reference. */
@@ -86,7 +109,23 @@ export class ReportServerService {
     return payload;
   }
 
-  private static toFilter(query: ReportServerFilterQuery): B2bInterchangeFilter {
+  /**
+   * Maps the query onto the B2B filter. A processing log id is resolved to its interchange first;
+   * `undefined` means it belongs to none (or to a different one than `interchangeId` names), so
+   * nothing can match.
+   */
+  private static async toFilter(
+    engine: OperationsEngine,
+    query: ReportServerFilterQuery,
+  ): Promise<B2bInterchangeFilter | undefined> {
+    let interchangeId = query.interchangeId;
+    if (query.mplId !== undefined) {
+      const linked = await engine.b2b.findInterchangeByMplId(query.mplId);
+      if (linked === undefined || (interchangeId !== undefined && interchangeId !== linked.id)) {
+        return undefined;
+      }
+      interchangeId = linked.id;
+    }
     return {
       from: query.dateFrom,
       to: query.dateTo,
@@ -96,6 +135,18 @@ export class ReportServerService {
       documentStandard: query.documentStandard,
       messageType: query.messageType,
       controlNumber: query.controlNumber,
+      interchangeId,
+      direction: query.direction,
+      agreementTypeName: query.agreement,
+      transactionTypeName: query.transactionType,
+      interchangeName: query.interchangeName,
+      systemId: query.systemId,
+      adapterType: query.adapterType,
+      groupControlNumber: query.groupControlNumber,
+      messageNumber: query.messageNumber,
+      processingStatus: query.processingStatus,
+      technicalAckStatus: query.technicalAckStatus,
+      functionalAckStatus: query.functionalAckStatus,
     };
   }
 

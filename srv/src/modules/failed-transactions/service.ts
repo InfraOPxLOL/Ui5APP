@@ -16,6 +16,8 @@ import {
 } from "../../operations/transform/index.js";
 import { HttpError } from "../../core/errors/HttpError.js";
 import type {
+  FailedTransactionPayload,
+  FailedTransactionPayloadFormat,
   DeadLetterKind,
   DeadLetterQueueCount,
   FailedInterchangeRef,
@@ -151,6 +153,50 @@ export class FailedTransactionsService {
       history,
       interchange,
     };
+  }
+
+  /** The body of one parked message, read from the broker. */
+  public async getPayload(messageId: string, queueName: string): Promise<FailedTransactionPayload> {
+    const engine = this.engineFactory();
+    FailedTransactionsService.assertDeadLetterQueue(
+      FailedTransactionsService.topology(engine),
+      queueName,
+    );
+    const body = await engine.queue.getMessagePayload(queueName, messageId);
+    if (body === undefined) {
+      throw HttpError.notFound(
+        `Message "${messageId}" is no longer on "${queueName}". It may already have been retried or removed.`,
+      );
+    }
+    return {
+      messageId,
+      queueName,
+      content: body.content,
+      encoding: body.encoding,
+      format: FailedTransactionsService.payloadFormat(body.encoding, body.content),
+      sizeBytes: body.sizeBytes,
+    };
+  }
+
+  /** A broker body carries no content type, so its format is read from its first characters. */
+  private static payloadFormat(
+    encoding: "text" | "base64",
+    content: string,
+  ): FailedTransactionPayloadFormat {
+    if (encoding === "base64") {
+      return "binary";
+    }
+    const start = content.trimStart();
+    if (start.startsWith("<")) {
+      return "xml";
+    }
+    if (start.startsWith("{") || start.startsWith("[")) {
+      return "json";
+    }
+    if (/^(ISA|UNA|UNB)/.test(start)) {
+      return "edi";
+    }
+    return "text";
   }
 
   /** Moves one message back to its mapped main queue, verifies it arrived, then retries it. */

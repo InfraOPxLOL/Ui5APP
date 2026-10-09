@@ -18,11 +18,28 @@ export type RetryStatus = "retryable" | "escalated" | "not-applicable";
 /**
  * Where a message's payload content actually came from — the honesty label the Metadata Panel
  * displays. `"mpl"`: recorded as an Integration Suite MPL attachment (the normal, richest case).
- * `"splunk"`: no MPL attachment existed, so `PayloadEngine.prepareFromSplunk` recovered it from
- * Splunk instead. `"unavailable"`: neither source had anything — `requestPayload`/`responsePayload`
- * are honestly `undefined`, never fabricated.
+ * `"jms"`: the body of the message parked on a JMS queue, read from the broker (requested
+ * explicitly, e.g. from Failed Transactions). `"b2b"`: no MPL attachment, but the MPL belongs to a
+ * B2B interchange whose received/sent documents the B2B Monitor keeps — TPM flows usually log no
+ * attachments, so this is where their payloads live. `"splunk"`: none of those, so
+ * `PayloadEngine.prepareFromSplunk` recovered it from Splunk instead. `"unavailable"`: no source had
+ * anything — `requestPayload`/`responsePayload` are honestly `undefined`, never fabricated.
  */
-export type PayloadSource = "mpl" | "splunk" | "unavailable";
+export type PayloadSource = "mpl" | "jms" | "b2b" | "splunk" | "unavailable";
+
+/** A JMS message whose broker body should be shown, when the caller knows the message is parked. */
+export interface JmsPayloadReference {
+  readonly queueName: string;
+  readonly messageId: string;
+}
+
+/** Where the caller wants the payload read from, when it already knows. */
+export interface StudioSourceHint {
+  /** The JMS message parked on a queue — its broker body is the payload. */
+  readonly jms?: JmsPayloadReference;
+  /** The B2B interchange whose received and sent documents are the payloads. */
+  readonly interchangeId?: string;
+}
 
 /**
  * The metadata panel's data for one message (§ Metadata Panel). `encoding`/`characterSet` are

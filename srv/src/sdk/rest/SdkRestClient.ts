@@ -6,10 +6,16 @@ import type { ErrorResponse } from "../models/ErrorResponse.js";
 import type { RestRequestOptions } from "./RestTypes.js";
 import { HttpErrorTranslator } from "../errors/HttpErrorTranslator.js";
 
-/** Shape a JSON error body commonly takes; extracted defensively (never assumed present). */
+/**
+ * Shape a JSON error body commonly takes; extracted defensively (never assumed present). OData
+ * services nest the text: `{ "error": { "code": "…", "message": { "lang": "en", "value": "…" } } }`.
+ */
 interface JsonErrorBody {
   readonly message?: string;
-  readonly error?: { readonly message?: string; readonly code?: string };
+  readonly error?: {
+    readonly message?: string | { readonly value?: string };
+    readonly code?: string;
+  };
   readonly code?: string;
 }
 
@@ -193,8 +199,9 @@ export class SdkRestClient {
 
   private toErrorResponse(status: number, bodyText: string | undefined): ErrorResponse {
     const parsed = SdkRestClient.tryParseJson<JsonErrorBody>(bodyText);
+    const errorMessage = parsed?.error?.message;
     const message =
-      parsed?.error?.message ??
+      (typeof errorMessage === "string" ? errorMessage : errorMessage?.value) ??
       parsed?.message ??
       bodyText ??
       `Request failed with status ${status}.`;

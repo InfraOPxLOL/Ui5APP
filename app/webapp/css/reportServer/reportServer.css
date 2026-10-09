@@ -33,3 +33,24 @@
 .reportServerPager {
   border-top: 1px solid var(--sapList_BorderColor);
 }
+
+.reportServerHeader .sapMTitle {
+  flex-shrink: 0;
+}
+
+.reportServerAdvanced {
+  background: var(--sapGroup_ContentBackground, transparent);
+}
+
+/* The tile the list is currently filtered by. */
+.reportServerTile.sapMGT[data-active="true"] {
+  outline: 2px solid var(--sapSelectedColor, var(--sapBrandColor));
+  outline-offset: -2px;
+}
+
+.reportServerDetailTitle {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-right: 0.5rem;
+  overflow-wrap: anywhere;
+}

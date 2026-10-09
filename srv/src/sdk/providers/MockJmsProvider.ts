@@ -1,5 +1,7 @@
 import type { IJmsProvider } from "../../core/providers/IJmsProvider.js";
 import type {
+  JmsMessagePayload,
+  JmsOperationResult,
   ProviderContext,
   ProviderPage,
   ProviderPagedResult,
@@ -9,6 +11,7 @@ import type {
 import type { MockEngine } from "../mock/MockEngine.js";
 import {
   generateQueueStates,
+  generateQueuedMessagePayload,
   generateQueuedMessages,
   generateSingleMessage,
   generateTpmDlqMessages,
@@ -90,12 +93,13 @@ export class MockJmsProvider implements IJmsProvider {
     context: ProviderContext,
     queueName: string,
     messageId: string,
-  ): Promise<void> {
+  ): Promise<JmsOperationResult> {
     await this.mockEngine.resolve({
       operationKey: "jms.retryMessage",
       tenantId: context.tenantId,
       generateSuccess: () => ({ queueName, messageId }),
     });
+    return { processedCount: 1 };
   }
 
   /**
@@ -111,13 +115,14 @@ export class MockJmsProvider implements IJmsProvider {
     sourceQueue: string,
     targetQueue: string,
     messageIds: readonly string[],
-  ): Promise<void> {
+  ): Promise<JmsOperationResult> {
     await this.mockEngine.resolve({
       operationKey: "jms.moveMessages",
       tenantId: context.tenantId,
       generateSuccess: () => ({ sourceQueue, targetQueue, messageIds }),
     });
     recordMockMove(targetQueue, messageIds);
+    return { processedCount: messageIds.length };
   }
 
   /** @inheritdoc */
@@ -130,6 +135,20 @@ export class MockJmsProvider implements IJmsProvider {
       operationKey: "jms.getMessage",
       tenantId: context.tenantId,
       generateSuccess: () => generateSingleMessage(queueName, messageId),
+      generateEmpty: () => undefined,
+    });
+  }
+
+  /** @inheritdoc */
+  public async getMessagePayload(
+    context: ProviderContext,
+    queueName: string,
+    messageId: string,
+  ): Promise<JmsMessagePayload | undefined> {
+    return this.mockEngine.resolve({
+      operationKey: "jms.getMessagePayload",
+      tenantId: context.tenantId,
+      generateSuccess: () => generateQueuedMessagePayload(queueName, messageId),
       generateEmpty: () => undefined,
     });
   }

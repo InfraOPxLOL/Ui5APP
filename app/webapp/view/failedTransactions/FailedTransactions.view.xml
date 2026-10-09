@@ -3,6 +3,7 @@
   height="100%"
   xmlns="sap.m"
   xmlns:mvc="sap.ui.core.mvc"
+  xmlns:codeeditor="sap.ui.codeeditor"
   xmlns:core="sap.ui.core"
   xmlns:l="sap.ui.layout"
   xmlns:form="sap.ui.layout.form">
@@ -89,7 +90,7 @@
             <!-- List -->
             <ScrollContainer height="100%" vertical="true">
               <layoutData>
-                <l:SplitterLayoutData size="64%" />
+                <l:SplitterLayoutData size="58%" />
               </layoutData>
               <Table
                 id="table"
@@ -107,7 +108,8 @@
                   <Column width="9rem"><Text text="{i18n>column.failedAt}" /></Column>
                   <Column><Text text="{i18n>column.sender}" /></Column>
                   <Column><Text text="{i18n>column.receiver}" /></Column>
-                  <Column width="9rem" minScreenWidth="760px" demandPopin="true"><Text text="{i18n>column.document}" /></Column>
+                  <Column width="9rem" minScreenWidth="640px" demandPopin="true"><Text text="{i18n>column.document}" /></Column>
+                  <Column minScreenWidth="1100px" demandPopin="true" popinDisplay="Inline"><Text text="{i18n>column.mplId}" /></Column>
                   <Column width="6.5rem" hAlign="End"><Text text="{i18n>column.redeliveries}" tooltip="{i18n>column.redeliveriesTooltip}" /></Column>
                   <Column width="3rem" hAlign="End" visible="{view>/canRetry}"><Text text="" /></Column>
                 </columns>
@@ -124,6 +126,12 @@
                       <ObjectIdentifier
                         title="{path: 'view>', formatter: '.formatter.document'}"
                         text="{= ${view>interchange/controlNumber} || ${view>applicationId} || '' }" />
+                      <Link
+                        text="{= ${view>mplId} || '—' }"
+                        enabled="{= !!${view>mplId} }"
+                        tooltip="{i18n>action.openProcessingLog}"
+                        wrapping="false"
+                        press=".onOpenProcessingLog" />
                       <ObjectNumber number="{view>jmsRetryCount}" />
                       <Button
                         icon="sap-icon://redo"
@@ -158,6 +166,11 @@
                     <VBox class="failedTransactionsDetailTitle">
                       <Title text="{= ${view>/detail/interchange/interchangeName} || ${view>/detail/message/messageId} }" level="H3" wrapping="true" />
                       <Text text="{view>/detail/message/queueName}" class="failedTransactionsMono" />
+                      <Link
+                        text="{i18n>action.openInReportServer}"
+                        visible="{= !!${view>/detail/interchange} }"
+                        press=".onOpenInterchange"
+                        class="sapUiTinyMarginTop" />
                     </VBox>
                     <Button
                       text="{i18n>action.retry}"
@@ -168,90 +181,128 @@
                       press=".onRetryDetail" />
                   </HBox>
 
-                  <!-- Recovery path -->
-                  <Title text="{i18n>section.recoveryPath}" level="H5" class="sapUiTinyMarginBottom" />
-                  <MessageStrip text="{view>/pathText}" type="Information" showIcon="true" customIcon="sap-icon://process" class="sapUiSmallMarginBottom" />
-
-                  <!-- Retry history -->
-                  <Title text="{i18n>section.history}" level="H5" class="sapUiTinyMarginBottom" />
-                  <HBox class="failedTransactionsCounters" wrap="Wrap">
-                    <VBox class="failedTransactionsCounter">
-                      <ObjectNumber
-                        number="{view>/detail/history/attempts}"
-                        state="{path: 'view>/detail/history', formatter: '.formatter.attemptsState'}"
-                        emphasized="true" />
-                      <Label text="{i18n>history.attempts}" />
-                    </VBox>
-                    <VBox class="failedTransactionsCounter">
-                      <ObjectNumber number="{view>/detail/history/retries}" emphasized="true" />
-                      <Label text="{i18n>history.retries}" />
-                    </VBox>
-                    <VBox class="failedTransactionsCounter">
-                      <ObjectNumber number="{view>/detail/history/failedAttempts}" state="Error" emphasized="true" />
-                      <Label text="{i18n>history.failedRuns}" />
-                    </VBox>
-                    <VBox class="failedTransactionsCounter">
-                      <ObjectNumber number="{view>/detail/history/jmsRetryCount}" emphasized="true" />
-                      <Label text="{i18n>history.redeliveries}" />
-                    </VBox>
-                  </HBox>
-                  <Text text="{i18n>history.explain}" class="failedTransactionsHint sapUiTinyMarginBottom" />
-                  <MessageStrip
-                    text="{i18n>history.truncated}"
-                    type="Warning"
-                    visible="{= !!${view>/detail/history/truncated} }" />
-                  <Table
-                    items="{view>/detail/history/runs}"
-                    noDataText="{i18n>history.empty}"
-                    contextualWidth="Auto"
-                    class="sapUiSmallMarginBottom">
-                    <columns>
-                      <Column width="8rem"><Text text="{i18n>history.when}" /></Column>
-                      <Column><Text text="{i18n>history.flow}" /></Column>
-                      <Column width="5.5rem"><Text text="{i18n>history.status}" /></Column>
-                      <Column minScreenWidth="640px" demandPopin="true" popinDisplay="Inline"><Text text="{i18n>history.mplId}" /></Column>
-                    </columns>
+                  <IconTabBar
+                    expandable="false"
+                    selectedKey="{view>/detailTab}"
+                    select=".onDetailTabSelect"
+                    class="failedTransactionsTabs">
                     <items>
-                      <ColumnListItem>
-                        <cells>
-                          <Text text="{path: 'view>startTime', formatter: '.fmt.dateTime'}" />
-                          <Text text="{view>integrationFlow}" tooltip="{view>integrationFlow}" class="failedTransactionsBreakAnywhere" />
-                          <ObjectStatus text="{view>humanReadableStatus}" state="{path: 'view>severity', formatter: '.formatter.runState'}" />
-                          <Link text="{view>mplId}" tooltip="{view>mplId}" wrapping="false" press=".onOpenProcessingLog" />
-                        </cells>
-                      </ColumnListItem>
+
+                      <!-- Overview: what a retry does, how often it failed, the message facts -->
+                      <IconTabFilter key="overview" text="{i18n>tab.overview}" icon="sap-icon://hint">
+                        <Title text="{i18n>section.recoveryPath}" level="H5" class="sapUiTinyMarginBottom" />
+                        <MessageStrip text="{view>/pathText}" type="Information" showIcon="true" customIcon="sap-icon://process" class="sapUiSmallMarginBottom" />
+
+                        <Title text="{i18n>section.history}" level="H5" class="sapUiTinyMarginBottom" />
+                        <HBox class="failedTransactionsCounters" wrap="Wrap">
+                          <VBox class="failedTransactionsCounter">
+                            <ObjectNumber
+                              number="{view>/detail/history/attempts}"
+                              state="{path: 'view>/detail/history', formatter: '.formatter.attemptsState'}"
+                              emphasized="true" />
+                            <Label text="{i18n>history.attempts}" />
+                          </VBox>
+                          <VBox class="failedTransactionsCounter">
+                            <ObjectNumber number="{view>/detail/history/retries}" emphasized="true" />
+                            <Label text="{i18n>history.retries}" />
+                          </VBox>
+                          <VBox class="failedTransactionsCounter">
+                            <ObjectNumber number="{view>/detail/history/failedAttempts}" state="Error" emphasized="true" />
+                            <Label text="{i18n>history.failedRuns}" />
+                          </VBox>
+                          <VBox class="failedTransactionsCounter">
+                            <ObjectNumber number="{view>/detail/history/jmsRetryCount}" emphasized="true" />
+                            <Label text="{i18n>history.redeliveries}" />
+                          </VBox>
+                        </HBox>
+                        <Text text="{i18n>history.explain}" class="failedTransactionsHint sapUiTinyMarginBottom" />
+                        <MessageStrip
+                          text="{i18n>history.truncated}"
+                          type="Warning"
+                          visible="{= !!${view>/detail/history/truncated} }" />
+                        <Table
+                          items="{view>/detail/history/runs}"
+                          noDataText="{i18n>history.empty}"
+                          contextualWidth="Auto"
+                          class="sapUiSmallMarginBottom">
+                          <columns>
+                            <Column width="8rem"><Text text="{i18n>history.when}" /></Column>
+                            <Column><Text text="{i18n>history.flow}" /></Column>
+                            <Column width="5.5rem"><Text text="{i18n>history.status}" /></Column>
+                            <Column minScreenWidth="640px" demandPopin="true" popinDisplay="Inline"><Text text="{i18n>history.mplId}" /></Column>
+                          </columns>
+                          <items>
+                            <ColumnListItem>
+                              <cells>
+                                <Text text="{path: 'view>startTime', formatter: '.fmt.dateTime'}" />
+                                <Text text="{view>integrationFlow}" tooltip="{view>integrationFlow}" class="failedTransactionsBreakAnywhere" />
+                                <ObjectStatus text="{view>humanReadableStatus}" state="{path: 'view>severity', formatter: '.formatter.runState'}" />
+                                <Link text="{view>mplId}" tooltip="{view>mplId}" wrapping="false" press=".onOpenProcessingLog" />
+                              </cells>
+                            </ColumnListItem>
+                          </items>
+                        </Table>
+
+                        <MessageStrip
+                          text="{i18n>interchange.none}"
+                          type="Information"
+                          showIcon="true"
+                          visible="{= !${view>/detail/interchange} }"
+                          class="sapUiSmallMarginBottom" />
+
+                        <Title text="{i18n>section.message}" level="H5" class="sapUiTinyMarginBottom" />
+                        <form:SimpleForm editable="false" layout="ResponsiveGridLayout" labelSpanL="4" labelSpanM="4">
+                          <Label text="{i18n>field.mplId}" /><Link text="{view>/detail/message/mplId}" press=".onOpenProcessingLog" />
+                          <Label text="{i18n>field.messageId}" /><Text text="{view>/detail/message/messageId}" class="failedTransactionsMono" />
+                          <Label text="{i18n>field.correlationId}" /><Text text="{view>/detail/message/correlationId}" class="failedTransactionsMono" />
+                          <Label text="{i18n>field.queue}" /><Text text="{view>/detail/message/queueName}" />
+                          <Label text="{i18n>field.target}" /><Text text="{view>/detail/message/targetQueue}" />
+                          <Label text="{i18n>field.sender}" /><Text text="{path: 'view>/detail/message', formatter: '.formatter.senderPartner'}" />
+                          <Label text="{i18n>field.receiver}" /><Text text="{path: 'view>/detail/message', formatter: '.formatter.receiverPartner'}" />
+                          <Label text="{i18n>field.document}" /><Text text="{path: 'view>/detail/message', formatter: '.formatter.document'}" />
+                          <Label text="{i18n>field.failedAt}" /><Text text="{path: 'view>/detail/message/failedAt', formatter: '.fmt.dateTime'}" />
+                          <Label text="{i18n>field.expiresAt}" /><Text text="{path: 'view>/detail/message/expiresAt', formatter: '.fmt.dateTime'}" />
+                        </form:SimpleForm>
+                      </IconTabFilter>
+
+                      <!-- The parked message's own body, read from the broker -->
+                      <IconTabFilter key="payload" text="{i18n>tab.payload}" icon="sap-icon://document-text">
+                        <VBox busy="{view>/payloadBusy}" busyIndicatorDelay="0">
+                          <MessageStrip
+                            text="{view>/payloadError}"
+                            type="Warning"
+                            showIcon="true"
+                            visible="{= ${view>/payloadError} !== '' }"
+                            class="sapUiSmallMarginBottom" />
+                          <VBox visible="{= ${view>/payload} !== null }">
+                            <Toolbar>
+                              <Text text="{view>/payload/label}" />
+                              <ToolbarSpacer />
+                              <Button icon="sap-icon://copy" tooltip="{i18n>action.copy}" press=".onCopyMessagePayload" enabled="{= !${view>/payload/isBinary} }" />
+                              <Button icon="sap-icon://download" tooltip="{i18n>action.download}" press=".onDownloadMessagePayload" />
+                              <Button icon="sap-icon://inspect" tooltip="{i18n>action.openInPayloadStudio}" press=".onOpenMessageInStudio" />
+                            </Toolbar>
+                            <codeeditor:CodeEditor
+                              value="{view>/payload/text}"
+                              type="{view>/payload/editorType}"
+                              editable="false"
+                              lineNumbers="true"
+                              height="24rem"
+                              visible="{= !${view>/payload/isBinary} }" />
+                            <MessageStrip
+                              text="{i18n>payload.binary}"
+                              type="Information"
+                              showIcon="true"
+                              visible="{= !!${view>/payload/isBinary} }" />
+                          </VBox>
+                          <Text text="{i18n>payload.hint}" class="failedTransactionsHint sapUiTinyMarginTop" />
+                        </VBox>
+                      </IconTabFilter>
+
+                      <!-- The B2B interchange this message belongs to (shared with the Report Server) -->
+                      <core:Fragment fragmentName="com.middlewareops.integrationportal.fragment.b2b.InterchangeTabs" type="XML" />
                     </items>
-                  </Table>
-
-                  <!-- Linked interchange -->
-                  <Title text="{i18n>section.interchange}" level="H5" class="sapUiTinyMarginBottom" />
-                  <MessageStrip
-                    text="{i18n>interchange.none}"
-                    type="Information"
-                    visible="{= !${view>/detail/interchange} }" />
-                  <VBox visible="{= !!${view>/detail/interchange} }">
-                    <form:SimpleForm editable="false" layout="ResponsiveGridLayout" labelSpanL="4" labelSpanM="4" columnsL="2" columnsXL="2">
-                      <Label text="{i18n>field.sender}" /><Text text="{view>/detail/interchange/sender/tradingPartnerName}" />
-                      <Label text="{i18n>field.receiver}" /><Text text="{view>/detail/interchange/receiver/tradingPartnerName}" />
-                      <Label text="{i18n>field.document}" /><Text text="{= (${view>/detail/interchange/sender/documentStandard} || '') + ' ' + (${view>/detail/interchange/sender/messageType} || '') }" />
-                      <Label text="{i18n>field.controlNumber}" /><Text text="{view>/detail/interchange/sender/interchangeControlNumber}" />
-                      <Label text="{i18n>field.status}" /><Text text="{view>/detail/interchange/overallStatus}" />
-                      <Label text="{i18n>field.started}" /><Text text="{path: 'view>/detail/interchange/startedAt', formatter: '.fmt.dateTime'}" />
-                    </form:SimpleForm>
-                    <Button text="{i18n>action.openInReportServer}" icon="sap-icon://inspect" press=".onOpenInterchange" class="sapUiSmallMarginBottom" />
-                  </VBox>
-
-                  <!-- Message facts -->
-                  <Title text="{i18n>section.message}" level="H5" class="sapUiTinyMarginBottom" />
-                  <form:SimpleForm editable="false" layout="ResponsiveGridLayout" labelSpanL="4" labelSpanM="4">
-                    <Label text="{i18n>field.messageId}" /><Text text="{view>/detail/message/messageId}" class="failedTransactionsMono" />
-                    <Label text="{i18n>field.mplId}" /><Link text="{view>/detail/message/mplId}" press=".onOpenProcessingLog" />
-                    <Label text="{i18n>field.correlationId}" /><Text text="{view>/detail/message/correlationId}" class="failedTransactionsMono" />
-                    <Label text="{i18n>field.queue}" /><Text text="{view>/detail/message/queueName}" />
-                    <Label text="{i18n>field.target}" /><Text text="{view>/detail/message/targetQueue}" />
-                    <Label text="{i18n>field.failedAt}" /><Text text="{path: 'view>/detail/message/failedAt', formatter: '.fmt.dateTime'}" />
-                    <Label text="{i18n>field.expiresAt}" /><Text text="{path: 'view>/detail/message/expiresAt', formatter: '.fmt.dateTime'}" />
-                  </form:SimpleForm>
+                  </IconTabBar>
                 </VBox>
               </VBox>
             </ScrollContainer>

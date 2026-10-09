@@ -893,6 +893,9 @@ export default class ListController extends BaseController {
           this.getRouter().navTo("payloadStudio", {
             "?query": { state: DeepLinkHelper.encode({ messageId }) },
           });
+        } else if (action.route === "reportServer") {
+          // The Report Server finds the interchange this processing log belongs to and opens it.
+          this.getRouter().navTo("reportServer", { "?query": { mplId: messageId } });
         } else if (action.route !== undefined) {
           this.navTo(action.route);
         }

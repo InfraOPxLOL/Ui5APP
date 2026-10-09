@@ -7,6 +7,7 @@ import type { OperationContext } from "../models/OperationContext.js";
 import { ODataClient } from "../odata/ODataClient.js";
 import { ODataQueryBuilder } from "../odata/ODataQueryBuilder.js";
 import { SdkRestClient } from "../rest/SdkRestClient.js";
+import { csrfWriteHeaders, fetchCsrfHandshake } from "../rest/CsrfHandshake.js";
 import { HttpError } from "../../core/errors/HttpError.js";
 import { parseODataV2DateTime, toODataV2KeyLiteral } from "./RealProviderSupport.js";
 
@@ -35,7 +36,7 @@ export class RealRuntimeProvider implements IRuntimeProvider {
 
   public constructor(
     private readonly pipeline: RequestPipeline,
-    httpClient: IHttpClient,
+    private readonly httpClient: IHttpClient,
   ) {
     this.odataClient = new ODataClient(httpClient, "v2");
     this.restClient = new SdkRestClient(httpClient);
@@ -86,12 +87,13 @@ export class RealRuntimeProvider implements IRuntimeProvider {
         if (raw === undefined) {
           throw HttpError.notFound(`Runtime artifact "${artifactId}" is not deployed.`);
         }
+        const csrf = await fetchCsrfHandshake(this.httpClient, tenant, opContext);
         await this.restClient.post(
           `${tenant.baseUrl}/DeployIntegrationDesigntimeArtifact`,
           undefined,
           opContext,
           {
-            headers: tenant.headers,
+            headers: csrfWriteHeaders(tenant, csrf),
             query: { Id: toODataV2KeyLiteral(raw.Id), Version: toODataV2KeyLiteral(raw.Version) },
           },
         );

@@ -101,6 +101,17 @@ export class PayloadEngine {
     });
   }
 
+  /**
+   * Summarizes a body read from somewhere other than an MPL attachment (a B2B Monitor interchange
+   * payload, a JMS message on a queue) exactly as an attachment would be, so Payload Studio renders
+   * every source the same way.
+   * @param envelope the body and what is known about it.
+   * @returns the payload summary.
+   */
+  public summarize(envelope: PayloadEnvelope): PayloadSummary {
+    return PayloadEngine.toSummary(envelope);
+  }
+
   private static toSummaryFromSplunkBody(
     messageId: string,
     attachmentId: string,
@@ -151,7 +162,8 @@ export class PayloadEngine {
     if (normalized.includes("xml")) {
       return "xml";
     }
-    if (normalized.startsWith("text/")) {
+    // EDI documents (X12, EDIFACT) are plain text, whatever their vendor-specific type says.
+    if (normalized.startsWith("text/") || /edi|x12|edifact/.test(normalized)) {
       return "text";
     }
     return "binary";

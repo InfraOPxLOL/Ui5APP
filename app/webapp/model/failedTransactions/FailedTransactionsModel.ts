@@ -6,6 +6,16 @@ import type {
   FailedTransactionRetryResult,
 } from "../../service/failedTransactions/FailedTransactionsTypes";
 
+/** The parked message's body as shown in the detail's payload tab. */
+export interface MessagePayloadView {
+  /** Toolbar text, e.g. "EDI · 1.2 KB". */
+  label: string;
+  text: string;
+  editorType: string;
+  format: string;
+  isBinary: boolean;
+}
+
 /** Shape of the Failed Transactions view model. */
 export interface FailedTransactionsState {
   busy: boolean;
@@ -28,6 +38,12 @@ export interface FailedTransactionsState {
   selectedCount: number;
   detail: FailedTransactionDetail | null;
   pathText: string;
+  /** The selected detail tab. */
+  detailTab: string;
+  /** The message body, loaded when its tab is first opened. */
+  payload: MessagePayloadView | null;
+  payloadBusy: boolean;
+  payloadError: string;
   results: FailedTransactionRetryResult[];
   resultsHeadline: string;
 }
@@ -58,6 +74,10 @@ export default class FailedTransactionsModel extends JSONModel {
       selectedCount: 0,
       detail: null,
       pathText: "",
+      detailTab: "overview",
+      payload: null,
+      payloadBusy: false,
+      payloadError: "",
       results: [],
       resultsHeadline: "",
     };

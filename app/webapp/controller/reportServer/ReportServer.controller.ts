@@ -4,20 +4,23 @@ import type Event from "sap/ui/base/Event";
 import type GenericTile from "sap/m/GenericTile";
 import MessageToast from "sap/m/MessageToast";
 import ClipboardUtils from "../../core/utils/ClipboardUtils";
-import DownloadUtils from "../../core/utils/DownloadUtils";
+import DeepLinkHelper from "../../core/utils/DeepLinkHelper";
 import ExportHelper from "../../core/utils/ExportHelper";
-import { DateTimeFormatter, SizeFormatter } from "../../core/formatters";
+import TimePresets from "../../core/utils/TimePresets";
+import { DateTimeFormatter } from "../../core/formatters";
 import { AppError } from "../../core/errors/AppError";
+import SavedViewStore, { STANDARD_VIEW_KEY } from "../../core/services/views/SavedViewStore";
 import ReportServerService from "../../service/reportServer/ReportServerService";
 import ReportServerFormatter from "../../formatter/reportServer/ReportServerFormatter";
 import ReportServerModel, {
   emptyFilters,
-  type OpenPayload,
+  type ViewItem,
 } from "../../model/reportServer/ReportServerModel";
+import InterchangePanel from "../shared/InterchangePanel";
 import type {
   Interchange,
-  InterchangePayload,
   ReportServerFilters,
+  ReportServerViewState,
 } from "../../service/reportServer/ReportServerTypes";
 
 /** Backend error code for a tenant without Trading Partner Management. */
@@ -25,40 +28,66 @@ const B2B_UNAVAILABLE = "B2B_MONITORING_UNAVAILABLE";
 
 interface RouteArguments {
   readonly interchangeId?: string;
+  readonly "?query"?: {
+    /** A shared search (see {@link ReportServerController.onShareView}). */
+    readonly view?: string;
+    /** A processing log whose interchange should be found and opened. */
+    readonly mplId?: string;
+  };
 }
 
 /**
- * Report Server: every B2B interchange recorded by TPM's B2B Monitor, filterable, with sender and
- * receiver detail, payloads, processing events, errors and links to the processing logs.
+ * Report Server: every B2B interchange recorded by TPM's B2B Monitor — searchable over a relative
+ * time window or a custom range, with advanced fields, saved views and shareable search links — and
+ * the shared interchange panel (sender, receiver, documents, events, errors, processing logs).
  *
  * @namespace com.middlewareops.integrationportal.controller.reportServer
  */
 export default class ReportServerController extends BaseController {
   public readonly formatter = ReportServerFormatter;
-  public readonly fmt = {
-    dateTime: DateTimeFormatter.formatDateTime,
-    join: (values?: readonly string[]): string => (values ?? []).join(", "),
-  };
+  public readonly fmt = { dateTime: DateTimeFormatter.formatDateTime };
+  /** The shared interchange panel the detail fragment binds to as `.b2b.*`. */
+  public readonly b2b = new InterchangePanel({
+    navigate: (route, parameters) => this.getRouter().navTo(route, parameters),
+    handleError: (error) => this.getErrorHandler().handle(error),
+  });
 
   private readonly service = new ReportServerService();
+  private readonly views = new SavedViewStore<ReportServerViewState>("reportServer");
   private listAbort: AbortController | undefined;
-  private loaded = false;
-  /** Base64 content of an open binary payload (kept out of the model; it is never displayed). */
-  private binaryContent: string | undefined;
+  private initialised = false;
+  /** The last `?query` this screen acted on, so returning to it does not search again. */
+  private lastQueryToken: string | undefined;
+  /** Set while the model is written programmatically, so it does not count as a user edit. */
+  private applying = false;
 
   public onInit(): void {
-    this.setModel(new ReportServerModel(), "view");
+    const model = new ReportServerModel();
+    this.setModel(model, "view");
+    this.b2b.attach(this.getView()!);
+    model.setProperty(
+      "/timePresets",
+      TimePresets.ALL.map((preset) => ({
+        key: preset.key,
+        code: preset.code,
+        text: this.getText(preset.labelKey),
+      })),
+    );
+    model.attachPropertyChange((event: Event) => {
+      const path = String(event.getParameter("path" as never) ?? "");
+      const context = event.getParameter("context" as never) as { getPath(): string } | undefined;
+      const fullPath = context === undefined ? path : `${context.getPath()}/${path}`;
+      if (!this.applying && fullPath.startsWith("/filters")) {
+        model.setProperty("/viewModified", true);
+        model.setProperty("/advancedCount", ReportServerFormatter.advancedCount(this.filters()));
+      }
+    });
+    this.refreshViews();
+
     this.getRouter()
       .getRoute("reportServer")
       ?.attachPatternMatched((event: Event) => {
-        const args = (event.getParameter("arguments" as never) ?? {}) as RouteArguments;
-        if (!this.loaded) {
-          this.loaded = true;
-          void this.reload();
-        }
-        if (args.interchangeId !== undefined && args.interchangeId !== "") {
-          void this.openDetail(args.interchangeId);
-        }
+        this.onRouteMatched((event.getParameter("arguments" as never) ?? {}) as RouteArguments);
       });
   }
 
@@ -66,7 +95,32 @@ export default class ReportServerController extends BaseController {
     this.listAbort?.abort();
   }
 
-  // --- List ------------------------------------------------------------------
+  private onRouteMatched(args: RouteArguments): void {
+    const query = args["?query"] ?? {};
+    const token = JSON.stringify(query);
+    const queryChanged = token !== this.lastQueryToken;
+    this.lastQueryToken = token;
+
+    if (query.view !== undefined && queryChanged) {
+      // A shared search: apply it as an unsaved modification of the standard view.
+      this.applyState(ReportServerFormatter.fromViewState(DeepLinkHelper.decode(query.view)));
+      this.model().setProperty("/selectedViewKey", STANDARD_VIEW_KEY);
+      this.model().setProperty("/viewModified", true);
+      MessageToast.show(this.getText("toast.viewFromLink"));
+      void this.reload();
+    } else if (query.mplId !== undefined && queryChanged) {
+      void this.openByProcessingLog(query.mplId);
+    } else if (!this.initialised) {
+      this.selectView(this.model().getProperty("/defaultViewKey") as string);
+    }
+    this.initialised = true;
+
+    if (args.interchangeId !== undefined && args.interchangeId !== "") {
+      void this.openDetail(args.interchangeId);
+    }
+  }
+
+  // --- Search -----------------------------------------------------------------
 
   public onRefresh(): void {
     void this.reload();
@@ -78,14 +132,23 @@ export default class ReportServerController extends BaseController {
 
   public onClear(): void {
     this.model().setProperty("/filters", emptyFilters());
+    this.model().setProperty("/advancedCount", 0);
+    this.model().setProperty("/viewModified", true);
     void this.reload();
+  }
+
+  /** A new time window searches straight away. */
+  public onTimePresetChange(): void {
+    if (this.filters().timePreset !== "custom") {
+      void this.reload();
+    }
   }
 
   /** A status tile filters the list to that status ("all" clears it). */
   public onTilePress(event: Event): void {
     const tile = event.getSource() as unknown as GenericTile;
-    const status = String(tile.data("status") ?? "");
-    this.model().setProperty("/filters/status", status);
+    this.model().setProperty("/filters/status", String(tile.data("status") ?? ""));
+    this.model().setProperty("/viewModified", true);
     void this.reload();
   }
 
@@ -94,11 +157,12 @@ export default class ReportServerController extends BaseController {
   }
 
   /** Reloads page 1 and the status tiles together. */
-  private async reload(): Promise<void> {
-    await Promise.all([this.loadPage(1, false), this.loadSummary()]);
+  private async reload(): Promise<Interchange[]> {
+    const [items] = await Promise.all([this.loadPage(1, false), this.loadSummary()]);
+    return items;
   }
 
-  private async loadPage(page: number, append: boolean): Promise<void> {
+  private async loadPage(page: number, append: boolean): Promise<Interchange[]> {
     this.listAbort?.abort();
     const abort = new AbortController();
     this.listAbort = abort;
@@ -121,10 +185,12 @@ export default class ReportServerController extends BaseController {
         this.getText("list.showing", [items.length, response.total]),
       );
       model.setProperty("/unavailableMessage", "");
+      return items;
     } catch (error) {
       if (!abort.signal.aborted) {
         this.handleLoadError(error);
       }
+      return [];
     } finally {
       if (this.listAbort === abort) {
         model.setProperty("/busy", false);
@@ -153,6 +219,23 @@ export default class ReportServerController extends BaseController {
     this.getErrorHandler().handle(error);
   }
 
+  /**
+   * Finds the interchange a processing log belongs to (the hand-off from Message Monitoring and
+   * Payload Studio) and opens it when there is exactly one.
+   */
+  private async openByProcessingLog(mplId: string): Promise<void> {
+    this.applyState({
+      filters: { ...emptyFilters(), timePreset: "all", mplId },
+      advanced: true,
+    });
+    this.model().setProperty("/selectedViewKey", STANDARD_VIEW_KEY);
+    this.model().setProperty("/viewModified", true);
+    const items = await this.reload();
+    if (items.length === 1 && items[0] !== undefined) {
+      void this.openDetail(items[0].id);
+    }
+  }
+
   public onExport(): void {
     const rows = this.state<Interchange[]>("/items").map((row) => ({
       status: row.overallStatus,
@@ -163,6 +246,7 @@ export default class ReportServerController extends BaseController {
       senderControlNumber: row.sender.interchangeControlNumber ?? "",
       receiverControlNumber: row.receiver.interchangeControlNumber ?? "",
       direction: row.direction ?? "",
+      agreement: row.agreementTypeName ?? "",
       id: row.id,
     }));
     type Row = (typeof rows)[number];
@@ -173,7 +257,110 @@ export default class ReportServerController extends BaseController {
     ExportHelper.exportCsv(rows, columns, "report-server");
   }
 
-  // --- Detail ----------------------------------------------------------------
+  // --- Views --------------------------------------------------------------------
+
+  public onViewSelect(event: Event): void {
+    this.selectView(String(event.getParameter("key" as never) ?? STANDARD_VIEW_KEY));
+  }
+
+  public onViewSave(event: Event): void {
+    const name = String(event.getParameter("name" as never) ?? "").trim();
+    if (name === "") {
+      return;
+    }
+    const overwrite = event.getParameter("overwrite" as never) === true;
+    const key = overwrite ? String(event.getParameter("key" as never) ?? "") : undefined;
+    const saved = this.views.save(
+      name,
+      ReportServerFormatter.toViewState(this.filters(), this.state<boolean>("/advanced")),
+      key === STANDARD_VIEW_KEY ? undefined : key,
+    );
+    if (event.getParameter("def" as never) === true) {
+      this.views.setDefault(saved.key);
+    }
+    this.refreshViews();
+    this.model().setProperty("/selectedViewKey", saved.key);
+    this.model().setProperty("/viewModified", false);
+    MessageToast.show(this.getText("toast.viewSaved", [saved.name]));
+  }
+
+  public onViewManage(event: Event): void {
+    const renamed = (event.getParameter("renamed" as never) ?? []) as {
+      key: string;
+      name: string;
+    }[];
+    const deleted = (event.getParameter("deleted" as never) ?? []) as string[];
+    for (const entry of renamed) {
+      this.views.rename(entry.key, entry.name);
+    }
+    for (const key of deleted) {
+      this.views.remove(key);
+    }
+    const defaultKey = event.getParameter("def" as never) as string | undefined;
+    if (defaultKey !== undefined) {
+      this.views.setDefault(defaultKey);
+    }
+    this.refreshViews();
+    if (deleted.includes(this.state<string>("/selectedViewKey"))) {
+      this.selectView(STANDARD_VIEW_KEY);
+    }
+  }
+
+  /** Copies a link that reopens this exact search (the time window stays relative). */
+  public onShareView(): void {
+    const token = DeepLinkHelper.encode(
+      ReportServerFormatter.toViewState(this.filters(), this.state<boolean>("/advanced")) as never,
+    );
+    const hash = this.getRouter().getURL("reportServer", { "?query": { view: token } });
+    const url = `${window.location.href.split("#")[0]}#/${hash}`;
+    void ClipboardUtils.copyText(url).then((copied) => {
+      MessageToast.show(this.getText(copied ? "toast.linkCopied" : "toast.linkFailed"));
+    });
+  }
+
+  private selectView(key: string): void {
+    const saved = key === STANDARD_VIEW_KEY ? undefined : this.views.get(key);
+    this.applyState(
+      saved === undefined
+        ? { filters: emptyFilters(), advanced: false }
+        : ReportServerFormatter.fromViewState(saved.state),
+    );
+    this.model().setProperty("/selectedViewKey", saved?.key ?? STANDARD_VIEW_KEY);
+    this.model().setProperty("/viewModified", false);
+    void this.reload();
+  }
+
+  private refreshViews(): void {
+    const items: ViewItem[] = [
+      {
+        key: STANDARD_VIEW_KEY,
+        title: this.getText("view.standard"),
+        rename: false,
+        remove: false,
+      },
+      ...this.views
+        .list()
+        .map((view) => ({ key: view.key, title: view.name, rename: true, remove: true })),
+    ];
+    this.model().setProperty("/views", items);
+    this.model().setProperty("/defaultViewKey", this.views.getDefaultKey());
+  }
+
+  private applyState(state: { filters: ReportServerFilters; advanced: boolean }): void {
+    this.applying = true;
+    try {
+      this.model().setProperty("/filters", state.filters);
+      this.model().setProperty("/advanced", state.advanced);
+      this.model().setProperty(
+        "/advancedCount",
+        ReportServerFormatter.advancedCount(state.filters),
+      );
+    } finally {
+      this.applying = false;
+    }
+  }
+
+  // --- Detail -------------------------------------------------------------------
 
   public onSelect(event: Event): void {
     const item = event.getParameter("listItem" as never) as
@@ -188,89 +375,15 @@ export default class ReportServerController extends BaseController {
   private async openDetail(interchangeId: string): Promise<void> {
     const model = this.model();
     model.setProperty("/selectedId", interchangeId);
-    model.setProperty("/payload", null);
     model.setProperty("/detailBusy", true);
     try {
-      model.setProperty("/detail", await this.service.getById(interchangeId));
-    } catch (error) {
-      model.setProperty("/detail", null);
-      this.getErrorHandler().handle(error);
+      await this.b2b.load(interchangeId);
     } finally {
       model.setProperty("/detailBusy", false);
     }
   }
 
-  public onPayloadSelect(event: Event): void {
-    const item = event.getParameter("listItem" as never) as
-      | { getBindingContext(name: string): { getObject(): unknown } | null | undefined }
-      | undefined;
-    const payload = item?.getBindingContext("view")?.getObject() as InterchangePayload | undefined;
-    const interchangeId = this.state<string>("/selectedId");
-    if (payload !== undefined && interchangeId !== "") {
-      void this.openPayload(interchangeId, payload);
-    }
-  }
-
-  private async openPayload(interchangeId: string, info: InterchangePayload): Promise<void> {
-    const model = this.model();
-    model.setProperty("/payloadBusy", true);
-    try {
-      const payload = await this.service.getPayload(interchangeId, info.id);
-      const open: OpenPayload = {
-        id: payload.id,
-        direction: payload.direction ?? "",
-        label: `${payload.format.toUpperCase()} · ${SizeFormatter.formatBytes(payload.sizeBytes)}`,
-        text: payload.encoding === "text" ? payload.content : "",
-        editorType: ReportServerFormatter.editorType(payload.format),
-        format: payload.format,
-        sizeBytes: payload.sizeBytes,
-        isBinary: payload.encoding === "base64",
-      };
-      model.setProperty("/payload", open);
-      this.binaryContent = payload.encoding === "base64" ? payload.content : undefined;
-    } catch (error) {
-      this.getErrorHandler().handle(error);
-    } finally {
-      model.setProperty("/payloadBusy", false);
-    }
-  }
-
-  public onCopyPayload(): void {
-    const payload = this.state<OpenPayload | null>("/payload");
-    if (payload === null || payload.isBinary) {
-      return;
-    }
-    void ClipboardUtils.copyText(payload.text).then((copied) => {
-      MessageToast.show(this.getText(copied ? "toast.copied" : "toast.copyFailed"));
-    });
-  }
-
-  public onDownloadPayload(): void {
-    const payload = this.state<OpenPayload | null>("/payload");
-    if (payload === null) {
-      return;
-    }
-    const fileName = `${payload.id}.${ReportServerFormatter.fileExtension(payload.format as never)}`;
-    if (payload.isBinary && this.binaryContent !== undefined) {
-      const bytes = Uint8Array.from(atob(this.binaryContent), (char) => char.charCodeAt(0));
-      DownloadUtils.downloadBlob(new Blob([bytes]), fileName);
-      return;
-    }
-    DownloadUtils.downloadText(payload.text, fileName);
-  }
-
-  /** Opens an MPL in the Message Monitoring drill-down. */
-  public onOpenProcessingLog(event: Event): void {
-    const source = event.getSource() as unknown as {
-      getText(): string;
-    };
-    const mplId = source.getText();
-    if (mplId !== "") {
-      this.navTo("messageMonitoring", { mplId });
-    }
-  }
-
-  // --- Helpers ---------------------------------------------------------------
+  // --- Helpers ------------------------------------------------------------------
 
   private model(): JSONModel {
     return this.getModel("view") as JSONModel;

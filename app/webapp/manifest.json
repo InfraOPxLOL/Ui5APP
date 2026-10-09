@@ -74,6 +74,9 @@
           "uri": "css/reportServer/reportServer.css"
         },
         {
+          "uri": "css/b2b/b2b.css"
+        },
+        {
           "uri": "css/failedTransactions/failedTransactions.css"
         },
         {
@@ -125,7 +128,7 @@
         },
         {
           "name": "reportServer",
-          "pattern": "reportServer/:interchangeId:",
+          "pattern": "reportServer/:interchangeId::?query:",
           "target": "reportServer"
         },
         {

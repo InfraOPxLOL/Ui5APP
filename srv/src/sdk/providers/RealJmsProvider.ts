@@ -1,11 +1,14 @@
 import type { IJmsProvider } from "../../core/providers/IJmsProvider.js";
 import type {
+  JmsMessagePayload,
+  JmsOperationResult,
   ProviderContext,
   ProviderPage,
   ProviderPagedResult,
   QueueRuntimeInfo,
   QueuedMessage,
 } from "../../core/providers/types.js";
+import { HttpError } from "../../core/errors/HttpError.js";
 import { UpstreamError } from "../../core/errors/UpstreamError.js";
 import type { IHttpClient } from "../http/IHttpClient.js";
 import type { OperationContext } from "../models/OperationContext.js";
@@ -14,6 +17,7 @@ import type { RequestPipeline } from "../pipeline/RequestPipeline.js";
 import { ODataClient } from "../odata/ODataClient.js";
 import { ODataQueryBuilder } from "../odata/ODataQueryBuilder.js";
 import { SdkRestClient } from "../rest/SdkRestClient.js";
+import { csrfWriteHeaders, fetchCsrfHandshake } from "../rest/CsrfHandshake.js";
 import { toODataV2KeyLiteral } from "./RealProviderSupport.js";
 
 /**
@@ -123,6 +127,12 @@ const DEFAULT_MOVE_PARAMETERS: JmsMoveParameterNames = {
  */
 const MIN_MESSAGE_PAGE_SIZE = 100;
 const MAX_MESSAGE_PAGE_SIZE = 10_000;
+/** The reply body of `MoveMessagingMessages` / `RetryMessagingMessages` / message DELETE. */
+interface CpiOperationReply {
+  readonly operation?: string;
+  readonly processedCount?: number | string;
+}
+
 /** Batch size for purge's list-then-delete loop. */
 const PURGE_BATCH_SIZE = 1_000;
 /** Safety cap so a queue receiving new messages faster than purge deletes them cannot loop forever. */
@@ -137,6 +147,9 @@ const MAX_PURGE_BATCHES = 100;
  * {@link QueueRuntimeInfo.consumerCount} is reported as `undefined` (unknown), never fabricated;
  * `MessagingMessages` exposes no per-message size, so {@link QueuedMessage.sizeBytes} is likewise
  * `undefined`.
+ *
+ * Every modifying call (move, retry, delete) first performs the tenant's CSRF handshake — without a
+ * token the tenant answers `403 CSRF token validation failed` and moves nothing.
  */
 export class RealJmsProvider implements IJmsProvider {
   private readonly odataClient: ODataClient;
@@ -144,7 +157,7 @@ export class RealJmsProvider implements IJmsProvider {
 
   public constructor(
     private readonly pipeline: RequestPipeline,
-    httpClient: IHttpClient,
+    private readonly httpClient: IHttpClient,
     private readonly endpoints: JmsProviderEndpoints = DEFAULT_JMS_ENDPOINTS,
     private readonly moveParameters: JmsMoveParameterNames = DEFAULT_MOVE_PARAMETERS,
   ) {
@@ -245,8 +258,9 @@ export class RealJmsProvider implements IJmsProvider {
       tenantId: context.tenantId,
       correlationId: context.correlationId,
       execute: async (tenant, opContext) => {
+        const csrf = await fetchCsrfHandshake(this.httpClient, tenant, opContext);
         await this.restClient.delete(this.messageUrl(tenant, queueName, messageId), opContext, {
-          headers: RealJmsProvider.jsonHeaders(tenant),
+          headers: csrfWriteHeaders(tenant, csrf),
         });
       },
     });
@@ -265,11 +279,15 @@ export class RealJmsProvider implements IJmsProvider {
           if (messages.length === 0) {
             break;
           }
+          const headers = csrfWriteHeaders(
+            tenant,
+            await fetchCsrfHandshake(this.httpClient, tenant, opContext),
+          );
           for (const message of messages) {
             await this.restClient.delete(
               this.messageUrl(tenant, queueName, message.jmsMessageId),
               opContext,
-              { headers: RealJmsProvider.jsonHeaders(tenant) },
+              { headers },
             );
             removed += 1;
           }
@@ -284,18 +302,20 @@ export class RealJmsProvider implements IJmsProvider {
     context: ProviderContext,
     queueName: string,
     messageId: string,
-  ): Promise<void> {
+  ): Promise<JmsOperationResult> {
     return this.pipeline.run({
       operationName: "jms.retryMessage",
       tenantId: context.tenantId,
       correlationId: context.correlationId,
       execute: async (tenant, opContext) => {
-        await this.restClient.post(
+        const csrf = await fetchCsrfHandshake(this.httpClient, tenant, opContext);
+        const reply = await this.restClient.post<CpiOperationReply>(
           `${tenant.baseUrl}/${this.endpoints.retryFunctionImport}`,
           { queueName, jmsMessageId: messageId },
           opContext,
-          { headers: RealJmsProvider.jsonHeaders(tenant) },
+          { headers: csrfWriteHeaders(tenant, csrf) },
         );
+        return { processedCount: RealJmsProvider.processedCount(reply.data) };
       },
     });
   }
@@ -306,16 +326,17 @@ export class RealJmsProvider implements IJmsProvider {
     sourceQueue: string,
     targetQueue: string,
     messageIds: readonly string[],
-  ): Promise<void> {
+  ): Promise<JmsOperationResult> {
     if (messageIds.length === 0) {
-      return;
+      return { processedCount: 0 };
     }
     return this.pipeline.run({
       operationName: "jms.moveMessages",
       tenantId: context.tenantId,
       correlationId: context.correlationId,
       execute: async (tenant, opContext) => {
-        await this.restClient.post(
+        const csrf = await fetchCsrfHandshake(this.httpClient, tenant, opContext);
+        const reply = await this.restClient.post<CpiOperationReply>(
           `${tenant.baseUrl}/${this.endpoints.moveFunctionImport}`,
           {
             [this.moveParameters.sourceQueue]: sourceQueue,
@@ -323,8 +344,9 @@ export class RealJmsProvider implements IJmsProvider {
             [this.moveParameters.messageIds]: [...messageIds],
           },
           opContext,
-          { headers: RealJmsProvider.jsonHeaders(tenant) },
+          { headers: csrfWriteHeaders(tenant, csrf) },
         );
+        return { processedCount: RealJmsProvider.processedCount(reply.data) };
       },
     });
   }
@@ -346,6 +368,34 @@ export class RealJmsProvider implements IJmsProvider {
           opContext,
         );
         return raw === undefined ? undefined : RealJmsProvider.toMessageDomain(raw);
+      },
+    });
+  }
+
+  /** @inheritdoc */
+  public async getMessagePayload(
+    context: ProviderContext,
+    queueName: string,
+    messageId: string,
+  ): Promise<JmsMessagePayload | undefined> {
+    return this.pipeline.run({
+      operationName: "jms.getMessagePayload",
+      tenantId: context.tenantId,
+      correlationId: context.correlationId,
+      execute: async (tenant, opContext) => {
+        try {
+          const binary = await this.restClient.getBinary(
+            `${this.messageUrl(tenant, queueName, messageId)}/$value`,
+            opContext,
+            { headers: tenant.headers },
+          );
+          return RealJmsProvider.decodePayload(binary.data);
+        } catch (error) {
+          if (error instanceof HttpError && error.statusCode === 404) {
+            return undefined;
+          }
+          throw error;
+        }
       },
     });
   }
@@ -425,6 +475,36 @@ export class RealJmsProvider implements IJmsProvider {
       applicationId: RealJmsProvider.text(raw.applicationId),
       nextRetryAt: RealJmsProvider.optionalEpochToIso(raw.nextRetry),
       expiresAt: RealJmsProvider.optionalEpochToIso(raw.expirationDate),
+    };
+  }
+
+  /** Reads `processedCount` (an `Edm.Int64`, so possibly a string) from an operation reply. */
+  private static processedCount(reply: CpiOperationReply | undefined): number | undefined {
+    if (reply?.processedCount === undefined) {
+      return undefined;
+    }
+    const count = Number(reply.processedCount);
+    return Number.isNaN(count) ? undefined : count;
+  }
+
+  /**
+   * A JMS body carries no content type, so it is shown as text when it decodes as UTF-8 without
+   * control characters (XML, JSON, EDI, CSV), and as base64 otherwise.
+   */
+  private static decodePayload(bytes: Uint8Array): JmsMessagePayload {
+    try {
+      const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+      // eslint-disable-next-line no-control-regex -- control characters are what we look for.
+      if (!/[\u0000-\u0008\u000E-\u001F]/.test(text)) {
+        return { content: text, encoding: "text", sizeBytes: bytes.byteLength };
+      }
+    } catch {
+      // not UTF-8 — fall through to base64
+    }
+    return {
+      content: Buffer.from(bytes).toString("base64"),
+      encoding: "base64",
+      sizeBytes: bytes.byteLength,
     };
   }
 

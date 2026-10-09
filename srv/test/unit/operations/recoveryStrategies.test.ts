@@ -121,6 +121,10 @@ interface FakeQueueOptions {
   readonly failMove?: boolean;
   /** When true, the move "succeeds" but the message never appears on the target — the danger case. */
   readonly moveSilentlyLoses?: boolean;
+  /** When true, the move is accepted but the message stays on the source queue. */
+  readonly moveIgnored?: boolean;
+  /** The `processedCount` the tenant reports for a move; `null` = no count in the reply. Default 1. */
+  readonly moveReports?: number | null;
   /** When true, `retryMessage` reports `accepted: false`. */
   readonly rejectRetry?: boolean;
   /** When true, `retryMessage` throws. */
@@ -154,15 +158,19 @@ function fakeQueue(options: FakeQueueOptions): {
       sourceQueue: string,
       targetQueue: string,
       messageIds: readonly string[],
-    ): Promise<void> {
+    ): Promise<{ processedCount: number | undefined }> {
       calls.push(`move:${sourceQueue}->${targetQueue}:${messageIds.join(",")}`);
       if (options.failMove === true) {
         throw new Error("tenant rejected the move");
       }
-      options.presentOn.delete(sourceQueue);
-      if (options.moveSilentlyLoses !== true) {
-        options.presentOn.add(targetQueue);
+      const reported = options.moveReports === undefined ? messageIds.length : options.moveReports;
+      if (reported !== 0 && options.moveIgnored !== true) {
+        options.presentOn.delete(sourceQueue);
+        if (options.moveSilentlyLoses !== true) {
+          options.presentOn.add(targetQueue);
+        }
       }
+      return { processedCount: reported ?? undefined };
     },
     async retryMessage(messageId: string, queueName: string) {
       calls.push(`retry:${queueName}`);
@@ -209,9 +217,7 @@ describe("operations/recovery TPM V2 strategy", () => {
     const presentOn = new Set(["SAP_TPM_COM_PROCESSING_OUTBOUND_DEAD_LETTER_Q"]);
     const { engine, calls } = fakeQueue({ presentOn });
     const detection = await detect(message(), [message()], {}, presentOn);
-    const plan = await resolver
-      .resolve(detection)
-      .resolve(context({ detection, queue: engine }));
+    const plan = await resolver.resolve(detection).resolve(context({ detection, queue: engine }));
 
     assert.equal(plan.framework, "TPM_V2");
     assert.equal(plan.currentQueue, "SAP_TPM_COM_PROCESSING_OUTBOUND_DEAD_LETTER_Q");
@@ -302,7 +308,8 @@ describe("operations/recovery TPM V2 execution", () => {
 
   it("does NOT retry when the move was accepted but verification cannot find the message", async () => {
     const presentOn = new Set(["SAP_TPM_COM_PROCESSING_OUTBOUND_DEAD_LETTER_Q"]);
-    const { engine, calls } = fakeQueue({ presentOn, moveSilentlyLoses: true });
+    // The tenant's reply carried no count, so nothing positively confirms the move.
+    const { engine, calls } = fakeQueue({ presentOn, moveSilentlyLoses: true, moveReports: null });
     const detection = await detect(message(), [message()], {}, presentOn);
     const strategy = resolver.resolve(detection);
     const ctx = context({ detection, queue: engine });
@@ -319,6 +326,71 @@ describe("operations/recovery TPM V2 execution", () => {
     assert.equal(outcome.recoveryState, "MANUAL_INVESTIGATION_REQUIRED");
     const verify = outcome.steps.find((step) => step.action === "VERIFY");
     assert.ok(verify !== undefined && !verify.succeeded);
+  });
+
+  it("accepts without a second retry when the tenant confirms the move and the flow already consumed it", async () => {
+    const presentOn = new Set(["SAP_TPM_COM_PROCESSING_OUTBOUND_DEAD_LETTER_Q"]);
+    // Gone from the DLQ, not visible on SAP_TPM_INBOUND_Q: its processing flow picked it up at once.
+    const { engine, calls } = fakeQueue({ presentOn, moveSilentlyLoses: true, moveReports: 1 });
+    const detection = await detect(message(), [message()], {}, presentOn);
+    const strategy = resolver.resolve(detection);
+    const ctx = context({ detection, queue: engine });
+    const plan = await strategy.resolve(ctx);
+    calls.length = 0;
+
+    const outcome = await strategy.execute(ctx, plan);
+
+    assert.deepEqual(calls, [
+      "move:SAP_TPM_COM_PROCESSING_OUTBOUND_DEAD_LETTER_Q->SAP_TPM_INBOUND_Q:msg-under-test",
+      "get:SAP_TPM_INBOUND_Q",
+      "get:SAP_TPM_COM_PROCESSING_OUTBOUND_DEAD_LETTER_Q",
+    ]);
+    assert.equal(outcome.status, "accepted");
+    assert.deepEqual(
+      outcome.steps.map((step) => step.action),
+      ["LOCATED", "MOVE", "VERIFY"],
+    );
+    assert.ok(outcome.steps.every((step) => step.succeeded));
+    assert.match(outcome.note, /picked it up/);
+  });
+
+  it("stops, without verifying or retrying, when the tenant reports 0 messages moved", async () => {
+    const presentOn = new Set(["SAP_TPM_COM_PROCESSING_OUTBOUND_DEAD_LETTER_Q"]);
+    const { engine, calls } = fakeQueue({ presentOn, moveReports: 0 });
+    const detection = await detect(message(), [message()], {}, presentOn);
+    const strategy = resolver.resolve(detection);
+    const ctx = context({ detection, queue: engine });
+    const plan = await strategy.resolve(ctx);
+    calls.length = 0;
+
+    const outcome = await strategy.execute(ctx, plan);
+
+    assert.deepEqual(calls, [
+      "move:SAP_TPM_COM_PROCESSING_OUTBOUND_DEAD_LETTER_Q->SAP_TPM_INBOUND_Q:msg-under-test",
+    ]);
+    assert.equal(outcome.status, "failed");
+    const move = outcome.steps.at(-1);
+    assert.equal(move?.action, "MOVE");
+    assert.equal(move?.succeeded, false);
+    assert.match(move?.detail ?? "", /moved 0 messages/);
+  });
+
+  it("fails verification when an accepted move left the message on the dead-letter queue", async () => {
+    const presentOn = new Set(["SAP_TPM_COM_PROCESSING_OUTBOUND_DEAD_LETTER_Q"]);
+    const { engine, calls } = fakeQueue({ presentOn, moveIgnored: true });
+    const detection = await detect(message(), [message()], {}, presentOn);
+    const strategy = resolver.resolve(detection);
+    const ctx = context({ detection, queue: engine });
+    const plan = await strategy.resolve(ctx);
+    calls.length = 0;
+
+    const outcome = await strategy.execute(ctx, plan);
+
+    assert.ok(!calls.some((call) => call.startsWith("retry:")));
+    assert.equal(outcome.status, "failed");
+    const verify = outcome.steps.find((step) => step.action === "VERIFY");
+    assert.equal(verify?.succeeded, false);
+    assert.match(verify?.detail ?? "", /still on "SAP_TPM_COM_PROCESSING_OUTBOUND_DEAD_LETTER_Q"/);
   });
 
   it("stops at the move and retries nothing when the move itself fails", async () => {
@@ -731,9 +803,7 @@ describe("operations/recovery RecoveryStrategyResolver", () => {
         framework.id === "TPM_V2" ? { ...framework, enabled: false } : framework,
       ),
     );
-    assert.ok(
-      !withoutTpm.listStrategies().some((strategy) => strategy.framework === "TPM_V2"),
-    );
+    assert.ok(!withoutTpm.listStrategies().some((strategy) => strategy.framework === "TPM_V2"));
 
     const strategy = withoutTpm.resolve({ framework: "TPM_V2" } as FrameworkDetection);
     assert.equal(strategy.framework, "UNKNOWN", "the manual fallback must claim it");

@@ -214,6 +214,13 @@ export class FetchHttpClient implements IHttpClient {
   ): Promise<HttpResponse> {
     const headers = new Map<string, string>();
     response.headers.forEach((value, key) => headers.set(key, value));
+    // Iteration yields each Set-Cookie separately, so the map above kept only the last one. Keep
+    // them all (newline-joined; a newline can never occur inside a header value) — a CSRF token is
+    // only valid together with every session cookie it was issued with.
+    const setCookies = response.headers.getSetCookie();
+    if (setCookies.length > 1) {
+      headers.set("set-cookie", setCookies.join("\n"));
+    }
     const base = {
       status: response.status,
       headers,

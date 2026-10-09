@@ -151,6 +151,7 @@ function buildJmsProvider(mockEngine: MockEngine): IJmsProvider {
         tenantId: context.tenantId,
         generateSuccess: () => ({ queueName, messageId }),
       });
+      return { processedCount: 1 };
     },
     getMessage: () => Promise.resolve(undefined),
   };

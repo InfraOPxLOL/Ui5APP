@@ -111,6 +111,37 @@ describe("sdk/providers/RealB2bMonitoringProvider", () => {
     assert.equal(row?.retryAllowed, true);
   });
 
+  it("sends the advanced filters as exact, substring and either-side v2 conditions", async () => {
+    const { client, requests } = recordingClient(() => ({ ...ok({ results: [], __count: "0" }) }));
+    await provider(client).queryInterchanges(
+      context,
+      {
+        interchangeId: "abc",
+        direction: "INBOUND",
+        agreementTypeName: "AMAZON 850",
+        adapterType: "AS2",
+        systemId: "AMAZONJP",
+        functionalAckStatus: "ACCEPTED",
+      },
+      { skip: 0, top: 10 },
+    );
+    const filter = String(requests[0]?.query?.$filter);
+    assert.ok(filter.includes("Id eq 'abc'"), filter);
+    assert.ok(filter.includes("InterchangeDirection eq 'INBOUND'"), filter);
+    assert.ok(filter.includes("ReceiverFunctionalAckStatus eq 'ACCEPTED'"), filter);
+    assert.ok(filter.includes("substringof('AMAZON 850',AgreementTypeName)"), filter);
+    assert.ok(
+      filter.includes("((SenderAdapterType eq 'AS2') or (ReceiverAdapterType eq 'AS2'))"),
+      filter,
+    );
+    assert.ok(
+      filter.includes(
+        "((substringof('AMAZONJP',SenderSystemId)) or (substringof('AMAZONJP',ReceiverSystemId)))",
+      ),
+      filter,
+    );
+  });
+
   it("getInterchange reads the document, then events, payloads and errors as navigations", async () => {
     const docUrl = `${BASE}/BusinessDocuments('${RAW_DOCUMENT.Id}')`;
     const { client, requests } = recordingClient((options) => {

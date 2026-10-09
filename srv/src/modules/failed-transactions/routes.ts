@@ -34,6 +34,12 @@ failedTransactionsRouter.get(
   catchAsync(controller.getDetail),
 );
 
+failedTransactionsRouter.get(
+  "/:messageId/payload",
+  validateRequest({ params: messageIdParamSchema, query: detailQuerySchema }),
+  catchAsync(controller.getPayload),
+);
+
 failedTransactionsRouter.post(
   "/:messageId/retry",
   requireScope("MessageReplay.Execute"),

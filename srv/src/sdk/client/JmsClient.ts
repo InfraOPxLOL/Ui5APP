@@ -1,5 +1,7 @@
 import type { IJmsProvider } from "../../core/providers/IJmsProvider.js";
 import type {
+  JmsMessagePayload,
+  JmsOperationResult,
   ProviderPage,
   ProviderPagedResult,
   QueueRuntimeInfo,
@@ -81,10 +83,11 @@ export class JmsClient {
       );
     }
     const resolved = resolveContext(this.defaultTenantId, context);
-    await this.provider.retryMessage(resolved, request.queueName, request.messageId);
+    const result = await this.provider.retryMessage(resolved, request.queueName, request.messageId);
     return {
       messageId: request.messageId,
-      accepted: true,
+      // A reply that processed nothing is a refusal, whatever its HTTP status.
+      accepted: result.processedCount !== 0,
       correlationId: resolved.correlationId,
     };
   }
@@ -104,12 +107,25 @@ export class JmsClient {
     targetQueue: string,
     messageIds: readonly string[],
     context?: ClientCallContext,
-  ): Promise<void> {
+  ): Promise<JmsOperationResult> {
     return this.provider.moveMessages(
       resolveContext(this.defaultTenantId, context),
       sourceQueue,
       targetQueue,
       messageIds,
+    );
+  }
+
+  /** Reads one message's body. See {@link IJmsProvider.getMessagePayload}. */
+  public getMessagePayload(
+    queueName: string,
+    messageId: string,
+    context?: ClientCallContext,
+  ): Promise<JmsMessagePayload | undefined> {
+    return this.provider.getMessagePayload(
+      resolveContext(this.defaultTenantId, context),
+      queueName,
+      messageId,
     );
   }
 
@@ -119,6 +135,10 @@ export class JmsClient {
     messageId: string,
     context?: ClientCallContext,
   ): Promise<QueuedMessage | undefined> {
-    return this.provider.getMessage(resolveContext(this.defaultTenantId, context), queueName, messageId);
+    return this.provider.getMessage(
+      resolveContext(this.defaultTenantId, context),
+      queueName,
+      messageId,
+    );
   }
 }

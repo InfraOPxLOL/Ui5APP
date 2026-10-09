@@ -1,0 +1,12 @@
+/* Shared B2B interchange panel (fragment/b2b/InterchangeTabs). Theme variables only. */
+
+.b2bMono {
+  font-family: var(--sapFontMonospaceFamily, monospace);
+  font-size: var(--sapFontSmallSize);
+  overflow-wrap: anywhere;
+}
+
+.b2bHint {
+  color: var(--sapContent_LabelColor);
+  font-size: var(--sapFontSmallSize);
+}

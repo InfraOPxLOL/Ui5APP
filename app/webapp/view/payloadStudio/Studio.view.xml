@@ -97,7 +97,12 @@
                     syntaxHints="true"
                     colorTheme="{view>/editor/colorTheme}"
                     height="100%"
-                    class="payloadStudioCodeEditor" />
+                    class="payloadStudioCodeEditor">
+                    <!-- Without growing into the pane the editor's 100% resolves to 0px and the payload is invisible. -->
+                    <codeeditor:layoutData>
+                      <FlexItemData growFactor="1" baseSize="0%" minHeight="0" />
+                    </codeeditor:layoutData>
+                  </codeeditor:CodeEditor>
 
                   <!-- Binary payload notice -->
                   <MessageStrip
@@ -110,8 +115,10 @@
                   <!-- Comparison mode -->
                   <VBox
                     visible="{= ${view>/editor/activeTarget} === 'comparison' }"
-                    height="100%"
                     class="payloadStudioComparison">
+                    <layoutData>
+                      <FlexItemData growFactor="1" baseSize="0%" minHeight="0" />
+                    </layoutData>
                     <items>
                       <Toolbar>
                         <Title text="{i18n>payloadStudio.comparison.title}" level="H5" />

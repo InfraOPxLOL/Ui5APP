@@ -103,3 +103,17 @@ export interface FailedTransactionRetryResult {
 export interface FailedTransactionBulkRetryResult {
   readonly results: readonly FailedTransactionRetryResult[];
 }
+
+/** How a message body should be rendered. */
+export type FailedTransactionPayloadFormat = "edi" | "xml" | "json" | "text" | "binary";
+
+/** The body of a parked message, read straight from the broker. */
+export interface FailedTransactionPayload {
+  readonly messageId: string;
+  readonly queueName: string;
+  /** UTF-8 text, or base64 when `encoding` is `base64`. */
+  readonly content: string;
+  readonly encoding: "text" | "base64";
+  readonly format: FailedTransactionPayloadFormat;
+  readonly sizeBytes: number;
+}

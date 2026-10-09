@@ -4,10 +4,22 @@ import { HttpError } from "../../core/errors/HttpError.js";
 
 /** HTTP handlers for Payload Studio. Thin: parse request, call the service, shape response. */
 
-/** GET /:messageId — the composed Payload Studio payload for a message. */
+/**
+ * GET /:messageId[?jmsQueue=&jmsMessageId=|?interchangeId=] — the composed Payload Studio payload
+ * for a message; with the JMS pair the queued message's body is shown, with an interchange id that
+ * interchange's received and sent documents.
+ */
 export async function getStudio(req: Request, res: Response): Promise<void> {
   const messageId = req.params.messageId as string;
-  const studio = await payloadStudioService.getStudio(messageId);
+  const jmsQueue = req.query.jmsQueue as string | undefined;
+  const jmsMessageId = req.query.jmsMessageId as string | undefined;
+  const studio = await payloadStudioService.getStudio(messageId, {
+    jms:
+      jmsQueue === undefined || jmsMessageId === undefined
+        ? undefined
+        : { queueName: jmsQueue, messageId: jmsMessageId },
+    interchangeId: req.query.interchangeId as string | undefined,
+  });
   if (studio === undefined) {
     throw HttpError.notFound(`No message found with id "${messageId}".`);
   }

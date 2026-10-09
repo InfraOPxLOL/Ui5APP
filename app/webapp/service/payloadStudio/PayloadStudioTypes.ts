@@ -13,7 +13,15 @@ export type RetryStatus = "retryable" | "escalated" | "not-applicable";
  * attachment. `"splunk"`: no MPL attachment existed, recovered from Splunk instead (mock-backed
  * today — see the backend's `MockSplunkProvider`). `"unavailable"`: neither source had anything.
  */
-export type PayloadSource = "mpl" | "splunk" | "unavailable";
+export type PayloadSource = "mpl" | "jms" | "b2b" | "splunk" | "unavailable";
+
+/** Where the studio should read the payload from, when the opening screen already knows. */
+export interface StudioSourceHint {
+  /** A message parked on a JMS queue: its broker body is the payload. */
+  readonly jms?: { readonly queueName: string; readonly messageId: string };
+  /** A B2B interchange: its received and sent documents are the payloads. */
+  readonly interchangeId?: string;
+}
 
 /** The content shapes the payload editor recognizes and prepares distinct views for. */
 export type PayloadFormat = "xml" | "json" | "text" | "binary";

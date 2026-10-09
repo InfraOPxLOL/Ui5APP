@@ -30,17 +30,27 @@ export class IntegrationSuiteError extends UpstreamError {
    * @param tenantId the tenant the call targeted.
    * @param status the upstream HTTP status.
    * @param body the (already-read) upstream response body, if any.
+   * @param upstreamMessage the tenant's own explanation, appended when it is short plain text
+   *   (an OData error text such as "Queue 'X' contains messages."), never an HTML error page.
    * @returns a normalized Integration Suite error.
    */
   public static fromCpiResponse(
     tenantId: string,
     status: number,
     body?: unknown,
+    upstreamMessage?: string,
   ): IntegrationSuiteError {
+    const reason =
+      upstreamMessage !== undefined &&
+      upstreamMessage.trim() !== "" &&
+      upstreamMessage.length <= 300 &&
+      !upstreamMessage.trimStart().startsWith("<")
+        ? ` ${upstreamMessage.trim()}`
+        : "";
     return new IntegrationSuiteError(
       tenantId,
       status,
-      `The Integration Suite API for tenant "${tenantId}" responded with status ${status}.`,
+      `The Integration Suite API for tenant "${tenantId}" responded with status ${status}.${reason}`,
       body,
     );
   }

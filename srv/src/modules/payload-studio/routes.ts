@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { catchAsync } from "../../core/middleware/errorHandler.middleware.js";
 import { validateRequest } from "../../core/middleware/validateRequest.middleware.js";
-import { attachmentParamSchema, messageIdParamSchema } from "./validators.js";
+import { attachmentParamSchema, messageIdParamSchema, studioQuerySchema } from "./validators.js";
 import * as controller from "./controller.js";
 
 /**
@@ -18,6 +18,6 @@ payloadStudioRouter.get(
 
 payloadStudioRouter.get(
   "/:messageId",
-  validateRequest({ params: messageIdParamSchema }),
+  validateRequest({ params: messageIdParamSchema, query: studioQuerySchema }),
   catchAsync(controller.getStudio),
 );

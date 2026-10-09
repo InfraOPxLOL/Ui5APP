@@ -134,6 +134,24 @@ export interface QueuedMessage {
   readonly expiresAt?: string;
 }
 
+/** What the tenant reports for a JMS move or retry. */
+export interface JmsOperationResult {
+  /**
+   * The tenant's own `processedCount` — how many messages it actually moved or retried. A request
+   * the tenant accepts can still process `0` (the message had already left the queue).
+   * `undefined` when the reply carried no count.
+   */
+  readonly processedCount: number | undefined;
+}
+
+/** The body of one JMS message, read from the broker (`MessagingMessages(…)/$value`). */
+export interface JmsMessagePayload {
+  readonly content: string;
+  /** `text` when the bytes are readable UTF-8, otherwise `base64`. */
+  readonly encoding: "text" | "base64";
+  readonly sizeBytes: number;
+}
+
 // --- Payloads -------------------------------------------------------------------------------------
 
 /** A stored payload/attachment belonging to a processed message. */
@@ -329,6 +347,30 @@ export interface B2bInterchangeFilter {
   readonly messageType?: string;
   /** Matches either side's interchange control number. */
   readonly controlNumber?: string;
+  /** Exact interchange id (`Id`). */
+  readonly interchangeId?: string;
+  /** Exact `InterchangeDirection`. */
+  readonly direction?: string;
+  /** Substring of `AgreementTypeName`. */
+  readonly agreementTypeName?: string;
+  /** Substring of `TransactionTypeName`. */
+  readonly transactionTypeName?: string;
+  /** Substring of `InterchangeName`. */
+  readonly interchangeName?: string;
+  /** Substring of either side's system id. */
+  readonly systemId?: string;
+  /** Either side's exact adapter type. */
+  readonly adapterType?: string;
+  /** Substring of either side's group control number. */
+  readonly groupControlNumber?: string;
+  /** Substring of either side's message (transaction set) number. */
+  readonly messageNumber?: string;
+  /** Exact `ProcessingStatus`. */
+  readonly processingStatus?: string;
+  /** Exact `ReceiverTechnicalAckStatus`. */
+  readonly technicalAckStatus?: string;
+  /** Exact `ReceiverFunctionalAckStatus`. */
+  readonly functionalAckStatus?: string;
 }
 
 /** One processing event of an interchange. `monitoringId` links to an MPL when `monitoringType` says so. */

@@ -7,18 +7,36 @@ import {
 
 /** HTTP handlers for the Report Server. Thin: parse, call the service, respond. */
 
-function toFilterQuery(query: Request["query"]): ReportServerFilterQuery {
+/** Every filter the list and summary endpoints accept (already validated by the route). */
+const FILTER_FIELDS: readonly (keyof ReportServerFilterQuery)[] = [
+  "dateFrom",
+  "dateTo",
+  "status",
+  "senderPartner",
+  "receiverPartner",
+  "documentStandard",
+  "messageType",
+  "controlNumber",
+  "interchangeId",
+  "mplId",
+  "direction",
+  "agreement",
+  "transactionType",
+  "interchangeName",
+  "systemId",
+  "adapterType",
+  "groupControlNumber",
+  "messageNumber",
+  "processingStatus",
+  "technicalAckStatus",
+  "functionalAckStatus",
+];
+
+export function toFilterQuery(query: Request["query"]): ReportServerFilterQuery {
   const q = query as Record<string, string | undefined>;
-  return {
-    dateFrom: q.dateFrom,
-    dateTo: q.dateTo,
-    status: q.status,
-    senderPartner: q.senderPartner,
-    receiverPartner: q.receiverPartner,
-    documentStandard: q.documentStandard,
-    messageType: q.messageType,
-    controlNumber: q.controlNumber,
-  };
+  return Object.fromEntries(
+    FILTER_FIELDS.filter((field) => q[field] !== undefined).map((field) => [field, q[field]]),
+  ) as ReportServerFilterQuery;
 }
 
 /** GET / — interchanges, newest first. */

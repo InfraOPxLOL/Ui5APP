@@ -29,6 +29,7 @@ export {
 export { generateRuntimeArtifacts } from "./RuntimeArtifactFixtures.js";
 export {
   generateQueueStates,
+  generateQueuedMessagePayload,
   generateQueuedMessages,
   generateSingleMessage,
   generateTpmDlqMessages,

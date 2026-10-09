@@ -15,7 +15,10 @@ export class MockPayloadProvider implements IPayloadProvider {
     const attachments = await this.mockEngine.resolve({
       operationKey: "payload.listAttachments",
       tenantId: context.tenantId,
-      generateSuccess: () => generatePayloadAttachments(messageId, 1),
+      // The TPM dead-letter scenarios log no attachments, like real TPM flows: their documents live
+      // in the B2B Monitor, which is where Payload Studio then finds them.
+      generateSuccess: () =>
+        messageId.startsWith("tpm-dlq-") ? [] : generatePayloadAttachments(messageId, 1),
       generateEmpty: () => [],
     });
     return attachments.map(({ content: _content, ...metadata }) => metadata);

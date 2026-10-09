@@ -1,4 +1,6 @@
 import type {
+  JmsMessagePayload,
+  JmsOperationResult,
   ProviderContext,
   ProviderPage,
   ProviderPagedResult,
@@ -71,8 +73,13 @@ export interface IJmsProvider {
    * @param context the tenant/correlation context.
    * @param queueName the physical queue name the message sits on.
    * @param messageId the JMS message id to retry.
+   * @returns the tenant's reported processed count.
    */
-  retryMessage(context: ProviderContext, queueName: string, messageId: string): Promise<void>;
+  retryMessage(
+    context: ProviderContext,
+    queueName: string,
+    messageId: string,
+  ): Promise<JmsOperationResult>;
 
   /**
    * Moves specific messages from one queue to another (the Cloud Integration JMS OData API's
@@ -88,13 +95,28 @@ export interface IJmsProvider {
    * @param sourceQueue the physical queue the messages currently sit on.
    * @param targetQueue the physical queue to move them to.
    * @param messageIds the specific JMS message ids to move.
+   * @returns the tenant's reported processed count — `0` means nothing was moved.
    */
   moveMessages(
     context: ProviderContext,
     sourceQueue: string,
     targetQueue: string,
     messageIds: readonly string[],
-  ): Promise<void>;
+  ): Promise<JmsOperationResult>;
+
+  /**
+   * Reads one message's body from the broker (`MessagingMessages(…)/$value`; needs the
+   * `DataStorePayloadsRead` role on the tenant's API service key).
+   * @param context the tenant/correlation context.
+   * @param queueName the physical queue the message sits on.
+   * @param messageId the JMS message id.
+   * @returns the body, or `undefined` when the message is no longer on that queue.
+   */
+  getMessagePayload(
+    context: ProviderContext,
+    queueName: string,
+    messageId: string,
+  ): Promise<JmsMessagePayload | undefined>;
 
   /**
    * Reads one message directly by its composite key (`jmsMessageId` + `queueName`) — cheaper and

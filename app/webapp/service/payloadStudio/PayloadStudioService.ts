@@ -1,6 +1,6 @@
 import BaseService from "../../core/base/BaseService";
 import DownloadUtils from "../../core/utils/DownloadUtils";
-import type { PayloadStudioData } from "./PayloadStudioTypes";
+import type { PayloadStudioData, StudioSourceHint } from "./PayloadStudioTypes";
 
 /**
  * Data service for Payload Studio. Consumes **only** `/api/v1/payload-studio`, which the backend
@@ -17,10 +17,26 @@ export default class PayloadStudioService extends BaseService {
    * Loads the full Payload Studio payload for a message.
    * @param messageId the message id.
    * @param signal optional abort signal.
+   * @param hint where to read the payload from, when the opening screen knows (JMS body, interchange).
    * @returns the composed payload.
    */
-  public async getStudio(messageId: string, signal?: AbortSignal): Promise<PayloadStudioData> {
-    return this.client.get<PayloadStudioData>(this.path(encodeURIComponent(messageId)), { signal });
+  public async getStudio(
+    messageId: string,
+    signal?: AbortSignal,
+    hint: StudioSourceHint = {},
+  ): Promise<PayloadStudioData> {
+    const query: Record<string, string> = {};
+    if (hint.jms !== undefined) {
+      query.jmsQueue = hint.jms.queueName;
+      query.jmsMessageId = hint.jms.messageId;
+    }
+    if (hint.interchangeId !== undefined) {
+      query.interchangeId = hint.interchangeId;
+    }
+    return this.client.get<PayloadStudioData>(this.path(encodeURIComponent(messageId)), {
+      signal,
+      query,
+    });
   }
 
   /**

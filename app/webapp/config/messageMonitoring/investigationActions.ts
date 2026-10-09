@@ -42,6 +42,13 @@ export const INVESTIGATION_ACTIONS: readonly InvestigationActionDefinition[] = [
     permission: { anyRoleCollection: [RoleCollections.PayloadViewer] },
   },
   {
+    id: "openInterchange",
+    titleKey: "action.openInterchange",
+    icon: "sap-icon://business-objects-experience",
+    kind: "navigate",
+    route: "reportServer",
+  },
+  {
     id: "openHeaders",
     titleKey: "action.openHeaders",
     icon: "sap-icon://list",

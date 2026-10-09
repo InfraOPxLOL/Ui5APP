@@ -263,3 +263,33 @@ describe("modules/failed-transactions retry", () => {
     );
   });
 });
+
+describe("modules/failed-transactions payload", () => {
+  const scenario = TPM_DLQ_SCENARIOS.find((s) => s.jmsMessageId.startsWith("tpm-dlq-p-"));
+
+  it("reads a parked message's body from the broker and recognises EDI", async () => {
+    assert.ok(scenario !== undefined);
+    const payload = await newService().getPayload(scenario.jmsMessageId, scenario.queueName);
+    assert.equal(payload.encoding, "text");
+    assert.equal(payload.format, "edi");
+    assert.match(payload.content, new RegExp(scenario.controlNumber));
+    assert.ok(payload.sizeBytes > 0);
+  });
+
+  it("answers 404 for a message that has left the queue", async () => {
+    assert.ok(scenario !== undefined);
+    const service = newService();
+    await service.retry(scenario.jmsMessageId, scenario.queueName, undefined);
+    await assert.rejects(
+      service.getPayload(scenario.jmsMessageId, scenario.queueName),
+      (error: unknown) => error instanceof HttpError && error.statusCode === 404,
+    );
+  });
+
+  it("refuses queues that are not TPM dead-letter queues", async () => {
+    await assert.rejects(
+      newService().getPayload(MOCK_TPM_PROCESSING_DLQ_MESSAGE_ID, MOCK_TPM_INBOUND_QUEUE),
+      (error: unknown) => error instanceof HttpError && error.statusCode === 400,
+    );
+  });
+});

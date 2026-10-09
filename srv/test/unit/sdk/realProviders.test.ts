@@ -182,10 +182,11 @@ describe("sdk/providers/RealRuntimeProvider", () => {
     };
     const provider = new RealRuntimeProvider(new RequestPipeline(stubResolver), httpClient);
     await provider.restartArtifact(context, "art1");
-    assert.equal(calls.length, 2);
-    assert.ok(calls[1]?.url.endsWith("/DeployIntegrationDesigntimeArtifact"));
-    assert.equal(calls[1]?.query?.Id, "'art1'");
-    assert.equal(calls[1]?.query?.Version, "'1.0.1'");
+    assert.equal(calls.length, 3);
+    assert.equal(calls[1]?.headers?.["X-CSRF-Token"], "Fetch", "the redeploy fetches a CSRF token first");
+    assert.ok(calls[2]?.url.endsWith("/DeployIntegrationDesigntimeArtifact"));
+    assert.equal(calls[2]?.query?.Id, "'art1'");
+    assert.equal(calls[2]?.query?.Version, "'1.0.1'");
   });
 
   it("restartArtifact throws a typed not-found error when the artifact isn't deployed", async () => {

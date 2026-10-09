@@ -1,32 +1,46 @@
 import JSONModel from "sap/ui/model/json/JSONModel";
 import type {
   Interchange,
-  InterchangeDetail,
   ReportServerFilters,
 } from "../../service/reportServer/ReportServerTypes";
-import type { StatusTile } from "../../formatter/reportServer/ReportServerFormatter";
+import ReportServerFormatter, {
+  type StatusTile,
+} from "../../formatter/reportServer/ReportServerFormatter";
+import { STANDARD_VIEW_KEY } from "../../core/services/views/SavedViewStore";
 
-/** The payload currently open in the detail viewer. */
-export interface OpenPayload {
-  id: string;
-  direction: string;
-  /** Toolbar text, e.g. "EDI · 1.2 KB". */
-  label: string;
+/** One entry of the views dropdown (`sap.m.VariantItem`). */
+export interface ViewItem {
+  key: string;
+  title: string;
+  /** The built-in standard view can be neither renamed nor deleted. */
+  rename: boolean;
+  remove: boolean;
+}
+
+/** One entry of the time-window dropdown. */
+export interface TimePresetItem {
+  key: string;
   text: string;
-  editorType: string;
-  format: string;
-  sizeBytes: number;
-  isBinary: boolean;
+  code: string;
 }
 
 /** Shape of the Report Server view model. */
 export interface ReportServerState {
   busy: boolean;
   detailBusy: boolean;
-  payloadBusy: boolean;
   /** Set when the tenant has no B2B monitoring (TPM not activated); the list is hidden. */
   unavailableMessage: string;
   filters: ReportServerFilters;
+  /** Whether the advanced search fields are shown. */
+  advanced: boolean;
+  /** How many advanced fields are set (shown on the toggle). */
+  advancedCount: number;
+  timePresets: TimePresetItem[];
+  views: ViewItem[];
+  selectedViewKey: string;
+  defaultViewKey: string;
+  /** Filters changed since the selected view was applied. */
+  viewModified: boolean;
   tiles: StatusTile[];
   summaryTruncated: boolean;
   items: Interchange[];
@@ -36,21 +50,11 @@ export interface ReportServerState {
   hasMore: boolean;
   showingText: string;
   selectedId: string;
-  detail: InterchangeDetail | null;
-  payload: OpenPayload | null;
 }
 
+/** @returns the filters of a fresh screen. */
 export function emptyFilters(): ReportServerFilters {
-  return {
-    dateFrom: null,
-    dateTo: null,
-    status: "",
-    senderPartner: "",
-    receiverPartner: "",
-    documentStandard: "",
-    messageType: "",
-    controlNumber: "",
-  };
+  return ReportServerFormatter.defaultFilters();
 }
 
 /**
@@ -63,9 +67,15 @@ export default class ReportServerModel extends JSONModel {
     const initial: ReportServerState = {
       busy: false,
       detailBusy: false,
-      payloadBusy: false,
       unavailableMessage: "",
       filters: emptyFilters(),
+      advanced: false,
+      advancedCount: 0,
+      timePresets: [],
+      views: [],
+      selectedViewKey: STANDARD_VIEW_KEY,
+      defaultViewKey: STANDARD_VIEW_KEY,
+      viewModified: false,
       tiles: [],
       summaryTruncated: false,
       items: [],
@@ -75,8 +85,6 @@ export default class ReportServerModel extends JSONModel {
       hasMore: false,
       showingText: "",
       selectedId: "",
-      detail: null,
-      payload: null,
     };
     super(initial);
   }

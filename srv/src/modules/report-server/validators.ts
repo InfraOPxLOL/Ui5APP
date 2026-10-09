@@ -10,6 +10,19 @@ const filterFields = {
   documentStandard: z.string().trim().min(1).max(60).optional(),
   messageType: z.string().trim().min(1).max(60).optional(),
   controlNumber: z.string().trim().min(1).max(60).optional(),
+  interchangeId: z.string().trim().min(1).max(120).optional(),
+  mplId: z.string().trim().min(1).max(120).optional(),
+  direction: z.string().trim().min(1).max(40).optional(),
+  agreement: z.string().trim().min(1).max(120).optional(),
+  transactionType: z.string().trim().min(1).max(120).optional(),
+  interchangeName: z.string().trim().min(1).max(200).optional(),
+  systemId: z.string().trim().min(1).max(120).optional(),
+  adapterType: z.string().trim().min(1).max(60).optional(),
+  groupControlNumber: z.string().trim().min(1).max(60).optional(),
+  messageNumber: z.string().trim().min(1).max(60).optional(),
+  processingStatus: z.string().trim().min(1).max(60).optional(),
+  technicalAckStatus: z.string().trim().min(1).max(60).optional(),
+  functionalAckStatus: z.string().trim().min(1).max(60).optional(),
 };
 
 export const listQuerySchema = z.object({

@@ -1,3 +1,5 @@
+import type { TimePresetKey } from "../../core/utils/TimePresets";
+
 /** Client-side mirrors of the Report Server API (`/api/v1/report-server`). */
 
 export type InterchangeStatusCategory = "success" | "error" | "inProgress" | "unknown";
@@ -104,28 +106,54 @@ export interface InterchangeStatusSummary {
   readonly truncated: boolean;
 }
 
-/** The filters a user can set, as held in the view model (empty string = not set). */
-export interface ReportServerFilters {
-  dateFrom: Date | null;
-  dateTo: Date | null;
+/** The text filters a user can set (empty string = not set). */
+export interface ReportServerTextFilters {
   status: string;
   senderPartner: string;
   receiverPartner: string;
   documentStandard: string;
   messageType: string;
   controlNumber: string;
+  // Advanced search
+  interchangeId: string;
+  mplId: string;
+  direction: string;
+  agreement: string;
+  transactionType: string;
+  interchangeName: string;
+  systemId: string;
+  adapterType: string;
+  groupControlNumber: string;
+  messageNumber: string;
+  processingStatus: string;
+  technicalAckStatus: string;
+  functionalAckStatus: string;
+}
+
+/** The filters as held in the view model: a time window plus the text filters. */
+export interface ReportServerFilters extends ReportServerTextFilters {
+  timePreset: TimePresetKey;
+  /** Explicit bounds; only used when `timePreset` is `custom`. */
+  dateFrom: Date | null;
+  dateTo: Date | null;
 }
 
 /** The query-string form of {@link ReportServerFilters}. */
-export interface ReportServerQuery {
+export type ReportServerQuery = {
+  readonly [K in keyof ReportServerTextFilters]?: string;
+} & {
   readonly dateFrom?: string;
   readonly dateTo?: string;
-  readonly status?: string;
-  readonly senderPartner?: string;
-  readonly receiverPartner?: string;
-  readonly documentStandard?: string;
-  readonly messageType?: string;
-  readonly controlNumber?: string;
   readonly page?: number;
   readonly pageSize?: number;
+};
+
+/** What a saved view or a shared link restores: dates as ISO strings, so it survives JSON. */
+export interface ReportServerViewState {
+  readonly filters: Omit<ReportServerFilters, "dateFrom" | "dateTo"> & {
+    readonly dateFrom: string | null;
+    readonly dateTo: string | null;
+  };
+  /** Whether the advanced search fields were open. */
+  readonly advanced: boolean;
 }

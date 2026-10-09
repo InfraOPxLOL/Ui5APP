@@ -5,13 +5,13 @@ import type {
   ProviderContext,
 } from "../../core/providers/types.js";
 import type { IHttpClient } from "../http/IHttpClient.js";
-import type { OperationContext } from "../models/OperationContext.js";
 import type { TenantContext } from "../models/TenantContext.js";
 import type { RequestPipeline } from "../pipeline/RequestPipeline.js";
 import { ODataClient } from "../odata/ODataClient.js";
 import { ODataQueryBuilder } from "../odata/ODataQueryBuilder.js";
 import { ODataFilter } from "../odata/ODataFilter.js";
 import { SdkRestClient } from "../rest/SdkRestClient.js";
+import { csrfWriteHeaders, fetchCsrfHandshake } from "../rest/CsrfHandshake.js";
 import { parseODataV2DateTime, toODataV2KeyLiteral } from "./RealProviderSupport.js";
 
 /** Raw shape of one `StringParameters` entity (OData v2; `LastModifiedTime` is `/Date(ms)/`). */
@@ -35,12 +35,6 @@ interface CpiBinaryParameter {
   readonly Value: string;
   readonly LastModifiedBy?: string;
   readonly LastModifiedTime?: string;
-}
-
-/** The CSRF token + session cookie captured from a `X-CSRF-Token: Fetch` handshake. */
-interface CsrfHandshake {
-  readonly token: string | undefined;
-  readonly cookie: string | undefined;
 }
 
 /**
@@ -121,8 +115,8 @@ export class RealPartnerDirectoryProvider implements IPartnerDirectoryProvider {
           tenant,
           opContext,
         );
-        const csrf = await this.fetchCsrf(tenant, opContext);
-        const headers = RealPartnerDirectoryProvider.writeHeaders(tenant, csrf);
+        const csrf = await fetchCsrfHandshake(this.httpClient, tenant, opContext);
+        const headers = csrfWriteHeaders(tenant, csrf);
         const body = { Pid: parameter.pid, Id: parameter.id, Value: parameter.value };
         if (existing === undefined) {
           await this.restClient.post(`${tenant.baseUrl}/StringParameters`, body, opContext, {
@@ -174,9 +168,9 @@ export class RealPartnerDirectoryProvider implements IPartnerDirectoryProvider {
         if (existing === undefined) {
           return;
         }
-        const csrf = await this.fetchCsrf(tenant, opContext);
+        const csrf = await fetchCsrfHandshake(this.httpClient, tenant, opContext);
         await this.restClient.delete(this.parameterUrl(tenant, pid, id), opContext, {
-          headers: RealPartnerDirectoryProvider.writeHeaders(tenant, csrf),
+          headers: csrfWriteHeaders(tenant, csrf),
         });
       },
     });
@@ -244,8 +238,8 @@ export class RealPartnerDirectoryProvider implements IPartnerDirectoryProvider {
           tenant,
           opContext,
         );
-        const csrf = await this.fetchCsrf(tenant, opContext);
-        const headers = RealPartnerDirectoryProvider.writeHeaders(tenant, csrf);
+        const csrf = await fetchCsrfHandshake(this.httpClient, tenant, opContext);
+        const headers = csrfWriteHeaders(tenant, csrf);
         const body = {
           Pid: parameter.pid,
           Id: parameter.id,
@@ -303,36 +297,12 @@ export class RealPartnerDirectoryProvider implements IPartnerDirectoryProvider {
         if (existing === undefined) {
           return;
         }
-        const csrf = await this.fetchCsrf(tenant, opContext);
+        const csrf = await fetchCsrfHandshake(this.httpClient, tenant, opContext);
         await this.restClient.delete(this.binaryParameterUrl(tenant, pid, id), opContext, {
-          headers: RealPartnerDirectoryProvider.writeHeaders(tenant, csrf),
+          headers: csrfWriteHeaders(tenant, csrf),
         });
       },
     });
-  }
-
-  /**
-   * Performs the CPI CSRF handshake: a GET on the service root with `X-CSRF-Token: Fetch`, reading
-   * the issued token and any session cookie from the response headers (both keyed lower-case by the
-   * HTTP layer). Best-effort — a tenant that doesn't require CSRF simply returns no token, and the
-   * subsequent write proceeds without one.
-   */
-  private async fetchCsrf(
-    tenant: TenantContext,
-    context: OperationContext,
-  ): Promise<CsrfHandshake> {
-    const response = await this.httpClient.execute(
-      {
-        method: "GET",
-        url: `${tenant.baseUrl}/`,
-        headers: { ...tenant.headers, Accept: "application/json", "X-CSRF-Token": "Fetch" },
-      },
-      context,
-    );
-    return {
-      token: response.headers.get("x-csrf-token"),
-      cookie: response.headers.get("set-cookie"),
-    };
   }
 
   private parameterUrl(tenant: TenantContext, pid: string, id: string): string {
@@ -341,17 +311,6 @@ export class RealPartnerDirectoryProvider implements IPartnerDirectoryProvider {
 
   private binaryParameterUrl(tenant: TenantContext, pid: string, id: string): string {
     return `${tenant.baseUrl}/BinaryParameters(Pid=${toODataV2KeyLiteral(pid)},Id=${toODataV2KeyLiteral(id)})`;
-  }
-
-  private static writeHeaders(tenant: TenantContext, csrf: CsrfHandshake): Record<string, string> {
-    const headers: Record<string, string> = { ...tenant.headers, Accept: "application/json" };
-    if (csrf.token !== undefined) {
-      headers["X-CSRF-Token"] = csrf.token;
-    }
-    if (csrf.cookie !== undefined) {
-      headers.Cookie = csrf.cookie;
-    }
-    return headers;
   }
 
   private static toDomain(raw: CpiStringParameter): PartnerDirectoryStringParameter {

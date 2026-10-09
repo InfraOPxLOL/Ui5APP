@@ -55,6 +55,44 @@ describe("modules/report-server list and summary", () => {
     assert.equal(byControl.items[0]?.id, TPM_DLQ_SCENARIOS[0]?.interchangeId);
   });
 
+  it("filters on direction, adapter and agreement", async () => {
+    const inbound = await newService().list({ direction: "INBOUND", pageSize: 500 });
+    assert.ok(inbound.items.length > 0);
+    assert.ok(inbound.items.every((row) => row.direction === "INBOUND"));
+
+    const as2 = await newService().list({ adapterType: "AS2", pageSize: 500 });
+    assert.ok(as2.items.length > 0);
+    assert.ok(
+      as2.items.every(
+        (row) => row.sender.adapterType === "AS2" || row.receiver.adapterType === "AS2",
+      ),
+    );
+
+    const scenario = TPM_DLQ_SCENARIOS[0];
+    const byAgreement = await newService().list({
+      agreement: scenario?.messageType ?? "",
+      pageSize: 500,
+    });
+    assert.ok(byAgreement.items.some((row) => row.id === scenario?.interchangeId));
+  });
+
+  it("finds the interchange a processing log belongs to", async () => {
+    const scenario = TPM_DLQ_SCENARIOS.find((s) => s.mplId.startsWith("tpm-dlq-"));
+    const result = await newService().list({ mplId: scenario?.mplId });
+    assert.equal(result.total, 1);
+    assert.equal(result.items[0]?.id, scenario?.interchangeId);
+
+    const summary = await newService().summary({ mplId: scenario?.mplId });
+    assert.equal(summary.total, 1);
+  });
+
+  it("returns nothing for a processing log that belongs to no interchange", async () => {
+    const result = await newService().list({ mplId: "msg-not-b2b" });
+    assert.equal(result.total, 0);
+    assert.equal(result.items.length, 0);
+    assert.equal((await newService().summary({ mplId: "msg-not-b2b" })).total, 0);
+  });
+
   it("summarises status counts that add up to the total", async () => {
     const summary = await newService().summary({});
     const sum = summary.counts.reduce((total, entry) => total + entry.count, 0);
@@ -140,5 +178,17 @@ describe("operations/engines/B2bEngine.categorize", () => {
     assert.equal(B2bEngine.categorize("WAITING_FOR_ACK"), "inProgress");
     assert.equal(B2bEngine.categorize("ARCHIVED"), "unknown");
     assert.equal(B2bEngine.categorize(undefined), "unknown");
+  });
+});
+
+describe("modules/report-server controller", () => {
+  it("passes every filter the route validates on to the service", async () => {
+    const { toFilterQuery } = await import("../../../src/modules/report-server/controller.js");
+    const { listQuerySchema } = await import("../../../src/modules/report-server/validators.js");
+    const fields = Object.keys(listQuerySchema.shape).filter(
+      (field) => field !== "page" && field !== "pageSize",
+    );
+    const query = Object.fromEntries(fields.map((field) => [field, `value-${field}`]));
+    assert.deepEqual(Object.keys(toFilterQuery(query)).sort(), [...fields].sort());
   });
 });

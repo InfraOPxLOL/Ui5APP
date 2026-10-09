@@ -1,3 +1,4 @@
+import TimePresets, { type TimePresetKey } from "../../core/utils/TimePresets";
 import type {
   InterchangeParty,
   InterchangePayloadFormat,
@@ -5,7 +6,40 @@ import type {
   InterchangeStatusSummary,
   ReportServerFilters,
   ReportServerQuery,
+  ReportServerTextFilters,
+  ReportServerViewState,
 } from "../../service/reportServer/ReportServerTypes";
+
+/** The window a fresh screen opens with. */
+const DEFAULT_TIME_PRESET: TimePresetKey = "1d";
+
+/** Fields behind the "more filters" toggle. */
+const ADVANCED_FILTER_FIELDS: readonly (keyof ReportServerTextFilters)[] = [
+  "interchangeId",
+  "mplId",
+  "direction",
+  "agreement",
+  "transactionType",
+  "interchangeName",
+  "systemId",
+  "adapterType",
+  "groupControlNumber",
+  "messageNumber",
+  "processingStatus",
+  "technicalAckStatus",
+  "functionalAckStatus",
+];
+
+/** Every text filter, in query order. */
+const TEXT_FILTER_FIELDS: readonly (keyof ReportServerTextFilters)[] = [
+  "status",
+  "senderPartner",
+  "receiverPartner",
+  "documentStandard",
+  "messageType",
+  "controlNumber",
+  ...ADVANCED_FILTER_FIELDS,
+];
 
 /** A KPI tile: one per status the tenant actually reported, plus a leading "all" tile. */
 export interface StatusTile {
@@ -89,33 +123,103 @@ export default class ReportServerFormatter {
     }
   }
 
-  /** Turns the view-model filters into query parameters, dropping everything not set. */
+  /** The filters of a fresh screen: the last 24 hours, nothing else set. */
+  public static defaultFilters(): ReportServerFilters {
+    const text = Object.fromEntries(
+      TEXT_FILTER_FIELDS.map((field) => [field, ""]),
+    ) as unknown as ReportServerTextFilters;
+    return { ...text, timePreset: DEFAULT_TIME_PRESET, dateFrom: null, dateTo: null };
+  }
+
+  /**
+   * Turns the view-model filters into query parameters, dropping everything not set. A relative
+   * time preset is resolved against `now` here, at search time.
+   */
   public static toQuery(
     filters: ReportServerFilters,
     page?: number,
     pageSize?: number,
+    now: Date = new Date(),
   ): ReportServerQuery {
-    const text = (value: string): string | undefined => {
-      const trimmed = value.trim();
-      return trimmed === "" ? undefined : trimmed;
-    };
     const query: Record<string, string | number> = {};
     const set = (key: string, value: string | number | undefined): void => {
       if (value !== undefined) {
         query[key] = value;
       }
     };
-    set("dateFrom", filters.dateFrom?.toISOString());
-    set("dateTo", filters.dateTo?.toISOString());
-    set("status", text(filters.status));
-    set("senderPartner", text(filters.senderPartner));
-    set("receiverPartner", text(filters.receiverPartner));
-    set("documentStandard", text(filters.documentStandard));
-    set("messageType", text(filters.messageType));
-    set("controlNumber", text(filters.controlNumber));
+    const window = TimePresets.resolve(
+      TimePresets.isKey(filters.timePreset) ? filters.timePreset : "custom",
+      { from: filters.dateFrom, to: filters.dateTo },
+      now,
+    );
+    set("dateFrom", window.from?.toISOString());
+    set("dateTo", window.to?.toISOString());
+    for (const field of TEXT_FILTER_FIELDS) {
+      const trimmed = (filters[field] ?? "").trim();
+      set(field, trimmed === "" ? undefined : trimmed);
+    }
     set("page", page);
     set("pageSize", pageSize);
     return query as ReportServerQuery;
+  }
+
+  /** How many advanced-search fields are set — shown on the "more filters" toggle. */
+  public static advancedCount(filters: ReportServerFilters | undefined): number {
+    return ADVANCED_FILTER_FIELDS.filter((field) => (filters?.[field] ?? "").trim() !== "").length;
+  }
+
+  /** The JSON-safe state a saved view or shared link carries. */
+  public static toViewState(
+    filters: ReportServerFilters,
+    advanced: boolean,
+  ): ReportServerViewState {
+    return {
+      filters: {
+        ...filters,
+        dateFrom: filters.dateFrom?.toISOString() ?? null,
+        dateTo: filters.dateTo?.toISOString() ?? null,
+      },
+      advanced,
+    };
+  }
+
+  /**
+   * Restores a saved view or shared link. Tolerant by design — anything missing or malformed
+   * (an older view, a hand-edited link) falls back to the default for that field.
+   */
+  public static fromViewState(state: unknown): {
+    filters: ReportServerFilters;
+    advanced: boolean;
+  } {
+    const filters = ReportServerFormatter.defaultFilters();
+    const source = (state as Partial<ReportServerViewState> | undefined)?.filters as
+      | Record<string, unknown>
+      | undefined;
+    if (source !== undefined && source !== null && typeof source === "object") {
+      for (const field of TEXT_FILTER_FIELDS) {
+        const value = source[field];
+        if (typeof value === "string") {
+          filters[field] = value;
+        }
+      }
+      if (TimePresets.isKey(source.timePreset)) {
+        filters.timePreset = source.timePreset;
+      }
+      filters.dateFrom = ReportServerFormatter.toDate(source.dateFrom);
+      filters.dateTo = ReportServerFormatter.toDate(source.dateTo);
+    }
+    const advanced =
+      (state as Partial<ReportServerViewState> | undefined)?.advanced === true ||
+      ReportServerFormatter.advancedCount(filters) > 0;
+    return { filters, advanced };
+  }
+
+  private static toDate(value: unknown): Date | null {
+    if (typeof value !== "string" || value === "") {
+      return null;
+    }
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
   }
 
   /** One tile per reported status (largest first) behind an "all" tile. */

@@ -2,6 +2,7 @@ import BaseService from "../../core/base/BaseService";
 import type {
   FailedTransactionDetail,
   FailedTransactionListResponse,
+  FailedTransactionPayload,
   FailedTransactionQuery,
   FailedTransactionRetryResult,
 } from "./FailedTransactionsTypes";
@@ -28,6 +29,14 @@ export default class FailedTransactionsService extends BaseService {
     return this.client.get<FailedTransactionDetail>(this.path(encodeURIComponent(messageId)), {
       query: { queue: queueName },
     });
+  }
+
+  /** The parked message's body, read from the broker. */
+  public getPayload(messageId: string, queueName: string): Promise<FailedTransactionPayload> {
+    return this.client.get<FailedTransactionPayload>(
+      this.path(`${encodeURIComponent(messageId)}/payload`),
+      { query: { queue: queueName } },
+    );
   }
 
   /** Moves one message back to its main queue, verifies it arrived, then retries it. */

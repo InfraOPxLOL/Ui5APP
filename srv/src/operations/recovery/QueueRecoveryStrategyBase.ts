@@ -52,6 +52,12 @@ export interface LocatedMessage {
  * before the retry and reports exactly how far the operation got (§7, and the project's standing
  * never-fabricate rule).
  *
+ * One case looks like a failed verification but is not: an active queue's consumer (TPM's inbound
+ * and outbound processing flows) picks a moved message up within milliseconds, so it is already gone
+ * from the target when verification looks. That case is only accepted on positive evidence — the
+ * tenant itself reported moving the message (`processedCount` ≥ 1) *and* it has left the source
+ * queue. No retry is issued then: the consumer is already processing it, which is the retry.
+ *
  * Subclasses implement {@link locate} and, where their topology is not the configured one,
  * {@link resolveTarget}.
  */
@@ -259,14 +265,11 @@ export abstract class QueueRecoveryStrategyBase implements RecoveryStrategy {
         );
       }
 
+      let processedCount: number | undefined;
       try {
-        await context.queue.moveMessages(plan.currentQueue, targetQueue, [messageId]);
-        steps.push({
-          action: "MOVE",
-          queueName: targetQueue,
-          succeeded: true,
-          detail: `Move from "${plan.currentQueue}" to "${targetQueue}" accepted by the tenant.`,
-        });
+        ({ processedCount } = await context.queue.moveMessages(plan.currentQueue, targetQueue, [
+          messageId,
+        ]));
       } catch (error) {
         steps.push({
           action: "MOVE",
@@ -284,15 +287,63 @@ export abstract class QueueRecoveryStrategyBase implements RecoveryStrategy {
         );
       }
 
+      if (processedCount === 0) {
+        steps.push({
+          action: "MOVE",
+          queueName: targetQueue,
+          succeeded: false,
+          detail: `The tenant accepted the move request but moved 0 messages — the message was no longer on "${plan.currentQueue}".`,
+        });
+        return QueueRecoveryStrategyBase.abort(
+          messageId,
+          this.framework,
+          steps,
+          startedAt,
+          "MANUAL_INVESTIGATION_REQUIRED",
+          `Nothing was moved or retried. Refresh the list — the message may already have been recovered or expired.`,
+        );
+      }
+      steps.push({
+        action: "MOVE",
+        queueName: targetQueue,
+        succeeded: true,
+        detail:
+          processedCount === undefined
+            ? `Move from "${plan.currentQueue}" to "${targetQueue}" accepted by the tenant.`
+            : `Moved from "${plan.currentQueue}" to "${targetQueue}" (the tenant reports ${processedCount} moved).`,
+      });
+
       // Acceptance is not arrival. Retrying a queue the message never reached would report a success
       // that did not happen, so this check is a hard gate rather than a formality.
       const arrived = await context.queue.getMessage(targetQueue, messageId);
       if (arrived === undefined) {
+        const stillOnSource = await context.queue.getMessage(plan.currentQueue, messageId);
+        if (stillOnSource === undefined && processedCount !== undefined && processedCount > 0) {
+          steps.push({
+            action: "VERIFY",
+            queueName: targetQueue,
+            succeeded: true,
+            detail: `Gone from "${plan.currentQueue}" and already picked up from "${targetQueue}" by its processing flow.`,
+          });
+          return {
+            messageId,
+            framework: this.framework,
+            status: "accepted",
+            recoveryState: "RETRYING",
+            steps,
+            note: `Moved to "${targetQueue}", where the processing flow picked it up straight away — that is the retry. Watch the retry history for the new processing run.`,
+            startedAt,
+            finishedAt: new Date().toISOString(),
+          };
+        }
         steps.push({
           action: "VERIFY",
           queueName: targetQueue,
           succeeded: false,
-          detail: `The move was accepted, but the message could not be found on "${targetQueue}" afterwards.`,
+          detail:
+            stillOnSource === undefined
+              ? `The move was accepted, but the message could not be found on "${targetQueue}" afterwards.`
+              : `The move was accepted, but the message is still on "${plan.currentQueue}" and not on "${targetQueue}".`,
         });
         return QueueRecoveryStrategyBase.abort(
           messageId,
@@ -418,7 +469,9 @@ export abstract class QueueRecoveryStrategyBase implements RecoveryStrategy {
       return `Active queue (${queueName})`;
     }
     const target = this.config.topology.dlqRecoveryMap[queueName];
-    return target === undefined ? `Dead-letter queue (${queueName})` : `Dead-letter queue for ${target}`;
+    return target === undefined
+      ? `Dead-letter queue (${queueName})`
+      : `Dead-letter queue for ${target}`;
   }
 
   /** Convenience: probe one queue and shape the hit into a {@link LocatedMessage}. */

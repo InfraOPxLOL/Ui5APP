@@ -3,6 +3,7 @@ import JSONModel from "sap/ui/model/json/JSONModel";
 import MessageToast from "sap/m/MessageToast";
 import type Event from "sap/ui/base/Event";
 import ClipboardUtils from "../../core/utils/ClipboardUtils";
+import DownloadUtils from "../../core/utils/DownloadUtils";
 import DeepLinkHelper from "../../core/utils/DeepLinkHelper";
 import TextSearchUtils from "../../core/utils/TextSearchUtils";
 import UserContext from "../../shell/context/UserContext";
@@ -22,6 +23,7 @@ import {
   type PayloadQuickActionDefinition,
 } from "../../config/payloadStudio/payloadQuickActions";
 import type {
+  StudioSourceHint,
   PayloadStudioData,
   PayloadView,
   PayloadViewMode,
@@ -58,6 +60,13 @@ export default class StudioController extends BaseController {
     return PayloadStudioFormatter.payloadSourceState(payloadSource);
   }
 
+  /** Says where the payload came from, in words (binding-facing delegate). */
+  public formatPayloadSourceText(payloadSource: string): string {
+    return payloadSource === undefined || payloadSource === ""
+      ? ""
+      : this.getText(`payloadStudio.source.${payloadSource}`);
+  }
+
   /** Maps a validation issue severity to a UI5 value state (binding-facing delegate). */
   public formatValidationSeverityState(severity: string): string {
     return PayloadStudioFormatter.validationSeverityState(severity);
@@ -76,6 +85,8 @@ export default class StudioController extends BaseController {
   private readonly service = new PayloadStudioService();
   private readonly layoutService = PayloadLayoutService.getInstance();
   private loadAbort: AbortController | undefined;
+  /** Where the opening screen asked the payload to be read from (JMS body, interchange). */
+  private sourceHint: StudioSourceHint = {};
 
   /** Lifecycle hook: reads the deep-linked message id, restores layout, loads the studio payload. */
   public onInit(): void {
@@ -100,8 +111,11 @@ export default class StudioController extends BaseController {
   private onRouteMatched(event: Event): void {
     const args = event.getParameter("arguments" as never) as { "?query"?: Record<string, string> };
     const token = args["?query"]?.state;
-    const state = DeepLinkHelper.decode<{ messageId?: string }>(token);
+    const state = DeepLinkHelper.decode<Record<string, unknown>>(token) as
+      | ({ messageId?: string } & StudioSourceHint)
+      | undefined;
     if (state?.messageId !== undefined && state.messageId !== "") {
+      this.sourceHint = { jms: state.jms, interchangeId: state.interchangeId };
       void this.loadStudio(state.messageId);
     }
   }
@@ -113,7 +127,7 @@ export default class StudioController extends BaseController {
     this.loadAbort?.abort();
     this.loadAbort = new AbortController();
     try {
-      const data = await this.service.getStudio(messageId, this.loadAbort.signal);
+      const data = await this.service.getStudio(messageId, this.loadAbort.signal, this.sourceHint);
       model.setProperty("/data", data);
       model.setProperty("/comparison/result", null);
       this.recomputeDerivedState();
@@ -431,6 +445,18 @@ export default class StudioController extends BaseController {
     if (payload === undefined) {
       return;
     }
+    // B2B Monitor documents and JMS bodies are not MPL attachments: save what is already loaded.
+    if (payload.attachmentId.startsWith("b2b:") || payload.attachmentId.startsWith("jms:")) {
+      const extension =
+        payload.format === "binary" ? "bin" : payload.format === "text" ? "txt" : payload.format;
+      if (payload.format === "binary") {
+        const bytes = Uint8Array.from(atob(payload.raw), (char) => char.charCodeAt(0));
+        DownloadUtils.downloadBlob(new Blob([bytes]), `${payload.name}.${extension}`);
+      } else {
+        DownloadUtils.downloadText(payload.raw, `${payload.name}.${extension}`);
+      }
+      return;
+    }
     await this.service.downloadAttachment(messageId, payload.attachmentId, payload.name);
   }
 
@@ -455,7 +481,9 @@ export default class StudioController extends BaseController {
   }
 
   private static contextOf<T>(event: Event): T | undefined {
-    const source = event.getSource() as unknown as {
+    // A List's itemPress carries the pressed item; an item's own press is its own source.
+    const listItem = event.getParameter("listItem" as never) as unknown;
+    const source = (listItem ?? event.getSource()) as unknown as {
       getBindingContext(model?: string): { getObject(): unknown } | null | undefined;
     };
     return (

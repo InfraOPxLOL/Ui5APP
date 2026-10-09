@@ -113,3 +113,14 @@ export interface FailedTransactionQuery {
   readonly page?: number;
   readonly pageSize?: number;
 }
+
+/** The body of a parked message, read straight from the broker. */
+export interface FailedTransactionPayload {
+  readonly messageId: string;
+  readonly queueName: string;
+  /** UTF-8 text, or base64 when `encoding` is `base64`. */
+  readonly content: string;
+  readonly encoding: "text" | "base64";
+  readonly format: "edi" | "xml" | "json" | "text" | "binary";
+  readonly sizeBytes: number;
+}

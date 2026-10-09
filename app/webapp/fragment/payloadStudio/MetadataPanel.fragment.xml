@@ -28,7 +28,7 @@
       <ObjectAttribute title="{i18n>payloadStudio.metadata.payloadSize}" text="{view>/data/metadata/payloadSizeHuman}" />
       <ObjectStatus
         title="{i18n>payloadStudio.metadata.payloadSource}"
-        text="{view>/data/metadata/payloadSource}"
+        text="{ path: 'view>/data/metadata/payloadSource', formatter: '.formatPayloadSourceText' }"
         state="{ path: 'view>/data/metadata/payloadSource', formatter: '.formatPayloadSourceState' }" />
       <ObjectAttribute title="{i18n>payloadStudio.metadata.creationTime}" text="{view>/data/metadata/creationTime}" />
       <ObjectAttribute title="{i18n>payloadStudio.metadata.duration}" text="{view>/data/metadata/processingDurationHuman}" />

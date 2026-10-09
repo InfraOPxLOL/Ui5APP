@@ -32,6 +32,8 @@ sap.ui.define(
     "./CertificateSecurityCenterFormatterTest.qunit",
     "./ReportServerFormatterTest.qunit",
     "./FailedTransactionsFormatterTest.qunit",
+    "./TimePresetsTest.qunit",
+    "./SavedViewStoreTest.qunit",
   ],
   function () {
     "use strict";

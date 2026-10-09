@@ -53,7 +53,12 @@ export class HttpErrorTranslator {
       case 504:
         return new TimeoutError(0, error.message);
       default:
-        return IntegrationSuiteError.fromCpiResponse(tenantId, error.httpStatus, error.rawBody);
+        return IntegrationSuiteError.fromCpiResponse(
+          tenantId,
+          error.httpStatus,
+          error.rawBody,
+          error.message,
+        );
     }
   }
 

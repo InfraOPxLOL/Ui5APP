@@ -76,6 +76,87 @@ sap.ui.define(
       });
     });
 
+    QUnit.test(
+      "a fresh screen searches the last 24 hours with nothing else set",
+      function (assert) {
+        var filters = ReportServerFormatter.defaultFilters();
+        assert.strictEqual(filters.timePreset, "1d");
+        assert.strictEqual(filters.senderPartner, "");
+        assert.strictEqual(filters.mplId, "");
+        assert.strictEqual(ReportServerFormatter.advancedCount(filters), 0);
+      },
+    );
+
+    QUnit.test(
+      "toQuery resolves a relative time window at search time and sends advanced fields",
+      function (assert) {
+        var filters = ReportServerFormatter.defaultFilters();
+        filters.timePreset = "1h";
+        filters.mplId = " tpm-dlq-p-01 ";
+        filters.adapterType = "AS2";
+        var now = new Date(Date.UTC(2026, 9, 9, 12, 0, 0));
+        assert.deepEqual(ReportServerFormatter.toQuery(filters, 1, 50, now), {
+          dateFrom: "2026-10-09T11:00:00.000Z",
+          mplId: "tpm-dlq-p-01",
+          adapterType: "AS2",
+          page: 1,
+          pageSize: 50,
+        });
+        filters.timePreset = "all";
+        assert.strictEqual(ReportServerFormatter.toQuery(filters, 1, 50, now).dateFrom, undefined);
+      },
+    );
+
+    QUnit.test("advancedCount counts only the fields behind 'More filters'", function (assert) {
+      var filters = ReportServerFormatter.defaultFilters();
+      filters.senderPartner = "AMAZON";
+      filters.direction = "INBOUND";
+      filters.functionalAckStatus = "  ";
+      assert.strictEqual(ReportServerFormatter.advancedCount(filters), 1);
+    });
+
+    QUnit.test(
+      "a saved view round-trips through JSON, keeping relative windows relative",
+      function (assert) {
+        var filters = ReportServerFormatter.defaultFilters();
+        filters.timePreset = "7d";
+        filters.receiverPartner = "WALMART";
+        var restored = ReportServerFormatter.fromViewState(
+          JSON.parse(JSON.stringify(ReportServerFormatter.toViewState(filters, true))),
+        );
+        assert.strictEqual(restored.filters.timePreset, "7d");
+        assert.strictEqual(restored.filters.receiverPartner, "WALMART");
+        assert.strictEqual(restored.filters.dateFrom, null);
+        assert.strictEqual(restored.advanced, true);
+
+        filters.timePreset = "custom";
+        filters.dateFrom = new Date(Date.UTC(2026, 0, 1));
+        var custom = ReportServerFormatter.fromViewState(
+          JSON.parse(JSON.stringify(ReportServerFormatter.toViewState(filters, false))),
+        );
+        assert.strictEqual(custom.filters.dateFrom.toISOString(), "2026-01-01T00:00:00.000Z");
+      },
+    );
+
+    QUnit.test(
+      "fromViewState falls back to defaults for anything missing or malformed",
+      function (assert) {
+        var restored = ReportServerFormatter.fromViewState({
+          filters: { timePreset: "2y", senderPartner: 42, mplId: "abc", dateFrom: "not a date" },
+        });
+        assert.strictEqual(restored.filters.timePreset, "1d");
+        assert.strictEqual(restored.filters.senderPartner, "");
+        assert.strictEqual(restored.filters.mplId, "abc");
+        assert.strictEqual(restored.filters.dateFrom, null);
+        assert.strictEqual(
+          restored.advanced,
+          true,
+          "an advanced field set opens the advanced search",
+        );
+        assert.strictEqual(ReportServerFormatter.fromViewState(undefined).filters.timePreset, "1d");
+      },
+    );
+
     QUnit.test("tiles lead with an 'all' tile, then one per reported status", function (assert) {
       var tiles = ReportServerFormatter.tiles({
         total: 12,
