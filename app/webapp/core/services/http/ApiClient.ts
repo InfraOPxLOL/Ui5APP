@@ -1,5 +1,11 @@
 import { type ApiErrorEnvelope, type ApiRequestOptions, type HttpMethod } from "../../types/Api";
-import { BackendError, NetworkError, AuthError, errorFromEnvelope } from "../../errors/ErrorTypes";
+import {
+  BackendError,
+  NetworkError,
+  AuthError,
+  AuthorizationError,
+  errorFromEnvelope,
+} from "../../errors/ErrorTypes";
 
 /**
  * The single HTTP chokepoint for the entire frontend.
@@ -164,11 +170,23 @@ export default class ApiClient {
     }
     const correlationId =
       envelope?.correlationId ?? response.headers.get("X-Correlation-Id") ?? "n/a";
-    if (response.status === 401 || response.status === 403) {
+    if (response.status === 401) {
       return new AuthError(envelope?.message ?? "Your session has expired.", {
-        code: envelope?.code ?? String(response.status),
+        code: envelope?.code ?? "401",
         correlationId,
       });
+    }
+    // 403 is "not allowed", not "logged out": a missing role, or a security token the approuter
+    // refused. Reloading the page would not help the former, so it is never shown as an expiry.
+    if (response.status === 403) {
+      const tokenRefused = response.headers.get("X-CSRF-Token")?.toLowerCase() === "required";
+      return new AuthorizationError(
+        envelope?.message ??
+          (tokenRefused
+            ? "The request was refused because its security token was not accepted. Reload the page and try again."
+            : "You are not authorized to perform this action."),
+        { code: envelope?.code ?? "403", correlationId },
+      );
     }
     if (envelope !== undefined) {
       return errorFromEnvelope(envelope);

@@ -39,9 +39,20 @@ export const apiRouter: Router = Router();
 
 // --- System endpoints -------------------------------------------------------
 
-/** GET /csrf-token — issues a CSRF token (the approuter enforces CSRF in deployment). */
-apiRouter.get("/csrf-token", (_req: Request, res: Response) => {
-  res.setHeader("X-CSRF-Token", randomUUID());
+/**
+ * GET /csrf-token — the CSRF handshake endpoint the frontend calls with `X-CSRF-Token: Fetch`.
+ *
+ * Deployed, the approuter owns CSRF: it answers the fetch with its own session-bound token and
+ * strips `X-CSRF-Token` before forwarding the request here, then copies every response header of
+ * this endpoint over its own. Setting a token here would therefore *replace* the approuter's token
+ * with one it cannot verify, and every POST/PUT/DELETE would fail with `403 X-CSRF-Token: Required`.
+ * So a token is only issued when the fetch header actually arrives — i.e. locally, with no
+ * approuter in front.
+ */
+apiRouter.get("/csrf-token", (req: Request, res: Response) => {
+  if (req.get("X-CSRF-Token")?.toLowerCase() === "fetch") {
+    res.setHeader("X-CSRF-Token", randomUUID());
+  }
   res.status(204).end();
 });
 

@@ -129,6 +129,12 @@ export default class Component extends BaseComponent {
       // Initialize the router AFTER configuration and session are loaded,
       // so module controllers can safely call ConfigService synchronously.
       const router = this.getRouter();
+      // Attach the bundle the moment the router creates a module view, before it joins the control
+      // tree: otherwise its {i18n>…} bindings first resolve against the propagated root bundle (wrong
+      // texts for a frame, and one debug assertion per key). Route-matched stays as the fallback.
+      router.getViews().attachEvent("created", (event: Event) => {
+        this.attachModuleI18n(event.getParameter("view" as never));
+      });
       router.attachRouteMatched(this.applyModuleI18n, this);
       router.initialize();
     } catch (error) {
@@ -147,7 +153,12 @@ export default class Component extends BaseComponent {
    * targets are skipped — they manage their own i18n model.
    */
   private applyModuleI18n(event: Event): void {
-    const view = event.getParameter("view" as never) as
+    this.attachModuleI18n(event.getParameter("view" as never));
+  }
+
+  /** Sets a module view's own bundle as its `i18n` model; non-module views are left alone. */
+  private attachModuleI18n(candidate: unknown): void {
+    const view = candidate as
       | { getViewName?: () => string; setModel: (model: ResourceModel, name: string) => void }
       | undefined;
     const moduleId = moduleIdFromViewName(view?.getViewName?.() ?? "");

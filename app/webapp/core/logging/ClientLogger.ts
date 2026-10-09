@@ -60,6 +60,9 @@ export default class ClientLogger {
 
   private readonly buffer: ClientLogEntry[] = [];
   private readonly flushEndpoint = "/api/v1/client-logs";
+  private readonly csrfEndpoint = "/api/v1/csrf-token";
+  /** The approuter's CSRF token; deployed, every POST without it is refused with 403. */
+  private csrfToken: string | undefined;
   private shipLevel: LogLevel = "warn";
   private maxBuffer = 50;
   private flushIntervalMs = 10000;
@@ -134,16 +137,41 @@ export default class ClientLogger {
       return;
     }
     const batch = this.buffer.splice(0, this.buffer.length);
-    try {
-      await fetch(this.flushEndpoint, {
+    const body = JSON.stringify({ entries: batch });
+    const send = async (): Promise<Response> =>
+      fetch(this.flushEndpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ entries: batch }),
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": await this.token() },
+        credentials: "same-origin",
+        body,
         keepalive: true,
       });
+    try {
+      const response = await send();
+      // A stale token (new approuter session) is refused with 403 + Required: refetch once.
+      if (
+        response.status === 403 &&
+        response.headers.get("X-CSRF-Token")?.toLowerCase() === "required"
+      ) {
+        this.csrfToken = undefined;
+        await send();
+      }
     } catch {
       // Intentionally ignored: telemetry is best-effort and must not surface errors.
     }
+  }
+
+  /** Fetches (once) the CSRF token the approuter requires on POST; same handshake as the ApiClient. */
+  private async token(): Promise<string> {
+    if (this.csrfToken === undefined) {
+      const response = await fetch(this.csrfEndpoint, {
+        method: "GET",
+        headers: { "X-CSRF-Token": "Fetch" },
+        credentials: "same-origin",
+      });
+      this.csrfToken = response.headers.get("X-CSRF-Token") ?? "";
+    }
+    return this.csrfToken;
   }
 
   private createCategoryLogger(

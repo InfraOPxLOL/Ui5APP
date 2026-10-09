@@ -86,6 +86,9 @@ export default class ErrorHandler {
           onClose: () => window.location.reload(),
         });
         break;
+      case "AUTHORIZATION":
+        MessageBox.warning(error.message + suffix, { title: "Not allowed" });
+        break;
       case "CONFIGURATION":
         // The app cannot proceed without valid configuration — blocking dialog, no reload loop.
         MessageBox.error(error.message + suffix, { title: "Configuration error" });
@@ -94,7 +97,6 @@ export default class ErrorHandler {
         MessageBox.error(error.message + suffix, { title: "Unexpected error" });
         break;
       case "NETWORK":
-      case "AUTHORIZATION":
       case "BACKEND":
       case "INTEGRATION_SUITE":
       case "SERVICE":
