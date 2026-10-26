@@ -13,7 +13,7 @@
 
         <!-- Filters: kind of change, area, words -->
         <FlexBox wrap="Wrap" alignItems="Center" class="ipUpdatesFilters">
-          <SegmentedButton selectedKey="{updates>/filter/type}" selectionChange=".onFilterChange">
+          <SegmentedButton selectedKey="{updates>/filter/type}" selectionChange=".onFilterChange" width="22rem">
             <items>
               <SegmentedButtonItem key="" text="{i18n>updates.filter.all}" />
               <SegmentedButtonItem key="new" text="{i18n>updates.type.new}" />

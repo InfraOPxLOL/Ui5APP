@@ -32,6 +32,8 @@
 
 .ipReleaseList {
   margin-top: 0.5rem;
+  /* Room for the timeline dots, which sit across the line. */
+  padding-left: 0.5rem;
 }
 
 .ipRelease {

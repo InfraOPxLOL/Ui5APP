@@ -40,7 +40,7 @@
       <NotificationListItem
         title="{notifications>title}"
         description="{notifications>description}"
-        datetime="{notifications>timestamp}"
+        datetime="{path: 'notifications>timestamp', formatter: '.fmt.relative'}"
         priority="{= ${notifications>severity} === 'CRITICAL' || ${notifications>severity} === 'ERROR' ? 'High' : (${notifications>severity} === 'WARNING' ? 'Medium' : 'Low') }"
         showCloseButton="true"
         close=".onNotificationDismiss" />

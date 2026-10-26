@@ -93,6 +93,9 @@ interface ShellState {
  * @namespace com.middlewareops.integrationportal.shell.controller
  */
 export default class ShellController extends BaseController {
+  /** Formatters the shell fragments bind to as `.fmt.*`. */
+  public readonly fmt = { relative: DateTimeFormatter.formatRelative };
+
   private readonly builder = new ShellViewBuilder();
   private readonly userContext = UserContext.getInstance();
   private readonly tenantContext = TenantContext.getInstance();
