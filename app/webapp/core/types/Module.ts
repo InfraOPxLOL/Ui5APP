@@ -17,6 +17,7 @@ export type ModuleId =
   | "messageMonitoring"
   | "reportServer"
   | "failedTransactions"
+  | "trackTransaction"
   | "payloadStudio"
   | "recoveryCenter"
   | "runtimeCenter"

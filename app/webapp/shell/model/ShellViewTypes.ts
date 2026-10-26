@@ -87,4 +87,9 @@ export interface AnnouncementVM {
   readonly title: string;
   readonly text: string;
   readonly severity: string;
+  /** `MessageStrip.type`; a warning when absent. */
+  readonly type?: string;
+  /** A link shown in the strip, and the route it opens. */
+  readonly linkText?: string;
+  readonly route?: string;
 }

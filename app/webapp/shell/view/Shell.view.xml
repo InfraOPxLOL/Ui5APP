@@ -73,9 +73,9 @@
           visible="{shell>/environment/show}"
           class="sapUiSmallMarginBegin ipEnvBanner" />
         <ObjectStatus
-          text="{shell>/unread}"
+          text="{= ${notifications>/unreadCount} + ${shell>/panel/updatesUnseen} }"
           state="Error"
-          visible="{= ${shell>/unread} > 0 }"
+          visible="{= ${notifications>/unreadCount} + ${shell>/panel/updatesUnseen} > 0 }"
           class="sapUiTinyMarginBegin" />
         <Button
           id="notificationButton"

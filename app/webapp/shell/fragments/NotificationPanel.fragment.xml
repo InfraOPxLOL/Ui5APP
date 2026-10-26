@@ -1,8 +1,10 @@
 <!--
-  Shell notification center (§13). Renders the notifications held in the global `notifications`
-  model: severity-prioritised list items with per-item dismiss, plus mark-all-read (on open) and a
-  clear-all footer action. Framework only — a future Alert Notification integration feeds items in
-  through the NotificationCenter service and this panel lights up unchanged.
+  Shell notification center (§13) with two tabs:
+  - Notifications: events raised in the app through the NotificationCenter (e.g. retry outcomes),
+    severity-prioritised, each dismissible, plus clear-all.
+  - What's new: the latest changes to the portal (shell/updates/ReleaseNotes), new ones marked
+    unread until the panel closes; "See all updates" opens the Updates page.
+  Both read the global `notifications` model and the `shell` view model.
 -->
 <core:FragmentDefinition
   xmlns="sap.m"
@@ -10,11 +12,31 @@
   <Popover
     title="{i18n>shell.notifications}"
     placement="Bottom"
-    contentWidth="26rem"
-    contentHeight="26rem">
+    contentWidth="28rem"
+    contentHeight="28rem"
+    afterClose=".onNotificationPanelClose">
+    <subHeader>
+      <Toolbar>
+        <SegmentedButton
+          selectedKey="{shell>/panel/tab}"
+          selectionChange=".onNotificationTabChange"
+          width="100%">
+          <items>
+            <SegmentedButtonItem
+              key="notifications"
+              text="{= ${i18n>shell.notifications.tab} + (${notifications>/unreadCount} > 0 ? ' (' + ${notifications>/unreadCount} + ')' : '') }" />
+            <SegmentedButtonItem
+              key="updates"
+              text="{= ${i18n>shell.updates.tab} + (${shell>/panel/updatesUnseen} > 0 ? ' (' + ${shell>/panel/updatesUnseen} + ')' : '') }" />
+          </items>
+        </SegmentedButton>
+      </Toolbar>
+    </subHeader>
+
     <List
       items="{notifications>/items}"
-      noDataText="{i18n>shell.notifications.empty}">
+      noDataText="{i18n>shell.notifications.empty}"
+      visible="{= ${shell>/panel/tab} === 'notifications' }">
       <NotificationListItem
         title="{notifications>title}"
         description="{notifications>description}"
@@ -23,6 +45,24 @@
         showCloseButton="true"
         close=".onNotificationDismiss" />
     </List>
+
+    <List
+      items="{shell>/panel/updates}"
+      noDataText="{i18n>shell.updates.empty}"
+      visible="{= ${shell>/panel/tab} === 'updates' }">
+      <NotificationListItem
+        title="{shell>title}"
+        description="{shell>description}"
+        authorName="{shell>label}"
+        datetime="{shell>dateText}"
+        unread="{shell>unseen}"
+        priority="None"
+        truncate="false"
+        showCloseButton="false"
+        type="{= ${shell>route} ? 'Active' : 'Inactive' }"
+        press=".onUpdatePress" />
+    </List>
+
     <footer>
       <OverflowToolbar>
         <ToolbarSpacer />
@@ -30,7 +70,14 @@
           text="{i18n>shell.notifications.clear}"
           icon="sap-icon://decline"
           type="Transparent"
+          visible="{= ${shell>/panel/tab} === 'notifications' }"
           press=".onNotificationClear" />
+        <Button
+          text="{i18n>shell.updates.seeAll}"
+          icon="sap-icon://feed"
+          type="Transparent"
+          visible="{= ${shell>/panel/tab} === 'updates' }"
+          press=".onSeeAllUpdates" />
       </OverflowToolbar>
     </footer>
   </Popover>

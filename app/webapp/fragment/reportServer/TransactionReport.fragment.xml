@@ -199,6 +199,7 @@
               </HBox>
               <IconTabBar expandable="false" class="reportServerTabs">
                 <items>
+                  <core:Fragment fragmentName="com.middlewareops.integrationportal.fragment.journey.JourneyTab" type="XML" />
                   <core:Fragment fragmentName="com.middlewareops.integrationportal.fragment.transaction.TransactionTabs" type="XML" />
                 </items>
               </IconTabBar>

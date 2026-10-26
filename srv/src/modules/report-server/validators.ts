@@ -61,3 +61,19 @@ export const transactionListQuerySchema = z.object({
 export const correlationIdParamSchema = z.object({
   correlationId: z.string().trim().min(1).max(200),
 });
+
+/** Identifies one transaction for its journey: exactly one id, or `id` to look it up by any kind. */
+export const journeyQuerySchema = z
+  .object({
+    id: z.string().trim().min(1).max(200).optional(),
+    correlationId: z.string().trim().min(1).max(200).optional(),
+    mplId: z.string().trim().min(1).max(120).optional(),
+    interchangeId: z.string().trim().min(1).max(120).optional(),
+  })
+  .refine(
+    (query) =>
+      [query.id, query.correlationId, query.mplId, query.interchangeId].filter(
+        (value) => value !== undefined,
+      ).length === 1,
+    { message: "Pass exactly one of id, correlationId, mplId or interchangeId." },
+  );

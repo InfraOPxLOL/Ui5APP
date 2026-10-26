@@ -13,7 +13,7 @@ import { HttpError } from "../../core/errors/HttpError.js";
 const MOCK_CONFIG = { enabled: true, defaultScenario: "success" } as const;
 const DEFAULT_PAGE_SIZE = 50;
 /** Processing logs read for one transaction's detail. */
-const MAX_STEPS = 200;
+export const MAX_STEPS = 200;
 /** Failed steps whose error details are read for the detail panel. */
 const MAX_ERROR_STEPS = 3;
 
@@ -145,7 +145,19 @@ export class TransactionsService {
     if (runs.length === 0) {
       throw HttpError.notFound(`No processing logs found for correlation id "${correlationId}".`);
     }
+    return TransactionsService.describe(engine, analyzer, runs);
+  }
 
+  /**
+   * The detail of a transaction whose processing logs are already read: its analysis plus the
+   * ingress queue header, errors and parked messages (the journey reuses this).
+   * @param runs every processing log of one correlation id (non-empty).
+   */
+  public static async describe(
+    engine: OperationsEngine,
+    analyzer: TransactionAnalyzer,
+    runs: readonly MessageSummary[],
+  ): Promise<TransactionDetailResponse> {
     const ingress = analyzer.jmsHeaderStep(runs);
     const headers =
       ingress === undefined

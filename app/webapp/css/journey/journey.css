@@ -1,0 +1,293 @@
+/*
+ * Transaction journey (fragment/journey/JourneyView). Colours come from the SAP theme parameters
+ * (CSS custom properties), so the journey follows light and dark themes. Stage state and the current
+ * stage are written to the DOM as data-state / data-current by CustomData.
+ */
+
+.jrn,
+.jrnSearch {
+  /* Theme parameters with fallbacks: UI5 1.120 does not expose them as CSS variables by default,
+     so the fallbacks are what renders. Neutrals are translucent so they suit light and dark themes. */
+  --jrn-positive: var(--sapPositiveColor, #2b7d2b);
+  --jrn-negative: var(--sapNegativeColor, #d32030);
+  --jrn-critical: var(--sapCriticalColor, #e76500);
+  --jrn-info: var(--sapInformativeColor, #0070f2);
+  --jrn-neutral: var(--sapNeutralBorderColor, rgba(127, 127, 127, 0.55));
+  --jrn-border: var(--sapList_BorderColor, rgba(127, 127, 127, 0.3));
+  --jrn-surface: var(--sapTile_Background, rgba(127, 127, 127, 0.06));
+  --jrn-label: var(--sapContent_LabelColor, #6a7d90);
+  --jrn-error-surface: var(--sapErrorBackground, rgba(211, 32, 48, 0.07));
+  --jrn-radius: var(--sapElement_BorderCornerRadius, 0.75rem);
+  --jrn-on-status: #fff;
+}
+
+.jrn {
+  padding: 0.25rem 0 1rem;
+}
+
+.jrnHint,
+.jrnMuted {
+  color: var(--jrn-label);
+}
+
+.jrnMono {
+  font-family: var(--sapFontMonospaceFamily, monospace);
+  font-size: 0.8125rem;
+}
+
+/* Track Transaction's search field. */
+.jrnSearch {
+  max-width: 40rem;
+}
+
+.jrnSectionTitle {
+  margin: 1rem 0 0.5rem;
+}
+
+/* --- Headline ----------------------------------------------------------------------------- */
+
+.jrnHeadline {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--jrn-radius);
+  background: var(--jrn-surface);
+  border: 1px solid var(--jrn-border);
+}
+
+.jrnHeadlineText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.jrnHeadlineIcon[data-outcome="completed"] {
+  color: var(--jrn-positive);
+}
+.jrnHeadlineIcon[data-outcome="failed"] {
+  color: var(--jrn-negative);
+}
+.jrnHeadlineIcon[data-outcome="stuck"] {
+  color: var(--jrn-critical);
+}
+.jrnHeadlineIcon[data-outcome="inProgress"] {
+  color: var(--jrn-info);
+}
+
+.jrnRefresh {
+  flex: 0 0 auto;
+}
+
+/* --- Stages ------------------------------------------------------------------------------- */
+
+.jrnFlow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 1rem 2.25rem;
+}
+
+.jrnStage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1 1 10rem;
+  min-width: 9.5rem;
+  max-width: 16rem;
+  padding: 0.75rem;
+  border-radius: var(--jrn-radius);
+  background: var(--jrn-surface);
+  border: 1px solid var(--jrn-border);
+  border-top: 4px solid var(--jrn-neutral);
+}
+
+/* The arrow from the previous stage. */
+.jrnStage + .jrnStage::before {
+  content: "";
+  position: absolute;
+  top: 1.6rem;
+  left: -2.25rem;
+  width: 1.75rem;
+  border-top: 2px solid var(--jrn-neutral);
+}
+.jrnStage + .jrnStage::after {
+  content: "";
+  position: absolute;
+  top: calc(1.6rem - 4px);
+  left: -0.75rem;
+  border: 5px solid transparent;
+  border-left-color: var(--jrn-neutral);
+}
+
+.jrnStage[data-state="done"] {
+  border-top-color: var(--jrn-positive);
+}
+.jrnStage[data-state="failed"] {
+  border-top-color: var(--jrn-negative);
+}
+.jrnStage[data-state="active"] {
+  border-top-color: var(--jrn-info);
+}
+.jrnStage[data-state="pending"] {
+  border-style: dashed;
+  border-top-style: solid;
+  opacity: 0.7;
+}
+.jrnStage[data-state="pending"] .jrnStageIcon {
+  color: var(--jrn-label);
+}
+
+/* The stage the transaction is at now. */
+.jrnStage[data-current="yes"] {
+  box-shadow: 0 0 0 2px var(--jrn-critical);
+}
+.jrnStage[data-current="yes"][data-state="active"] {
+  box-shadow: 0 0 0 2px var(--jrn-info);
+  animation: jrnPulse 2s ease-in-out infinite;
+}
+.jrnStage[data-current="yes"][data-state="failed"] {
+  box-shadow: 0 0 0 2px var(--jrn-negative);
+}
+
+@keyframes jrnPulse {
+  50% {
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--jrn-info) 35%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jrnStage[data-current="yes"][data-state="active"] {
+    animation: none;
+  }
+}
+
+.jrnStageTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.jrnStageIcon {
+  color: currentColor;
+}
+
+.jrnStageTitle {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--jrn-label);
+}
+
+.jrnStageName {
+  font-weight: bold;
+  overflow-wrap: anywhere;
+}
+
+.jrnCurrentTag {
+  align-self: flex-start;
+  margin-top: 0.25rem;
+  padding: 0 0.5rem;
+  border-radius: 1rem;
+  font-size: 0.75rem;
+  background: var(--jrn-critical);
+  color: var(--jrn-on-status);
+}
+.jrnStage[data-state="active"] .jrnCurrentTag {
+  background: var(--jrn-info);
+}
+.jrnStage[data-state="failed"] .jrnCurrentTag {
+  background: var(--jrn-negative);
+}
+
+/* The dead-letter queue hanging below the stage that parked the message. */
+.jrnBranch {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  border-radius: var(--jrn-radius);
+  border: 1px dashed var(--jrn-negative);
+  background: var(--jrn-error-surface);
+}
+
+.jrnBranchIcon {
+  color: var(--jrn-negative);
+  margin-right: 0.375rem;
+}
+
+.jrnBranchTitle {
+  font-weight: bold;
+}
+
+/* --- Diagnosis and actions ------------------------------------------------------------------ */
+
+.jrnCards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.jrnCard {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 20rem;
+  min-width: 0;
+  padding: 0 1rem 0.75rem;
+  border-radius: var(--jrn-radius);
+  border: 1px solid var(--jrn-border);
+  background: var(--jrn-surface);
+}
+
+.jrnAction {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  width: 100%;
+}
+
+.jrnAction[data-primary="yes"] .jrnActionIcon {
+  color: var(--jrn-info);
+}
+
+.jrnActionText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.jrnActionTitle {
+  font-weight: bold;
+}
+
+/* Phones: one stage per row, arrows pointing down. */
+@media (max-width: 600px) {
+  .jrnFlow {
+    flex-direction: column;
+    gap: 1.75rem;
+  }
+  .jrnStage {
+    flex: 0 0 auto;
+    max-width: none;
+  }
+  .jrnStage + .jrnStage::before {
+    top: -1.5rem;
+    left: 1.5rem;
+    width: 0;
+    height: 1.25rem;
+    border-top: none;
+    border-left: 2px solid var(--jrn-neutral);
+  }
+  .jrnStage + .jrnStage::after {
+    top: -0.65rem;
+    left: calc(1.5rem - 4px);
+    border-left-color: transparent;
+    border-top-color: var(--jrn-neutral);
+  }
+}

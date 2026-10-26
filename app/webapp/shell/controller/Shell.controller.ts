@@ -31,6 +31,8 @@ import type {
   TenantOptionVM,
 } from "../model/ShellViewTypes";
 import type { SearchResultItem } from "../search/SearchProvider";
+import UpdatesService, { type RecentUpdate } from "../updates/UpdatesService";
+import { DateTimeFormatter } from "../../core/formatters";
 
 /** Header user-profile projection. */
 interface ShellUser {
@@ -47,6 +49,19 @@ interface SearchGroupVM {
   readonly items: readonly SearchResultItem[];
 }
 
+/** One portal change in the bell's What's new tab, with its labels translated. */
+interface UpdateVM extends RecentUpdate {
+  /** "New · Operations". */
+  readonly label: string;
+  readonly dateText: string;
+}
+
+/** Which tab of the bell panel is shown, and what each holds. */
+type PanelTab = "notifications" | "updates";
+
+/** Portal changes listed in the bell; the Updates page has the rest. */
+const PANEL_UPDATES = 8;
+
 /** The bindable state of the whole shell chrome. */
 interface ShellState {
   branding: BrandingInfo;
@@ -60,6 +75,7 @@ interface ShellState {
   tenants: readonly TenantOptionVM[];
   user: ShellUser;
   unread: number;
+  panel: { tab: PanelTab; updatesUnseen: number; updates: readonly UpdateVM[] };
   search: { query: string; groups: readonly SearchGroupVM[] };
 }
 
@@ -86,6 +102,11 @@ export default class ShellController extends BaseController {
   private readonly search = GlobalSearch.getInstance();
   private readonly favorites = FavoritesService.getInstance();
   private readonly routeGuard = new RouteGuard();
+  private readonly updates = new UpdatesService();
+  /** The bell panel's tab; kept here because every chrome rebuild replaces the shell model. */
+  private panelTab: PanelTab = "notifications";
+  /** Whether the What's new tab was shown since the panel opened (seen is recorded on close). */
+  private updatesShown = false;
 
   private notificationPopover: Popover | undefined;
   private userPopover: Popover | undefined;
@@ -115,6 +136,7 @@ export default class ShellController extends BaseController {
     bus.subscribe("context:favoritesChanged", () => this.rebuildChrome(this.currentRoute()), this);
     bus.subscribe("session:tenantChanged", () => this.rebuildChrome(this.currentRoute()), this);
     bus.subscribe("context:shellCommand", (payload) => this.onShellCommand(payload.command), this);
+    bus.subscribe("context:updatesSeen", () => this.rebuildChrome(this.currentRoute()), this);
 
     this.rebuildChrome("");
   }
@@ -167,7 +189,12 @@ export default class ShellController extends BaseController {
       quickActions: this.builder.buildQuickActions(engine, translate),
       tenants: this.buildTenantOptions(),
       user: this.buildUser(),
-      unread: this.safeUnread(),
+      unread: this.safeUnread() + this.updates.unseenCount(),
+      panel: {
+        tab: this.panelTab,
+        updatesUnseen: this.updates.unseenCount(),
+        updates: this.buildUpdates(translate),
+      },
       search: { query: "", groups: [] },
     };
   }
@@ -191,6 +218,14 @@ export default class ShellController extends BaseController {
       initials: ShellController.initialsOf(name),
       roleCollections: this.userContext.getAssignedRoleCollections(),
     };
+  }
+
+  private buildUpdates(translate: TranslateFn): UpdateVM[] {
+    return this.updates.recent(PANEL_UPDATES).map((update) => ({
+      ...update,
+      label: `${translate(`updates.type.${update.type}`)} · ${translate(`updates.area.${update.area}`)}`,
+      dateText: DateTimeFormatter.formatDate(update.date),
+    }));
   }
 
   private safeUnread(): number {
@@ -341,11 +376,14 @@ export default class ShellController extends BaseController {
   }
 
   /**
-   * Opens the notification center popover, marking everything read (§13).
+   * Opens the notification center popover, marking everything read (§13). It opens on What's new
+   * when there are portal changes the user has not seen.
    * @param event the bell button press event.
    */
   public async onNotificationPress(event: Event): Promise<void> {
     const source = event.getSource() as Control;
+    this.panelTab = this.updates.unseenCount() > 0 ? "updates" : "notifications";
+    this.updatesShown = this.panelTab === "updates";
     this.notificationPopover ??= (await this.loadPopover("NotificationPanel")) as Popover;
     this.addDependent(this.notificationPopover);
     this.notificationPopover.openBy(source);
@@ -373,6 +411,45 @@ export default class ShellController extends BaseController {
   public onNotificationClear(): void {
     this.notifications.clear();
     this.rebuildChrome(this.currentRoute());
+  }
+
+  /**
+   * Switches the bell panel between notifications and What's new.
+   * @param event the segmented button's selection change.
+   */
+  public onNotificationTabChange(event: Event): void {
+    const item = event.getParameter("item" as never) as { getKey(): string } | undefined;
+    this.panelTab = item?.getKey() === "updates" ? "updates" : "notifications";
+    this.updatesShown ||= this.panelTab === "updates";
+    this.rebuildChrome(this.currentRoute());
+  }
+
+  /** Records the portal changes as seen once the panel that showed them closes. */
+  public onNotificationPanelClose(): void {
+    if (this.updatesShown) {
+      this.updates.markSeen();
+      this.updatesShown = false;
+      this.rebuildChrome(this.currentRoute());
+      AppEventBus.getInstance().publish("context:updatesSeen", {});
+    }
+  }
+
+  /** Opens the Updates page with every change to the portal. */
+  public onSeeAllUpdates(): void {
+    this.notificationPopover?.close();
+    this.navTo(RouteNames.Updates);
+  }
+
+  /**
+   * Opens the screen a portal change is about.
+   * @param event the list item press event.
+   */
+  public onUpdatePress(event: Event): void {
+    const update = ShellController.contextObject<UpdateVM>(event, "shell");
+    if (update?.route !== undefined) {
+      this.notificationPopover?.close();
+      this.navTo(update.route);
+    }
   }
 
   /**
@@ -452,6 +529,7 @@ export default class ShellController extends BaseController {
       tenants: [],
       user: { name: "", email: "", initials: "", roleCollections: [] },
       unread: 0,
+      panel: { tab: "notifications", updatesUnseen: 0, updates: [] },
       search: { query: "", groups: [] },
     };
   }

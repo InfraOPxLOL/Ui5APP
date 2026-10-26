@@ -4,6 +4,7 @@ import { validateRequest } from "../../core/middleware/validateRequest.middlewar
 import {
   correlationIdParamSchema,
   interchangeIdParamSchema,
+  journeyQuerySchema,
   listQuerySchema,
   payloadParamSchema,
   summaryQuerySchema,
@@ -17,8 +18,14 @@ import * as controller from "./controller.js";
  */
 export const reportServerRouter: Router = Router();
 
-// Fixed paths (/summary, /transactions) are registered before /:interchangeId so the param route
-// never swallows them.
+// Fixed paths (/summary, /transactions, /journey) are registered before /:interchangeId so the
+// param route never swallows them.
+reportServerRouter.get(
+  "/journey",
+  validateRequest({ query: journeyQuerySchema }),
+  catchAsync(controller.getJourney),
+);
+
 reportServerRouter.get(
   "/transactions",
   validateRequest({ query: transactionListQuerySchema }),

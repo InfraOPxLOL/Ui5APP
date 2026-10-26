@@ -11,6 +11,8 @@ import WorkspaceRegistry from "../../registry/WorkspaceRegistry";
 import AppEventBus from "../../../core/events/AppEventBus";
 import ClientLogger, { type CategoryLogger } from "../../../core/logging/ClientLogger";
 import { Severity } from "../../../core/constants/Severity";
+import { RouteNames } from "../../../core/constants/RouteNames";
+import UpdatesService from "../../updates/UpdatesService";
 import type {
   AnnouncementVM,
   ModuleCardVM,
@@ -34,6 +36,7 @@ export default class HomeController extends BaseController {
   private readonly branding = BrandingService.getInstance();
   private readonly favorites = FavoritesService.getInstance();
   private readonly registry = WorkspaceRegistry.getInstance();
+  private readonly updates = new UpdatesService();
   private homeModel = new HomeModel();
 
   /**
@@ -48,6 +51,7 @@ export default class HomeController extends BaseController {
     bus.subscribe("context:changed", () => this.refresh(), this);
     bus.subscribe("context:favoritesChanged", () => this.refresh(), this);
     bus.subscribe("session:tenantChanged", () => this.refresh(), this);
+    bus.subscribe("context:updatesSeen", () => this.refresh(), this);
     this.getRouter()
       .getRoute("home")
       ?.attachPatternMatched(() => this.refresh(), this);
@@ -114,7 +118,31 @@ export default class HomeController extends BaseController {
         severity: Severity.Warning,
       });
     }
+    const latest = this.updates.all()[0];
+    if (latest !== undefined && this.updates.unseenCount() > 0) {
+      announcements.push({
+        id: "updates",
+        title: latest.title,
+        text: this.getText("home.announcement.updates.text", [latest.title]),
+        severity: Severity.Info,
+        type: "Information",
+        linkText: this.getText("home.announcement.updates.link"),
+        route: RouteNames.Updates,
+      });
+    }
     return announcements;
+  }
+
+  /**
+   * Follows an announcement's link (e.g. to the Updates page).
+   * @param event the link press event.
+   */
+  public onAnnouncementLink(event: Event): void {
+    const source = event.getSource() as unknown as ManagedObject;
+    const announcement = source.getBindingContext("home")?.getObject() as AnnouncementVM | undefined;
+    if (announcement?.route !== undefined) {
+      this.navTo(announcement.route);
+    }
   }
 
   /**

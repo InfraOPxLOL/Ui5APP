@@ -17,6 +17,12 @@ import type {
   WorkspaceCardVM,
 } from "./ShellViewTypes";
 
+
+/** Pages of the shell itself (not modules) that still get a breadcrumb: route → title key. */
+const SHELL_PAGE_TITLES: Readonly<Record<string, string>> = {
+  updates: "updates.title",
+};
+
 /** Resolves an i18n key (and optional placeholders) to text — the controller's `getText`. */
 export type TranslateFn = (key: string, args?: (string | number)[]) => string;
 
@@ -197,8 +203,11 @@ export default class ShellViewBuilder {
       crumbs.push({ text: translate(workspace.titleKey), route: workspace.defaultRoute });
     }
     const module = moduleRoute === "" ? undefined : this.navigation.findModuleByRoute(moduleRoute);
+    const pageTitleKey: string | undefined = SHELL_PAGE_TITLES[moduleRoute];
     if (module !== undefined) {
       crumbs.push({ text: translate(module.titleKey), route: "" });
+    } else if (pageTitleKey !== undefined) {
+      crumbs.push({ text: translate(pageTitleKey), route: "" });
     }
     return crumbs.map((crumb, index) =>
       index === crumbs.length - 1 ? { text: crumb.text, route: "" } : crumb,

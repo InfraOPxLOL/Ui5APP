@@ -45,6 +45,14 @@ export default class ModuleRegistry {
       phase: 13,
     },
     {
+      id: "trackTransaction",
+      titleKey: "module.trackTransaction",
+      icon: Icons.module.trackTransaction,
+      route: "trackTransaction",
+      group: "monitoring",
+      phase: 13,
+    },
+    {
       id: "payloadStudio",
       titleKey: "module.payloadStudio",
       icon: Icons.module.payloadStudio,

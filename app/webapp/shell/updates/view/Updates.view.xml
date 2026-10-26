@@ -1,0 +1,94 @@
+<mvc:View
+  controllerName="com.middlewareops.integrationportal.shell.updates.controller.Updates"
+  height="100%"
+  xmlns="sap.m"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns:core="sap.ui.core">
+  <Page
+    title="{i18n>updates.title}"
+    class="integrationPortalModulePage ipUpdatesPage">
+    <content>
+      <VBox class="sapUiResponsiveContentPadding ipUpdates">
+        <Text text="{i18n>updates.intro}" wrapping="true" class="sapUiSmallMarginBottom" />
+
+        <!-- Filters: kind of change, area, words -->
+        <FlexBox wrap="Wrap" alignItems="Center" class="ipUpdatesFilters">
+          <SegmentedButton selectedKey="{updates>/filter/type}" selectionChange=".onFilterChange">
+            <items>
+              <SegmentedButtonItem key="" text="{i18n>updates.filter.all}" />
+              <SegmentedButtonItem key="new" text="{i18n>updates.type.new}" />
+              <SegmentedButtonItem key="improved" text="{i18n>updates.type.improved}" />
+              <SegmentedButtonItem key="fixed" text="{i18n>updates.type.fixed}" />
+            </items>
+          </SegmentedButton>
+          <Select selectedKey="{updates>/filter/area}" change=".onFilterChange" width="12rem">
+            <core:Item key="" text="{i18n>updates.area.all}" />
+            <core:Item key="operations" text="{i18n>updates.area.operations}" />
+            <core:Item key="monitoring" text="{i18n>updates.area.monitoring}" />
+            <core:Item key="recovery" text="{i18n>updates.area.recovery}" />
+            <core:Item key="coe" text="{i18n>updates.area.coe}" />
+            <core:Item key="platform" text="{i18n>updates.area.platform}" />
+          </Select>
+          <SearchField
+            value="{updates>/filter/query}"
+            placeholder="{i18n>updates.search}"
+            liveChange=".onFilterChange"
+            search=".onFilterChange"
+            width="18rem" />
+          <Text text="{updates>/countText}" class="ipUpdatesCount" />
+        </FlexBox>
+
+        <MessageStrip
+          text="{i18n>updates.empty}"
+          type="Information"
+          showIcon="true"
+          visible="{= ${updates>/releases}.length === 0 }"
+          class="sapUiSmallMarginTop" />
+
+        <!-- Releases, newest first -->
+        <VBox items="{path: 'updates>/releases', templateShareable: false}" class="ipReleaseList">
+          <VBox class="ipRelease">
+            <customData>
+              <core:CustomData key="unseen" value="{= ${updates>unseen} ? 'yes' : 'no' }" writeToDom="true" />
+            </customData>
+            <HBox alignItems="Center" wrap="Wrap" class="ipReleaseHead">
+              <Title text="{updates>title}" level="H3" wrapping="true" class="sapUiTinyMarginEnd" />
+              <ObjectStatus
+                text="{i18n>updates.newSince}"
+                state="Information"
+                inverted="true"
+                visible="{updates>unseen}" />
+            </HBox>
+            <Text text="{path: 'updates>date', formatter: '.fmt.date'}" class="ipMuted" />
+            <Text text="{updates>summary}" wrapping="true" class="sapUiTinyMarginTop sapUiTinyMarginBottom" />
+            <List
+              items="{path: 'updates>items', templateShareable: false}"
+              showSeparators="Inner"
+              backgroundDesign="Transparent">
+              <CustomListItem>
+                <HBox class="ipUpdateItem" alignItems="Start">
+                  <ObjectStatus
+                    text="{path: 'updates>type', formatter: '.fmt.typeText'}"
+                    state="{path: 'updates>type', formatter: '.fmt.typeState'}"
+                    inverted="true"
+                    class="ipUpdateType" />
+                  <VBox class="ipUpdateText">
+                    <Text text="{updates>title}" class="ipUpdateTitle" wrapping="true" />
+                    <Text text="{updates>description}" wrapping="true" />
+                    <HBox alignItems="Center" class="sapUiTinyMarginTop">
+                      <Text text="{path: 'updates>area', formatter: '.fmt.areaText'}" class="ipMuted sapUiSmallMarginEnd" />
+                      <Link
+                        text="{i18n>updates.open}"
+                        press=".onOpen"
+                        visible="{= !!${updates>route} }" />
+                    </HBox>
+                  </VBox>
+                </HBox>
+              </CustomListItem>
+            </List>
+          </VBox>
+        </VBox>
+      </VBox>
+    </content>
+  </Page>
+</mvc:View>

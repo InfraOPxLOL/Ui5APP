@@ -6,10 +6,12 @@
 export const RouteNames = {
   Root: "root",
   Home: "home",
+  Updates: "updates",
   Dashboard: "dashboard",
   MessageMonitoring: "messageMonitoring",
   ReportServer: "reportServer",
   FailedTransactions: "failedTransactions",
+  TrackTransaction: "trackTransaction",
   PayloadStudio: "payloadStudio",
   RecoveryCenter: "recoveryCenter",
   RuntimeCenter: "runtimeCenter",

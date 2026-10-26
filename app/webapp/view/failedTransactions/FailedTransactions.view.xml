@@ -302,6 +302,9 @@
                         </form:SimpleForm>
                       </IconTabFilter>
 
+                      <!-- Where the transaction travelled, where it is stuck, and what to do next -->
+                      <core:Fragment fragmentName="com.middlewareops.integrationportal.fragment.journey.JourneyTab" type="XML" />
+
                       <!-- The parked message's own body, read from the broker -->
                       <IconTabFilter key="payload" text="{i18n>tab.payload}" icon="sap-icon://document-text">
                         <VBox busy="{view>/payloadBusy}" busyIndicatorDelay="0">

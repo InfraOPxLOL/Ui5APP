@@ -1,4 +1,4 @@
-import { nonB2bCustomHeaders } from "./NonB2bScenarioFixtures.js";
+import { nonB2bCustomHeaders, nonB2bErrorText } from "./NonB2bScenarioFixtures.js";
 import type {
   MessageProcessingLog,
   MessageErrorDetail,
@@ -259,6 +259,10 @@ const ERROR_TEXTS = [
  * @returns one to two error detail entries.
  */
 export function generateErrorDetails(messageId: string, seed = 42): MessageErrorDetail[] {
+  const nonB2b = nonB2bErrorText(messageId);
+  if (nonB2b !== undefined) {
+    return [{ messageId, text: nonB2b, category: "FUNCTIONAL" }];
+  }
   const rng = new SeededRandom(seed);
   const count = rng.int(1, 2);
   return Array.from({ length: count }, () => ({

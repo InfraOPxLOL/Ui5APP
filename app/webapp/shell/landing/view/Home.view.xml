@@ -60,7 +60,14 @@
           class="ipAnnouncement"
           text="{home>text}"
           showIcon="true"
-          type="Warning" />
+          type="{= ${home>type} || 'Warning' }">
+          <link>
+            <Link
+              text="{home>linkText}"
+              press=".onAnnouncementLink"
+              visible="{= !!${home>route} }" />
+          </link>
+        </MessageStrip>
       </VBox>
 
       <!-- Quick actions -->

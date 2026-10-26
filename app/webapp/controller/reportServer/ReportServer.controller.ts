@@ -18,6 +18,7 @@ import ReportServerModel, {
 } from "../../model/reportServer/ReportServerModel";
 import InterchangePanel from "../shared/InterchangePanel";
 import TransactionPanel from "../shared/TransactionPanel";
+import JourneyPanel from "../shared/JourneyPanel";
 import TransactionReport from "./TransactionReport";
 import type { TransactionViewState } from "../../formatter/reportServer/TransactionFormatter";
 import type {
@@ -71,6 +72,11 @@ export default class ReportServerController extends BaseController {
     navigate: (route, parameters) => this.getRouter().navTo(route, parameters),
     handleError: (error) => this.getErrorHandler().handle(error),
   });
+  /** The shared journey panel the Journey tabs bind to as `.journey.*` (one per screen). */
+  public readonly journey = new JourneyPanel({
+    navigate: (route, parameters) => this.getRouter().navTo(route, parameters),
+    handleError: (error) => this.getErrorHandler().handle(error),
+  });
   /** The non-B2B report the fragment binds to as `.nb.*`. */
   public readonly nb = new TransactionReport(
     {
@@ -79,6 +85,7 @@ export default class ReportServerController extends BaseController {
       markModified: () => this.model().setProperty("/viewModified", true),
     },
     this.txn,
+    this.journey,
   );
 
   private readonly service = new ReportServerService();
@@ -99,6 +106,7 @@ export default class ReportServerController extends BaseController {
     this.b2b.attach(this.getView()!);
     this.txn.attach(this.getView()!);
     this.nb.attach(this.getView()!);
+    this.journey.attach(this.getView()!);
     model.setProperty(
       "/timePresets",
       TimePresets.ALL.map((preset) => ({
@@ -200,6 +208,18 @@ export default class ReportServerController extends BaseController {
    */
   private switchCategory(category: Category, fromSwitch: boolean): void {
     this.model().setProperty("/category", category);
+    // One journey panel serves both categories: show the transaction selected in this one.
+    const selected =
+      category === "nonB2b"
+        ? String(this.nb.model.getProperty("/selectedId") ?? "")
+        : String(this.state<string | undefined>("/selectedId") ?? "");
+    void this.journey.show(
+      selected === ""
+        ? undefined
+        : category === "nonB2b"
+          ? { correlationId: selected }
+          : { interchangeId: selected },
+    );
     this.refreshViews();
     const parked = this.parkedSelection.get(category);
     if (parked !== undefined) {
@@ -492,6 +512,7 @@ export default class ReportServerController extends BaseController {
     model.setProperty("/selectedId", interchangeId);
     model.setProperty("/detailBusy", true);
     try {
+      void this.journey.show({ interchangeId });
       await this.b2b.load(interchangeId);
     } finally {
       model.setProperty("/detailBusy", false);

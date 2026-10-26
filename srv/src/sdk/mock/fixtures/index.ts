@@ -69,6 +69,7 @@ export {
   generateNonB2bRuns,
   nonB2bStepMplId,
   nonB2bCustomHeaders,
+  nonB2bErrorText,
   findNonB2bParkedScenario,
   type NonB2bScenario,
 } from "./NonB2bScenarioFixtures.js";

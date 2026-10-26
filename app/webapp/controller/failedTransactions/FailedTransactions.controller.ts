@@ -13,6 +13,8 @@ import DeepLinkHelper from "../../core/utils/DeepLinkHelper";
 import ReportServerFormatter from "../../formatter/reportServer/ReportServerFormatter";
 import InterchangePanel from "../shared/InterchangePanel";
 import TransactionPanel from "../shared/TransactionPanel";
+import JourneyPanel from "../shared/JourneyPanel";
+import NotificationCenter from "../../shell/notifications/NotificationCenter";
 import UserContext from "../../shell/context/UserContext";
 import { RoleCollections } from "../../shell/permissions/RoleCollections";
 import FailedTransactionsService from "../../service/failedTransactions/FailedTransactionsService";
@@ -79,6 +81,12 @@ export default class FailedTransactionsController extends BaseController {
     handleError: (error) => this.getErrorHandler().handle(error),
   });
 
+  /** The shared journey panel the Journey tab binds to as `.journey.*`. */
+  public readonly journey = new JourneyPanel({
+    navigate: (route, parameters) => this.getRouter().navTo(route, parameters),
+    handleError: (error) => this.getErrorHandler().handle(error),
+  });
+
   private readonly service = new FailedTransactionsService();
   private listAbort: AbortController | undefined;
   private chooseDialog: Dialog | undefined;
@@ -95,6 +103,7 @@ export default class FailedTransactionsController extends BaseController {
     this.setModel(new FailedTransactionsModel(), "view");
     this.b2b.attach(this.getView()!);
     this.txn.attach(this.getView()!);
+    this.journey.attach(this.getView()!);
     this.model().setProperty(
       "/canRetry",
       UserContext.getInstance()
@@ -160,6 +169,7 @@ export default class FailedTransactionsController extends BaseController {
     this.model().setProperty("/chosenTarget", "");
     this.b2b.clear();
     this.txn.clear();
+    void this.journey.show(undefined);
   }
 
   /** "Processing failures" / "JMS framework" …: a kind of dead-letter queue in business words. */
@@ -271,6 +281,7 @@ export default class FailedTransactionsController extends BaseController {
     this.binaryPayload = undefined;
     this.b2b.clear();
     this.txn.clear();
+    this.journey.clear();
     try {
       const detail = await this.service.getDetail(row.messageId, row.queueName);
       model.setProperty("/detail", detail);
@@ -279,6 +290,15 @@ export default class FailedTransactionsController extends BaseController {
         void this.b2b.load(interchangeId);
       }
       const correlationId = detail.message.correlationId;
+      void this.journey.show(
+        correlationId !== undefined
+          ? { correlationId }
+          : interchangeId !== undefined
+            ? { interchangeId }
+            : detail.message.mplId !== undefined
+              ? { mplId: detail.message.mplId }
+              : undefined,
+      );
       if (detail.transaction !== undefined && correlationId !== undefined) {
         // The panel's own read adds the errors and where the message is parked.
         void this.txn.load(correlationId);
@@ -532,6 +552,7 @@ export default class FailedTransactionsController extends BaseController {
               )
             ).results;
       await this.showResults(results);
+      this.notifyResults(results);
       const openId = this.state<FailedTransactionDetail | null>("/detail")?.message.messageId;
       if (openId !== undefined && results.some((result) => result.messageId === openId)) {
         this.clearDetail();
@@ -541,6 +562,30 @@ export default class FailedTransactionsController extends BaseController {
       this.getErrorHandler().handle(error);
     } finally {
       model.setProperty("/retrying", false);
+    }
+  }
+
+  /** Posts the outcome to the bell, so it can be checked after the results dialog is closed. */
+  private notifyResults(results: readonly FailedTransactionRetryResult[]): void {
+    const tally = FailedTransactionsFormatter.tally(results);
+    const notRetried = tally.failed + tally.unavailable;
+    const ids = results.map((result) => result.messageId);
+    const description = this.getText("notify.retry.text", [
+      ids.slice(0, 3).join(", ") + (ids.length > 3 ? " …" : ""),
+      tally.accepted,
+      tally.alreadyProcessed,
+      notRetried,
+    ]);
+    try {
+      const center = NotificationCenter.getInstance();
+      const title = this.getText("notify.retry.title", [results.length]);
+      if (notRetried > 0) {
+        center.warning(title, description);
+      } else {
+        center.info(title, description);
+      }
+    } catch {
+      // The notification center is not ready (bootstrap still running): the dialog was shown anyway.
     }
   }
 

@@ -1,0 +1,13 @@
+<!--
+  The journey as a tab: place inside an IconTabBar's items. See JourneyView for the bindings.
+-->
+<core:FragmentDefinition
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core">
+  <IconTabFilter
+    key="journey"
+    text="{journeyI18n>tab.journey}"
+    icon="sap-icon://journey-arrive">
+    <core:Fragment fragmentName="com.middlewareops.integrationportal.fragment.journey.JourneyView" type="XML" />
+  </IconTabFilter>
+</core:FragmentDefinition>

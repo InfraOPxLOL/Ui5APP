@@ -95,3 +95,16 @@ export type {
   TransactionSummary,
   TransactionDetail,
 } from "./TransactionDto.js";
+export type {
+  JourneyCategory,
+  JourneyStageKind,
+  JourneyStageState,
+  JourneyParking,
+  JourneyStage,
+  JourneyOutcome,
+  JourneyErrorKind,
+  JourneyDiagnosis,
+  NextActionCode,
+  NextAction,
+  TransactionJourney,
+} from "./JourneyDto.js";

@@ -1,0 +1,165 @@
+<!--
+  One transaction's journey: a headline saying where it is, the stages it passed through (sender,
+  Common IDoc Router, JMS framework or TPM, business flow, receiver) with the stage it is at now
+  highlighted and any dead-letter queue it is parked on hanging below that stage, what happened, and
+  the next best action. Binds to the "journey" model and "journeyI18n" bundle and calls the
+  JourneyPanel presenter the host controller exposes as `journey`.
+-->
+<core:FragmentDefinition
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core">
+  <VBox class="jrn" busy="{journey>/busy}" busyIndicatorDelay="0">
+
+    <MessageStrip
+      text="{journeyI18n>notFound}"
+      type="Warning"
+      showIcon="true"
+      visible="{journey>/failed}" />
+    <Text
+      text="{= ${journey>/busy} ? ${journeyI18n>loading} : ${journeyI18n>empty} }"
+      class="jrnHint"
+      visible="{= !${journey>/journey} &amp;&amp; !${journey>/failed} }" />
+
+    <VBox visible="{= !!${journey>/journey} }" renderType="Bare">
+
+      <!-- Headline: where the transaction is, for whom, since when -->
+      <HBox class="jrnHeadline" alignItems="Start" renderType="Bare">
+        <core:Icon
+          src="{path: 'journey>/journey/diagnosis/outcome', formatter: '.journey.fmt.outcomeIcon'}"
+          class="jrnHeadlineIcon"
+          size="1.75rem">
+          <core:customData>
+            <core:CustomData key="outcome" value="{= ${journey>/journey/diagnosis/outcome} || 'none' }" writeToDom="true" />
+          </core:customData>
+        </core:Icon>
+        <VBox class="jrnHeadlineText" renderType="Bare">
+          <Title
+            text="{path: 'journey>/journey', formatter: '.journey.fmt.headline'}"
+            level="H3"
+            wrapping="true" />
+          <Text text="{path: 'journey>/journey', formatter: '.journey.fmt.subline'}" class="jrnMuted" />
+          <Text text="{path: 'journey>/journey', formatter: '.journey.fmt.timing'}" class="jrnMuted" />
+        </VBox>
+        <Button
+          icon="sap-icon://refresh"
+          type="Transparent"
+          tooltip="{journeyI18n>refresh}"
+          press=".journey.onRefresh"
+          class="jrnRefresh" />
+      </HBox>
+
+      <!-- The stages, left to right (top to bottom on a phone) -->
+      <Title text="{journeyI18n>title.flow}" level="H5" class="jrnSectionTitle" />
+      <HBox
+        class="jrnFlow"
+        renderType="Bare"
+        items="{path: 'journey>/journey/stages', templateShareable: false}">
+        <VBox class="jrnStage" renderType="Bare">
+          <customData>
+            <core:CustomData key="state" value="{journey>state}" writeToDom="true" />
+            <core:CustomData key="current" value="{= ${journey>current} ? 'yes' : 'no' }" writeToDom="true" />
+          </customData>
+          <HBox class="jrnStageTop" alignItems="Center" justifyContent="SpaceBetween" renderType="Bare">
+            <core:Icon
+              src="{path: 'journey>kind', formatter: '.journey.fmt.stageIcon'}"
+              class="jrnStageIcon"
+              size="1.25rem" />
+            <ObjectStatus
+              text="{path: 'journey>', formatter: '.journey.fmt.stateText'}"
+              icon="{path: 'journey>state', formatter: '.journey.fmt.stateIcon'}"
+              state="{path: 'journey>state', formatter: '.journey.fmt.stateValue'}" />
+          </HBox>
+          <Text text="{path: 'journey>kind', formatter: '.journey.fmt.stageTitle'}" class="jrnStageTitle" />
+          <Text
+            text="{path: 'journey>', formatter: '.journey.fmt.stagePrimary'}"
+            class="jrnStageName"
+            wrapping="true" />
+          <Text
+            text="{path: 'journey>', formatter: '.journey.fmt.stageSecondary'}"
+            class="jrnMuted"
+            visible="{= !!${journey>detail} &amp;&amp; (${journey>kind} === 'sender' || ${journey>kind} === 'receiver') }" />
+          <Text
+            text="{path: 'journey>', formatter: '.journey.fmt.stageTime'}"
+            class="jrnMuted"
+            visible="{= !!${journey>startedAt} || !!${journey>endedAt} }" />
+          <Link
+            text="{path: 'journey>', formatter: '.journey.fmt.runsText'}"
+            press=".journey.onOpenStageLog"
+            visible="{= ${journey>mplIds}.length > 0 }" />
+          <Text text="{journeyI18n>current}" class="jrnCurrentTag" visible="{journey>current}" />
+
+          <!-- The dead-letter queue this stage parked the message on -->
+          <VBox class="jrnBranch" renderType="Bare" visible="{= !!${journey>parked} }">
+            <HBox alignItems="Center" renderType="Bare">
+              <core:Icon src="sap-icon://inbox" class="jrnBranchIcon" />
+              <Text text="{journeyI18n>parked.title}" class="jrnBranchTitle" />
+            </HBox>
+            <Text text="{journey>parked/queueName}" class="jrnMono" wrapping="true" />
+            <Text text="{path: 'journey>', formatter: '.journey.fmt.parkedSince'}" class="jrnMuted" />
+            <Text
+              text="{path: 'journey>parked/retryCount', formatter: '.journey.fmt.parkedRedelivered'}"
+              class="jrnMuted" />
+            <Text text="{path: 'journey>', formatter: '.journey.fmt.parkedRetry'}" wrapping="true" />
+          </VBox>
+        </VBox>
+      </HBox>
+
+      <!-- What happened and what to do -->
+      <HBox class="jrnCards" renderType="Bare">
+        <VBox class="jrnCard" renderType="Bare">
+          <Title text="{journeyI18n>title.diagnosis}" level="H5" class="jrnSectionTitle" />
+          <MessageStrip
+            text="{journey>/journey/diagnosis/errorText}"
+            type="{path: 'journey>/journey/diagnosis/outcome', formatter: '.journey.fmt.outcomeType'}"
+            showIcon="true"
+            visible="{= !!${journey>/journey/diagnosis/errorText} }"
+            class="sapUiTinyMarginBottom" />
+          <Text
+            text="{path: 'journey>/journey/diagnosis/errorKind', formatter: '.journey.fmt.errorKindText'}"
+            wrapping="true"
+            visible="{= !!${journey>/journey/diagnosis/errorKind} }"
+            class="sapUiTinyMarginBottom" />
+          <Text
+            text="{path: 'journey>/journey', formatter: '.journey.fmt.diagnosisNote'}"
+            class="jrnMuted"
+            wrapping="true" />
+        </VBox>
+        <VBox class="jrnCard" renderType="Bare">
+          <Title text="{journeyI18n>title.actions}" level="H5" class="jrnSectionTitle" />
+          <List
+            items="{path: 'journey>/journey/actions', templateShareable: false}"
+            showSeparators="Inner"
+            backgroundDesign="Transparent">
+            <CustomListItem>
+              <HBox class="jrnAction" alignItems="Start" renderType="Bare">
+                <customData>
+                  <core:CustomData key="primary" value="{= ${journey>primary} ? 'yes' : 'no' }" writeToDom="true" />
+                </customData>
+                <core:Icon
+                  src="{path: 'journey>code', formatter: '.journey.fmt.actionIcon'}"
+                  class="jrnActionIcon"
+                  size="1.25rem" />
+                <VBox class="jrnActionText" renderType="Bare">
+                  <HBox alignItems="Center" renderType="Bare">
+                    <Text text="{path: 'journey>', formatter: '.journey.fmt.actionTitle'}" class="jrnActionTitle" />
+                    <ObjectStatus
+                      text="{journeyI18n>action.primary}"
+                      state="Information"
+                      inverted="true"
+                      visible="{journey>primary}"
+                      class="sapUiTinyMarginBegin" />
+                  </HBox>
+                  <Text text="{path: 'journey>', formatter: '.journey.fmt.actionText'}" wrapping="true" class="jrnMuted" />
+                  <Link
+                    text="{path: 'journey>', formatter: '.journey.fmt.actionLinkText'}"
+                    press=".journey.onActionPress"
+                    visible="{path: 'journey>', formatter: '.journey.fmt.hasActionLink'}" />
+                </VBox>
+              </HBox>
+            </CustomListItem>
+          </List>
+        </VBox>
+      </HBox>
+    </VBox>
+  </VBox>
+</core:FragmentDefinition>

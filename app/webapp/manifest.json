@@ -80,6 +80,12 @@
           "uri": "css/transaction/transaction.css"
         },
         {
+          "uri": "css/journey/journey.css"
+        },
+        {
+          "uri": "css/updates/updates.css"
+        },
+        {
           "uri": "css/failedTransactions/failedTransactions.css"
         },
         {
@@ -115,6 +121,11 @@
           "target": "home"
         },
         {
+          "name": "updates",
+          "pattern": "updates",
+          "target": "updates"
+        },
+        {
           "name": "dashboard",
           "pattern": "dashboard",
           "target": "dashboard"
@@ -138,6 +149,11 @@
           "name": "failedTransactions",
           "pattern": "failedTransactions:?query:",
           "target": "failedTransactions"
+        },
+        {
+          "name": "trackTransaction",
+          "pattern": "trackTransaction/:id::?query:",
+          "target": "trackTransaction"
         },
         {
           "name": "recoveryCenter",
@@ -243,6 +259,13 @@
           "controlAggregation": "pages",
           "controlId": "moduleContainer"
         },
+        "updates": {
+          "type": "View",
+          "name": "com.middlewareops.integrationportal.shell.updates.view.Updates",
+          "viewType": "XML",
+          "controlAggregation": "pages",
+          "controlId": "moduleContainer"
+        },
         "dashboard": {
           "type": "View",
           "name": "com.middlewareops.integrationportal.view.dashboard.Dashboard",
@@ -267,6 +290,13 @@
         "failedTransactions": {
           "type": "View",
           "name": "com.middlewareops.integrationportal.view.failedTransactions.FailedTransactions",
+          "viewType": "XML",
+          "controlAggregation": "pages",
+          "controlId": "moduleContainer"
+        },
+        "trackTransaction": {
+          "type": "View",
+          "name": "com.middlewareops.integrationportal.view.trackTransaction.TrackTransaction",
           "viewType": "XML",
           "controlAggregation": "pages",
           "controlId": "moduleContainer"

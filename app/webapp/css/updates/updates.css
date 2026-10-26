@@ -1,0 +1,89 @@
+/* Updates page (shell/updates): a release timeline. Theme parameters keep it light/dark aware. */
+
+.ipUpdates {
+  /* Theme parameters with fallbacks: UI5 1.120 does not expose them as CSS variables by default,
+     so the fallbacks are what renders. Neutrals are translucent so they suit light and dark themes. */
+  --upd-positive: var(--sapPositiveColor, #2b7d2b);
+  --upd-negative: var(--sapNegativeColor, #d32030);
+  --upd-critical: var(--sapCriticalColor, #e76500);
+  --upd-info: var(--sapInformativeColor, #0070f2);
+  --upd-neutral: var(--sapNeutralBorderColor, rgba(127, 127, 127, 0.55));
+  --upd-border: var(--sapList_BorderColor, rgba(127, 127, 127, 0.3));
+  --upd-surface: var(--sapTile_Background, rgba(127, 127, 127, 0.06));
+  --upd-label: var(--sapContent_LabelColor, #6a7d90);
+  --upd-error-surface: var(--sapErrorBackground, rgba(211, 32, 48, 0.07));
+  --upd-radius: var(--sapElement_BorderCornerRadius, 0.75rem);
+  --upd-on-status: #fff;
+}
+
+.ipUpdates {
+  max-width: 60rem;
+}
+
+.ipUpdatesFilters {
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.ipUpdatesCount,
+.ipUpdates .ipMuted {
+  color: var(--upd-label);
+}
+
+.ipReleaseList {
+  margin-top: 0.5rem;
+}
+
+.ipRelease {
+  position: relative;
+  padding: 0.75rem 0 0.75rem 1.25rem;
+  border-left: 2px solid var(--upd-border);
+}
+
+/* The timeline dot. */
+.ipRelease::before {
+  content: "";
+  position: absolute;
+  left: -0.4375rem;
+  top: 1.1rem;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  background: var(--upd-neutral);
+}
+
+.ipRelease[data-unseen="yes"]::before {
+  background: var(--upd-info);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--upd-info) 25%, transparent);
+}
+
+.ipReleaseHead {
+  gap: 0.25rem;
+}
+
+.ipUpdateItem {
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+}
+
+.ipUpdateType {
+  flex: 0 0 5.5rem;
+}
+
+.ipUpdateText {
+  min-width: 0;
+}
+
+.ipUpdateTitle {
+  font-weight: bold;
+}
+
+@media (max-width: 600px) {
+  .ipUpdateItem {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .ipUpdateType {
+    flex: 0 0 auto;
+  }
+}

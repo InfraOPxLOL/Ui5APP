@@ -1,0 +1,37 @@
+<mvc:View
+  controllerName="com.middlewareops.integrationportal.controller.trackTransaction.TrackTransaction"
+  height="100%"
+  xmlns="sap.m"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns:core="sap.ui.core">
+  <Page
+    id="page"
+    title="{i18n>title}"
+    class="integrationPortalModulePage trackTransactionPage">
+    <content>
+      <VBox class="sapUiResponsiveContentPadding">
+        <Text text="{i18n>intro}" wrapping="true" class="sapUiSmallMarginBottom" />
+        <SearchField
+          id="trackSearch"
+          value="{view>/query}"
+          placeholder="{i18n>search.placeholder}"
+          search=".onSearch"
+          width="100%"
+          class="jrnSearch" />
+        <HBox
+          alignItems="Center"
+          wrap="Wrap"
+          class="sapUiTinyMarginTop"
+          visible="{= ${view>/recent}.length > 0 }">
+          <Label text="{i18n>recent}" class="sapUiTinyMarginEnd" />
+          <HBox items="{path: 'view>/recent', templateShareable: false}" wrap="Wrap">
+            <Link text="{view>}" press=".onRecentPress" class="sapUiSmallMarginEnd" />
+          </HBox>
+        </HBox>
+        <VBox class="sapUiMediumMarginTop">
+          <core:Fragment fragmentName="com.middlewareops.integrationportal.fragment.journey.JourneyView" type="XML" />
+        </VBox>
+      </VBox>
+    </content>
+  </Page>
+</mvc:View>

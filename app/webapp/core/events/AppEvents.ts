@@ -39,6 +39,8 @@ export interface AppEventPayloads {
    * chrome to handle — e.g. open the tenant selector, global search or notifications.
    */
   "context:shellCommand": { readonly command: string };
+  /** The user has seen the latest portal changes (What's new), so "new" markers can go. */
+  "context:updatesSeen": Record<string, never>;
 }
 
 /** Union of all valid `"channel:event"` keys. */

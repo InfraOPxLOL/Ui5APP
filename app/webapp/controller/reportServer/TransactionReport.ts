@@ -9,6 +9,7 @@ import TransactionFormatter, {
   type TransactionViewState,
 } from "../../formatter/reportServer/TransactionFormatter";
 import type TransactionPanel from "../shared/TransactionPanel";
+import type JourneyPanel from "../shared/JourneyPanel";
 import type {
   TransactionFilters,
   TransactionStatusCategory,
@@ -73,6 +74,7 @@ export default class TransactionReport {
   public constructor(
     private readonly host: TransactionReportHost,
     private readonly panel: TransactionPanel,
+    private readonly journey?: JourneyPanel,
   ) {
     this.model.attachPropertyChange((event: Event) => {
       const path = String(event.getParameter("path" as never) ?? "");
@@ -137,7 +139,9 @@ export default class TransactionReport {
       false,
     );
     await this.reload();
+    this.model.setProperty("/selectedId", correlationId);
     void this.panel.load(correlationId);
+    void this.journey?.show({ correlationId });
   }
 
   public readonly onSearch = (): void => {
@@ -175,6 +179,7 @@ export default class TransactionReport {
     if (row !== undefined) {
       this.model.setProperty("/selectedId", row.correlationId);
       void this.panel.load(row.correlationId);
+      void this.journey?.show({ correlationId: row.correlationId });
     }
   };
 
@@ -240,6 +245,7 @@ export default class TransactionReport {
       this.applyTileFilter();
       if (!append) {
         this.panel.clear();
+        this.journey?.clear();
       }
     } catch (error) {
       if (!abort.signal.aborted) {

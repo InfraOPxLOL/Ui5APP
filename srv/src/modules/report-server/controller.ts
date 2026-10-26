@@ -4,6 +4,7 @@ import {
   type TransactionFrameworkFilter,
   type TransactionListQuery,
 } from "./transactions.js";
+import { journeyService, type JourneyQuery } from "./journey.js";
 import {
   reportServerService,
   type ReportServerFilterQuery,
@@ -113,4 +114,16 @@ export async function listTransactions(req: Request, res: Response): Promise<voi
 /** GET /transactions/:correlationId — one non-B2B transaction with every step. */
 export async function getTransaction(req: Request, res: Response): Promise<void> {
   res.json(await transactionsService.getById(req.params.correlationId as string));
+}
+
+/** GET /journey — one transaction's journey and next best action, by any id. */
+export async function getJourney(req: Request, res: Response): Promise<void> {
+  const q = req.query as Record<string, string | undefined>;
+  const query: JourneyQuery = {
+    id: q.id,
+    correlationId: q.correlationId,
+    mplId: q.mplId,
+    interchangeId: q.interchangeId,
+  };
+  res.json(await journeyService.get(query));
 }

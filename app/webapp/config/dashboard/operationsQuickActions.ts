@@ -31,6 +31,12 @@ export const OPERATIONS_QUICK_ACTIONS: readonly OperationsQuickAction[] = [
     icon: "sap-icon://message-error",
     route: RouteNames.FailedTransactions,
   },
+  {
+    id: "trackTransaction",
+    titleKey: "ops.qa.trackTransaction",
+    icon: "sap-icon://journey-arrive",
+    route: RouteNames.TrackTransaction,
+  },
   { id: "retry", titleKey: "ops.qa.retry", icon: "sap-icon://redo", route: RouteNames.JmsQueue },
   {
     id: "runtime",

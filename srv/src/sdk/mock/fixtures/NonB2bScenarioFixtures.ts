@@ -45,6 +45,8 @@ export interface NonB2bScenario {
   readonly applicationId: string;
   readonly messageType: string;
   readonly steps: readonly ScenarioStep[];
+  /** The error every failed step of this transaction reports. */
+  readonly errorText?: string;
   /** The queue the ingress dispatcher's header names; absent = the header was not written. */
   readonly queueHeader?: string;
   /** The message parked on a dead-letter queue, when the transaction ended there. */
@@ -126,6 +128,7 @@ export const NON_B2B_SCENARIOS: readonly NonB2bScenario[] = [
   },
   {
     key: "nb-plain-failed",
+    errorText: "Mapping failed: field MATNR is empty in segment E1MARAM.",
     correlationId: "corr-nb-plain-failed",
     minutesAgo: 95,
     sender: "S4",
@@ -147,6 +150,7 @@ export const NON_B2B_SCENARIOS: readonly NonB2bScenario[] = [
   },
   {
     key: "nb-jms-dlq-header",
+    errorText: "HTTP 503 Service Unavailable returned by the SFDC LATAM endpoint.",
     correlationId: "corr-nb-jms-dlq-header",
     minutesAgo: 140,
     sender: "S4_CC",
@@ -169,6 +173,7 @@ export const NON_B2B_SCENARIOS: readonly NonB2bScenario[] = [
   },
   {
     key: "nb-jms-dlq-consumer",
+    errorText: "Connection timed out after 60000 ms calling the Ariba endpoint.",
     correlationId: "corr-nb-jms-dlq-consumer",
     minutesAgo: 180,
     sender: "S4",
@@ -203,6 +208,7 @@ export const NON_B2B_SCENARIOS: readonly NonB2bScenario[] = [
   },
   {
     key: "nb-jms-dlq-na",
+    errorText: "XML validation failed: element 'VBELN' is not valid against schema ORDERS05.",
     correlationId: "corr-nb-jms-dlq-na",
     minutesAgo: 320,
     sender: "S4",
@@ -220,6 +226,7 @@ export const NON_B2B_SCENARIOS: readonly NonB2bScenario[] = [
   },
   {
     key: "nb-router-dlq-la",
+    errorText: "Partner Directory lookup failed: no routing entry for route key .ORDERS05.ORDERS05.SAPS4.S4_LA.*.*",
     correlationId: "corr-nb-router-dlq-la",
     minutesAgo: 110,
     sender: "S4_LA",
@@ -239,6 +246,7 @@ export const NON_B2B_SCENARIOS: readonly NonB2bScenario[] = [
   },
   {
     key: "nb-router-dlq-hu",
+    errorText: "Partner Directory lookup failed: no routing entry for route key .DESADV01.DESADV.SAPS4.S4_HU.*.*",
     correlationId: "corr-nb-router-dlq-hu",
     minutesAgo: 230,
     sender: "S4_HU",
@@ -307,6 +315,19 @@ export function nonB2bCustomHeaders(messageId: string): MessageHeader[] | undefi
               value: `📂 [PD Fetch] Queue resolved via Direct Value [QUEUE_JMS_${scenario.messageType} = ${scenario.queueHeader}]`,
             },
           ];
+    }
+  }
+  return undefined;
+}
+
+/** The error text of a failed scenario step, or `undefined` for other ids. */
+export function nonB2bErrorText(messageId: string): string | undefined {
+  for (const scenario of NON_B2B_SCENARIOS) {
+    const index = scenario.steps.findIndex(
+      (_step, stepIndex) => nonB2bStepMplId(scenario, stepIndex) === messageId,
+    );
+    if (index >= 0) {
+      return scenario.steps[index]?.status === "FAILED" ? scenario.errorText : undefined;
     }
   }
   return undefined;
