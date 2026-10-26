@@ -25,6 +25,54 @@ sap.ui.define(
       assert.strictEqual(FailedTransactionsFormatter.deadLetterState("other"), "None");
     });
 
+    QUnit.test(
+      "non-B2B dead letters: JMS failures are errors, router failures warnings",
+      function (assert) {
+        assert.strictEqual(FailedTransactionsFormatter.deadLetterState("jms"), "Error");
+        assert.strictEqual(FailedTransactionsFormatter.deadLetterState("router"), "Warning");
+        assert.strictEqual(FailedTransactionsFormatter.deadLetterState(undefined), "None");
+        assert.strictEqual(FailedTransactionsFormatter.deadLetterColor("jms"), "Error");
+        assert.strictEqual(FailedTransactionsFormatter.deadLetterColor("processing"), "Error");
+        assert.strictEqual(FailedTransactionsFormatter.deadLetterColor("router"), "Critical");
+      },
+    );
+
+    QUnit.test("transaction title prefers the business flow", function (assert) {
+      assert.strictEqual(
+        FailedTransactionsFormatter.transactionTitle({
+          businessFlow: "IF_Order_to_SFDC",
+          messageType: "ORDERS05",
+        }),
+        "IF_Order_to_SFDC",
+      );
+      assert.strictEqual(
+        FailedTransactionsFormatter.transactionTitle({ messageType: "ORDERS05" }),
+        "ORDERS05",
+      );
+      assert.strictEqual(FailedTransactionsFormatter.transactionTitle(undefined), "—");
+      assert.strictEqual(
+        FailedTransactionsFormatter.pathText(["Common IDoc Router (BTP_IS_CORE_LA)", "JMS"]),
+        "Common IDoc Router (BTP_IS_CORE_LA) → JMS",
+      );
+      assert.strictEqual(FailedTransactionsFormatter.pathText(undefined), "");
+    });
+
+    QUnit.test("only a JMS dead letter without a target needs a queue choice", function (assert) {
+      function needs(row) {
+        return FailedTransactionsFormatter.needsQueueChoice(row);
+      }
+      assert.strictEqual(needs({ deadLetterKind: "jms" }), true);
+      assert.strictEqual(needs({ deadLetterKind: "jms", targetQueue: null }), true);
+      assert.strictEqual(needs({ deadLetterKind: "jms", targetQueue: "" }), true);
+      assert.strictEqual(
+        needs({ deadLetterKind: "jms", targetQueue: "Common_JMS_ID_NA_P1" }),
+        false,
+      );
+      assert.strictEqual(needs({ deadLetterKind: "router" }), false);
+      assert.strictEqual(needs({ deadLetterKind: "processing" }), false);
+      assert.strictEqual(needs(undefined), false);
+    });
+
     QUnit.test("outcome state never shows a refused retry as a success", function (assert) {
       assert.strictEqual(FailedTransactionsFormatter.outcomeState("accepted"), "Success");
       assert.strictEqual(

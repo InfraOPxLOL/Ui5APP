@@ -47,6 +47,9 @@ server:
             - /resources
             - /test-resources
           url: https://ui5.sap.com
+          # Without an explicit version the proxy uses manifest minUI5Version (1.120.0), which the
+          # CDN no longer serves. Keep in step with framework.version above and index.html.
+          version: "1.120.52"
     # Live reload on source change (developer-experience only; safe to remove).
     - name: fiori-tools-appreload
       afterMiddleware: fiori-tools-proxy

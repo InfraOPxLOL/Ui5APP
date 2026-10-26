@@ -11,8 +11,10 @@ import { QueueRecoveryStrategyBase, type LocatedMessage } from "../QueueRecovery
  * the authoritative mapping. Resolution order:
  *
  * ```
- * read the configured queue header (default CH-Message-Queue)
- *   ↓ parse the queue name out of it
+ * read the configured queue header (CH-Message-Log-QueueResolution, on the ingress dispatcher)
+ *   ↓ parse the queue name out of it — or, when there is no such header,
+ *   ↓ look up the queue-consumer flow found in the correlation chain (consumerFlowQueues)
+ *   ↓ — or the queue the operator picked when neither says
  * probe the resolved queue
  *   ↓ not found
  * probe the configured central DLQ
@@ -60,11 +62,15 @@ export class JmsFrameworkRecoveryStrategy extends QueueRecoveryStrategyBase {
           {
             key: "queueResolved",
             passed: false,
-            message: `No "${headerName}" header was found on the JMS bridge log entry, or its value could not be parsed.`,
+            message: `No "${headerName}" header was found on the JMS ingress log entry (or it could not be parsed), and no queue-consumer flow in the message's history names a queue.`,
           },
         ],
         path: [
-          { action: "MANUAL", queueName: undefined, description: "Select the queue to retry from." },
+          {
+            action: "MANUAL",
+            queueName: undefined,
+            description: "Select the queue to retry from.",
+          },
         ],
         explanation: `This message was routed through the JMS Framework, but its queue could not be resolved from the "${headerName}" header. Pick the queue manually to continue — no queue is assumed.`,
       };
@@ -109,11 +115,31 @@ export class JmsFrameworkRecoveryStrategy extends QueueRecoveryStrategyBase {
   }
 
   /**
-   * The queue for this message: parsed from the configured header, or the one the operator explicitly
-   * selected when the header could not be parsed. Never a default.
+   * The queue for this message: parsed from the configured header, else the queue of the consumer
+   * flow that picked it up, else the one the operator explicitly selected. Never a default.
    */
   private resolveQueue(context: RecoveryContext): string | undefined {
-    return this.parseQueueFromHeaders(context.customHeaders) ?? context.operatorSelectedQueue;
+    return (
+      this.parseQueueFromHeaders(context.customHeaders) ??
+      this.queueFromConsumerFlow(context.correlationFlows) ??
+      context.operatorSelectedQueue
+    );
+  }
+
+  /** The queue of the one consumer flow in the chain; two different consumers are not resolvable. */
+  private queueFromConsumerFlow(flows: readonly string[] | undefined): string | undefined {
+    const table = new Map(
+      Object.entries(this.config.queueResolution?.consumerFlowQueues ?? {}).map(([flow, queue]) => [
+        flow.toLowerCase(),
+        queue,
+      ]),
+    );
+    const queues = new Set(
+      (flows ?? [])
+        .map((flow) => table.get(flow.toLowerCase()))
+        .filter((queue): queue is string => queue !== undefined),
+    );
+    return queues.size === 1 ? [...queues][0] : undefined;
   }
 
   /**

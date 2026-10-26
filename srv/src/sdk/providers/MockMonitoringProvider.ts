@@ -14,6 +14,7 @@ import {
   generateErrorDetails,
   generateMessageLogs,
   generateTpmScenarioRuns,
+  generateNonB2bRuns,
 } from "../mock/fixtures/index.js";
 
 /**
@@ -38,16 +39,19 @@ export class MockMonitoringProvider implements IMonitoringProvider {
       generateEmpty: () => [],
       generateLarge: () => generateMessageLogs(250),
     });
-    // A correlation lookup also sees the TPM DLQ scenarios' earlier runs, so retry history has depth.
-    const pool =
-      filter.correlationId === undefined
-        ? all
-        : [
-            ...all,
-            ...generateTpmScenarioRuns().filter(
-              (run) => !all.some((log) => log.messageId === run.messageId),
-            ),
-          ];
+    // The non-B2B framework scenarios are always part of the tenant's logs. A correlation lookup
+    // also sees the TPM DLQ scenarios' earlier runs, so retry history has depth.
+    const correlated =
+      filter.correlationId !== undefined || (filter.correlationIds?.length ?? 0) > 0;
+    // An empty tenant (the "empty" mock scenario) has none of them either.
+    const extra =
+      all.length === 0
+        ? []
+        : [...generateNonB2bRuns(), ...(correlated ? generateTpmScenarioRuns() : [])];
+    const pool = [
+      ...all,
+      ...extra.filter((run) => !all.some((log) => log.messageId === run.messageId)),
+    ].sort((a, b) => b.startTime.localeCompare(a.startTime));
     const filtered = pool.filter((log) => MockMonitoringProvider.matchesFilter(log, filter));
     return {
       items: filtered.slice(page.skip, page.skip + page.top),
@@ -68,7 +72,8 @@ export class MockMonitoringProvider implements IMonitoringProvider {
     // The TPM DLQ scenarios' runs are linked from Failed Transactions and the Report Server.
     return (
       all.find((log) => log.messageId === messageId) ??
-      generateTpmScenarioRuns().find((run) => run.messageId === messageId)
+      generateTpmScenarioRuns().find((run) => run.messageId === messageId) ??
+      generateNonB2bRuns().find((run) => run.messageId === messageId)
     );
   }
 
@@ -132,6 +137,28 @@ export class MockMonitoringProvider implements IMonitoringProvider {
       return false;
     }
     if (filter.correlationId !== undefined && log.correlationId !== filter.correlationId) {
+      return false;
+    }
+    if (
+      filter.correlationIds !== undefined &&
+      filter.correlationIds.length > 0 &&
+      !filter.correlationIds.includes(log.correlationId)
+    ) {
+      return false;
+    }
+    if (filter.messageId !== undefined && log.messageId !== filter.messageId) {
+      return false;
+    }
+    if (filter.sender !== undefined && !log.sender.includes(filter.sender)) {
+      return false;
+    }
+    if (filter.receiver !== undefined && !log.receiver.includes(filter.receiver)) {
+      return false;
+    }
+    if (filter.applicationId !== undefined && log.applicationId !== filter.applicationId) {
+      return false;
+    }
+    if (filter.messageType !== undefined && log.messageType !== filter.messageType) {
       return false;
     }
     if (filter.search !== undefined && filter.search !== "") {

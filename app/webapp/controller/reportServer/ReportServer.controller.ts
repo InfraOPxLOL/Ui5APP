@@ -17,6 +17,9 @@ import ReportServerModel, {
   type ViewItem,
 } from "../../model/reportServer/ReportServerModel";
 import InterchangePanel from "../shared/InterchangePanel";
+import TransactionPanel from "../shared/TransactionPanel";
+import TransactionReport from "./TransactionReport";
+import type { TransactionViewState } from "../../formatter/reportServer/TransactionFormatter";
 import type {
   Interchange,
   ReportServerFilters,
@@ -33,13 +36,24 @@ interface RouteArguments {
     readonly view?: string;
     /** A processing log whose interchange should be found and opened. */
     readonly mplId?: string;
+    /** `b2b` (TPM interchanges) or `nonB2b` (every other transaction). */
+    readonly category?: string;
+    /** A non-B2B transaction to find and open. */
+    readonly correlationId?: string;
   };
 }
 
+type Category = "b2b" | "nonB2b";
+
 /**
- * Report Server: every B2B interchange recorded by TPM's B2B Monitor — searchable over a relative
- * time window or a custom range, with advanced fields, saved views and shareable search links — and
- * the shared interchange panel (sender, receiver, documents, events, errors, processing logs).
+ * Report Server, in two categories switched in the header:
+ * - **B2B** — every interchange recorded by TPM's B2B Monitor, with the shared interchange panel
+ *   (sender, receiver, documents, events, errors, processing logs);
+ * - **Non-B2B** — every other transaction, folded from the processing logs by correlation id, with
+ *   its Common IDoc Router / JMS framework path and the shared transaction panel ({@link TransactionReport}).
+ *
+ * Both search over a relative time window or a custom range, with advanced fields, saved views (one
+ * set per category) and shareable search links.
  *
  * @namespace com.middlewareops.integrationportal.controller.reportServer
  */
@@ -52,8 +66,26 @@ export default class ReportServerController extends BaseController {
     handleError: (error) => this.getErrorHandler().handle(error),
   });
 
+  /** The shared non-B2B transaction panel the detail fragment binds to as `.txn.*`. */
+  public readonly txn = new TransactionPanel({
+    navigate: (route, parameters) => this.getRouter().navTo(route, parameters),
+    handleError: (error) => this.getErrorHandler().handle(error),
+  });
+  /** The non-B2B report the fragment binds to as `.nb.*`. */
+  public readonly nb = new TransactionReport(
+    {
+      text: (key, args) => this.getText(key, args),
+      handleError: (error) => this.getErrorHandler().handle(error),
+      markModified: () => this.model().setProperty("/viewModified", true),
+    },
+    this.txn,
+  );
+
   private readonly service = new ReportServerService();
   private readonly views = new SavedViewStore<ReportServerViewState>("reportServer");
+  private readonly nbViews = new SavedViewStore<TransactionViewState>("reportServer.nonB2b");
+  /** The selected view of the category not on screen, restored when switching back. */
+  private readonly parkedSelection = new Map<Category, { key: string; modified: boolean }>();
   private listAbort: AbortController | undefined;
   private initialised = false;
   /** The last `?query` this screen acted on, so returning to it does not search again. */
@@ -65,6 +97,8 @@ export default class ReportServerController extends BaseController {
     const model = new ReportServerModel();
     this.setModel(model, "view");
     this.b2b.attach(this.getView()!);
+    this.txn.attach(this.getView()!);
+    this.nb.attach(this.getView()!);
     model.setProperty(
       "/timePresets",
       TimePresets.ALL.map((preset) => ({
@@ -101,13 +135,32 @@ export default class ReportServerController extends BaseController {
     const queryChanged = token !== this.lastQueryToken;
     this.lastQueryToken = token;
 
+    const requested: Category | undefined =
+      query.category === "nonB2b" || query.correlationId !== undefined
+        ? "nonB2b"
+        : query.category === "b2b" || query.mplId !== undefined
+          ? "b2b"
+          : undefined;
+    if (queryChanged && requested !== undefined && requested !== this.category()) {
+      this.switchCategory(requested, false);
+    }
+
     if (query.view !== undefined && queryChanged) {
       // A shared search: apply it as an unsaved modification of the standard view.
-      this.applyState(ReportServerFormatter.fromViewState(DeepLinkHelper.decode(query.view)));
+      const shared = DeepLinkHelper.decode(query.view);
+      if (this.category() === "nonB2b") {
+        this.nb.apply(shared);
+      } else {
+        this.applyState(ReportServerFormatter.fromViewState(shared));
+        void this.reload();
+      }
       this.model().setProperty("/selectedViewKey", STANDARD_VIEW_KEY);
       this.model().setProperty("/viewModified", true);
       MessageToast.show(this.getText("toast.viewFromLink"));
-      void this.reload();
+    } else if (query.correlationId !== undefined && queryChanged) {
+      this.model().setProperty("/selectedViewKey", STANDARD_VIEW_KEY);
+      this.model().setProperty("/viewModified", true);
+      void this.nb.openByCorrelationId(query.correlationId);
     } else if (query.mplId !== undefined && queryChanged) {
       void this.openByProcessingLog(query.mplId);
     } else if (!this.initialised) {
@@ -123,7 +176,56 @@ export default class ReportServerController extends BaseController {
   // --- Search -----------------------------------------------------------------
 
   public onRefresh(): void {
+    if (this.category() === "nonB2b") {
+      this.nb.onSearch();
+      return;
+    }
     void this.reload();
+  }
+
+  /** The B2B / Non-B2B switch in the header. */
+  public onCategoryChange(): void {
+    const category = this.category();
+    const previous: Category = category === "nonB2b" ? "b2b" : "nonB2b";
+    this.parkedSelection.set(previous, {
+      key: this.state<string>("/selectedViewKey"),
+      modified: this.state<boolean>("/viewModified"),
+    });
+    this.switchCategory(category, true);
+  }
+
+  /**
+   * Shows a category: its saved views in the view selector and — the first time — its default
+   * view. A category already shown keeps the search it had.
+   */
+  private switchCategory(category: Category, fromSwitch: boolean): void {
+    this.model().setProperty("/category", category);
+    this.refreshViews();
+    const parked = this.parkedSelection.get(category);
+    if (parked !== undefined) {
+      this.model().setProperty("/selectedViewKey", parked.key);
+      this.model().setProperty("/viewModified", parked.modified);
+      return;
+    }
+    if (fromSwitch) {
+      this.selectView(this.state<string>("/defaultViewKey"));
+    }
+  }
+
+  private category(): Category {
+    return this.state<string>("/category") === "nonB2b" ? "nonB2b" : "b2b";
+  }
+
+  /** The saved views of the category on screen. */
+  private store(): SavedViewStore<unknown> {
+    return (this.category() === "nonB2b" ? this.nbViews : this.views) as SavedViewStore<unknown>;
+  }
+
+  /** The search state of the category on screen, as a saved view or shared link carries it. */
+  private currentViewState(): unknown {
+    return this.category() === "nonB2b"
+      ? this.nb.viewState()
+      : ReportServerFormatter.toViewState(this.filters(), this.state<boolean>("/advanced"));
   }
 
   public onSearch(): void {
@@ -237,6 +339,10 @@ export default class ReportServerController extends BaseController {
   }
 
   public onExport(): void {
+    if (this.category() === "nonB2b") {
+      this.nb.exportCsv();
+      return;
+    }
     const rows = this.state<Interchange[]>("/items").map((row) => ({
       status: row.overallStatus,
       startedAt: row.startedAt ?? "",
@@ -270,13 +376,14 @@ export default class ReportServerController extends BaseController {
     }
     const overwrite = event.getParameter("overwrite" as never) === true;
     const key = overwrite ? String(event.getParameter("key" as never) ?? "") : undefined;
-    const saved = this.views.save(
+    const store = this.store();
+    const saved = store.save(
       name,
-      ReportServerFormatter.toViewState(this.filters(), this.state<boolean>("/advanced")),
+      this.currentViewState(),
       key === STANDARD_VIEW_KEY ? undefined : key,
     );
     if (event.getParameter("def" as never) === true) {
-      this.views.setDefault(saved.key);
+      store.setDefault(saved.key);
     }
     this.refreshViews();
     this.model().setProperty("/selectedViewKey", saved.key);
@@ -290,15 +397,16 @@ export default class ReportServerController extends BaseController {
       name: string;
     }[];
     const deleted = (event.getParameter("deleted" as never) ?? []) as string[];
+    const store = this.store();
     for (const entry of renamed) {
-      this.views.rename(entry.key, entry.name);
+      store.rename(entry.key, entry.name);
     }
     for (const key of deleted) {
-      this.views.remove(key);
+      store.remove(key);
     }
     const defaultKey = event.getParameter("def" as never) as string | undefined;
     if (defaultKey !== undefined) {
-      this.views.setDefault(defaultKey);
+      store.setDefault(defaultKey);
     }
     this.refreshViews();
     if (deleted.includes(this.state<string>("/selectedViewKey"))) {
@@ -308,10 +416,10 @@ export default class ReportServerController extends BaseController {
 
   /** Copies a link that reopens this exact search (the time window stays relative). */
   public onShareView(): void {
-    const token = DeepLinkHelper.encode(
-      ReportServerFormatter.toViewState(this.filters(), this.state<boolean>("/advanced")) as never,
-    );
-    const hash = this.getRouter().getURL("reportServer", { "?query": { view: token } });
+    const token = DeepLinkHelper.encode(this.currentViewState() as never);
+    const hash = this.getRouter().getURL("reportServer", {
+      "?query": { category: this.category(), view: token },
+    });
     const url = `${window.location.href.split("#")[0]}#/${hash}`;
     void ClipboardUtils.copyText(url).then((copied) => {
       MessageToast.show(this.getText(copied ? "toast.linkCopied" : "toast.linkFailed"));
@@ -319,6 +427,13 @@ export default class ReportServerController extends BaseController {
   }
 
   private selectView(key: string): void {
+    if (this.category() === "nonB2b") {
+      const view = key === STANDARD_VIEW_KEY ? undefined : this.nbViews.get(key);
+      this.nb.apply(view?.state);
+      this.model().setProperty("/selectedViewKey", view?.key ?? STANDARD_VIEW_KEY);
+      this.model().setProperty("/viewModified", false);
+      return;
+    }
     const saved = key === STANDARD_VIEW_KEY ? undefined : this.views.get(key);
     this.applyState(
       saved === undefined
@@ -338,12 +453,12 @@ export default class ReportServerController extends BaseController {
         rename: false,
         remove: false,
       },
-      ...this.views
+      ...this.store()
         .list()
         .map((view) => ({ key: view.key, title: view.name, rename: true, remove: true })),
     ];
     this.model().setProperty("/views", items);
-    this.model().setProperty("/defaultViewKey", this.views.getDefaultKey());
+    this.model().setProperty("/defaultViewKey", this.store().getDefaultKey());
   }
 
   private applyState(state: { filters: ReportServerFilters; advanced: boolean }): void {

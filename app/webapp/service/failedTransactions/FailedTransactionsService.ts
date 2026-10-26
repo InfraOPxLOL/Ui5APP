@@ -44,16 +44,21 @@ export default class FailedTransactionsService extends BaseService {
     messageId: string,
     queueName: string,
     reason?: string,
+    targetQueue?: string,
   ): Promise<FailedTransactionRetryResult> {
     return this.client.post<FailedTransactionRetryResult>(
       this.path(`${encodeURIComponent(messageId)}/retry`),
-      { queueName, reason },
+      { queueName, reason, targetQueue },
     );
   }
 
   /** Retries several messages; every item reports its own outcome. */
   public retryMany(
-    items: readonly { readonly messageId: string; readonly queueName: string }[],
+    items: readonly {
+      readonly messageId: string;
+      readonly queueName: string;
+      readonly targetQueue?: string;
+    }[],
     reason?: string,
   ): Promise<{ readonly results: readonly FailedTransactionRetryResult[] }> {
     return this.client.post<{ readonly results: readonly FailedTransactionRetryResult[] }>(

@@ -12,6 +12,13 @@
     title="{i18n>title}"
     class="integrationPortalModulePage failedTransactionsPage">
     <headerContent>
+      <SegmentedButton selectedKey="{view>/category}" selectionChange=".onCategoryChange">
+        <items>
+          <SegmentedButtonItem key="b2b" text="{i18n>category.b2b}" />
+          <SegmentedButtonItem key="nonB2b" text="{i18n>category.nonB2b}" />
+        </items>
+      </SegmentedButton>
+      <ToolbarSpacer width="1rem" />
       <Button
         text="{= ${i18n>action.retrySelected} + ' (' + ${view>/selectedCount} + ')' }"
         icon="sap-icon://redo"
@@ -34,7 +41,7 @@
           visible="{= ${view>/queueErrors} !== '' }"
           class="sapUiSmallMargin" />
 
-        <!-- One tile per TPM dead-letter queue; pressing one filters the list to it. -->
+        <!-- One tile per dead-letter queue of the category; pressing one filters the list to it. -->
         <HBox wrap="Wrap" class="failedTransactionsTiles">
           <GenericTile
             header="{i18n>kpi.all}"
@@ -51,8 +58,8 @@
           </GenericTile>
           <HBox items="{view>/queues}" wrap="Wrap">
             <GenericTile
-              header="{= ${view>deadLetterKind} === 'processing' ? ${i18n>kpi.processing} : (${view>deadLetterKind} === 'receiver' ? ${i18n>kpi.receiver} : ${view>queueName}) }"
-              subheader="{= ${view>queueName} === ${view>/queueFilter} ? ${i18n>kpi.active} : (${i18n>kpi.retriesTo} + ' ' + ${view>targetQueue}) }"
+              header="{path: 'view>', formatter: '.fmt.kpiHeader'}"
+              subheader="{= ${view>queueName} === ${view>/queueFilter} ? ${i18n>kpi.active} : (${view>targetQueue} ? ${i18n>kpi.retriesTo} + ' ' + ${view>targetQueue} : ${i18n>kpi.perMessage}) }"
               frameType="OneByHalf"
               tooltip="{view>queueName}"
               class="failedTransactionsTile"
@@ -63,7 +70,7 @@
               <TileContent>
                 <NumericContent
                   value="{view>count}"
-                  valueColor="{= ${view>deadLetterKind} === 'processing' ? 'Error' : 'Critical' }"
+                  valueColor="{path: 'view>deadLetterKind', formatter: '.formatter.deadLetterColor'}"
                   withMargin="false"
                   animateTextChange="false" />
               </TileContent>
@@ -106,9 +113,12 @@
                 <columns>
                   <Column width="7rem"><Text text="{i18n>column.queue}" /></Column>
                   <Column width="9rem"><Text text="{i18n>column.failedAt}" /></Column>
-                  <Column><Text text="{i18n>column.sender}" /></Column>
-                  <Column><Text text="{i18n>column.receiver}" /></Column>
-                  <Column width="9rem" minScreenWidth="640px" demandPopin="true"><Text text="{i18n>column.document}" /></Column>
+                  <Column visible="{= ${view>/category} === 'b2b' }"><Text text="{i18n>column.sender}" /></Column>
+                  <Column visible="{= ${view>/category} === 'b2b' }"><Text text="{i18n>column.receiver}" /></Column>
+                  <Column width="9rem" minScreenWidth="640px" demandPopin="true" visible="{= ${view>/category} === 'b2b' }"><Text text="{i18n>column.document}" /></Column>
+                  <Column minScreenWidth="640px" demandPopin="true" visible="{= ${view>/category} === 'nonB2b' }"><Text text="{i18n>column.transaction}" /></Column>
+                  <Column width="11rem" minScreenWidth="720px" demandPopin="true" visible="{= ${view>/category} === 'nonB2b' }"><Text text="{i18n>column.parties}" /></Column>
+                  <Column width="11rem" minScreenWidth="800px" demandPopin="true" visible="{= ${view>/category} === 'nonB2b' }"><Text text="{i18n>column.target}" /></Column>
                   <Column minScreenWidth="1100px" demandPopin="true" popinDisplay="Inline"><Text text="{i18n>column.mplId}" /></Column>
                   <Column width="6.5rem" hAlign="End"><Text text="{i18n>column.redeliveries}" tooltip="{i18n>column.redeliveriesTooltip}" /></Column>
                   <Column width="3rem" hAlign="End" visible="{view>/canRetry}"><Text text="" /></Column>
@@ -117,7 +127,7 @@
                   <ColumnListItem type="Active" press=".onItemPress">
                     <cells>
                       <ObjectStatus
-                        text="{= ${view>deadLetterKind} === 'processing' ? ${i18n>queue.processing} : (${view>deadLetterKind} === 'receiver' ? ${i18n>queue.receiver} : ${view>queueName}) }"
+                        text="{path: 'view>', formatter: '.fmt.kindText'}"
                         state="{path: 'view>deadLetterKind', formatter: '.formatter.deadLetterState'}"
                         tooltip="{view>queueName}" />
                       <Text text="{path: 'view>failedAt', formatter: '.fmt.dateTime'}" />
@@ -126,6 +136,15 @@
                       <ObjectIdentifier
                         title="{path: 'view>', formatter: '.formatter.document'}"
                         text="{= ${view>interchange/controlNumber} || ${view>applicationId} || '' }" />
+                      <ObjectIdentifier
+                        title="{path: 'view>', formatter: '.formatter.transactionTitle'}"
+                        text="{path: 'view>path', formatter: '.formatter.pathText'}" />
+                      <ObjectIdentifier
+                        title="{= (${view>sender} || '—') + ' → ' + (${view>receiver} || '—') }"
+                        text="{view>applicationId}" />
+                      <ObjectIdentifier
+                        title="{= ${view>targetQueue} || ${i18n>target.chooseOnRetry} }"
+                        text="{path: 'view>targetSource', formatter: '.fmt.targetSourceText'}" />
                       <Link
                         text="{= ${view>mplId} || '—' }"
                         enabled="{= !!${view>mplId} }"
@@ -168,7 +187,7 @@
                       <Text text="{view>/detail/message/queueName}" class="failedTransactionsMono" />
                       <Link
                         text="{i18n>action.openInReportServer}"
-                        visible="{= !!${view>/detail/interchange} }"
+                        visible="{= !!${view>/detail/interchange} || !!${view>/detail/transaction} }"
                         press=".onOpenInterchange"
                         class="sapUiTinyMarginTop" />
                     </VBox>
@@ -192,6 +211,24 @@
                       <IconTabFilter key="overview" text="{i18n>tab.overview}" icon="sap-icon://hint">
                         <Title text="{i18n>section.recoveryPath}" level="H5" class="sapUiTinyMarginBottom" />
                         <MessageStrip text="{view>/pathText}" type="Information" showIcon="true" customIcon="sap-icon://process" class="sapUiSmallMarginBottom" />
+                        <Text
+                          text="{path: 'view>/detail/message/targetSource', formatter: '.fmt.targetExplanation'}"
+                          visible="{= ${view>/category} === 'nonB2b' &amp;&amp; !!${view>/detail/message/targetQueue} }"
+                          class="failedTransactionsHint sapUiSmallMarginBottom" />
+                        <VBox
+                          visible="{= (${view>/detail/queueOptions} || []).length > 0 }"
+                          class="failedTransactionsChoice sapUiSmallMarginBottom">
+                          <MessageStrip text="{i18n>target.unresolved}" type="Warning" showIcon="true" class="sapUiTinyMarginBottom" />
+                          <Label text="{i18n>target.choose}" labelFor="targetChoice" />
+                          <Select
+                            id="targetChoice"
+                            forceSelection="false"
+                            selectedKey="{view>/chosenTarget}"
+                            items="{view>/detail/queueOptions}"
+                            width="18rem">
+                            <core:Item key="{view>}" text="{view>}" />
+                          </Select>
+                        </VBox>
 
                         <Title text="{i18n>section.history}" level="H5" class="sapUiTinyMarginBottom" />
                         <HBox class="failedTransactionsCounters" wrap="Wrap">
@@ -301,6 +338,9 @@
 
                       <!-- The B2B interchange this message belongs to (shared with the Report Server) -->
                       <core:Fragment fragmentName="com.middlewareops.integrationportal.fragment.b2b.InterchangeTabs" type="XML" />
+
+                      <!-- The non-B2B transaction this message belongs to (shared with the Report Server) -->
+                      <core:Fragment fragmentName="com.middlewareops.integrationportal.fragment.transaction.TransactionTabs" type="XML" />
                     </items>
                   </IconTabBar>
                 </VBox>

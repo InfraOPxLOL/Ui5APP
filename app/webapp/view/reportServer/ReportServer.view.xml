@@ -11,6 +11,15 @@
     <customHeader>
       <OverflowToolbar class="reportServerHeader">
         <Title text="{i18n>title}" level="H2" />
+        <SegmentedButton
+          selectedKey="{view>/category}"
+          selectionChange=".onCategoryChange"
+          class="sapUiSmallMarginBegin">
+          <items>
+            <SegmentedButtonItem key="b2b" text="{i18n>category.b2b}" />
+            <SegmentedButtonItem key="nonB2b" text="{i18n>category.nonB2b}" />
+          </items>
+        </SegmentedButton>
         <!-- Saved views: the user's own filter sets, the standard view first. -->
         <VariantManagement
           id="views"
@@ -22,7 +31,6 @@
           supportPublic="false"
           supportContexts="false"
           supportApplyAutomatically="false"
-          supportExecuteOnSelection="false"
           select=".onViewSelect"
           save=".onViewSave"
           manage=".onViewManage"
@@ -43,12 +51,13 @@
         <Button
           icon="sap-icon://excel-attachment"
           tooltip="{i18n>action.export}"
-          enabled="{= ${view>/items}.length > 0 }"
+          enabled="{= ${view>/category} === 'nonB2b' ? ${nb>/items}.length > 0 : ${view>/items}.length > 0 }"
           press=".onExport" />
       </OverflowToolbar>
     </customHeader>
     <content>
-      <VBox class="reportServerBody" height="100%">
+      <VBox height="100%">
+      <VBox class="reportServerBody" height="100%" visible="{= ${view>/category} === 'b2b' }">
 
         <MessageStrip
           text="{view>/unavailableMessage}"
@@ -317,6 +326,8 @@
 
           </l:contentAreas>
         </l:Splitter>
+      </VBox>
+      <core:Fragment fragmentName="com.middlewareops.integrationportal.fragment.reportServer.TransactionReport" type="XML" />
       </VBox>
     </content>
   </Page>

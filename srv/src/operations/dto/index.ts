@@ -83,3 +83,15 @@ export type {
   InterchangeStatusCount,
   InterchangeStatusSummary,
 } from "./B2bDto.js";
+export type {
+  TransactionFramework,
+  TransactionStatusCategory,
+  TransactionStep,
+  JmsStage,
+  JmsQueueSource,
+  JmsInvolvement,
+  RouterStage,
+  RouterInvolvement,
+  TransactionSummary,
+  TransactionDetail,
+} from "./TransactionDto.js";

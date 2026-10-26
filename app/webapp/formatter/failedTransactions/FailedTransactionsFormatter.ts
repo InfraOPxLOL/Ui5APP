@@ -29,13 +29,33 @@ export interface OutcomeTally {
 export default class FailedTransactionsFormatter {
   /** `ObjectStatus.state` for the dead-letter queue a message sits on. */
   public static deadLetterState(kind: DeadLetterKind | undefined): string {
-    if (kind === "processing") {
+    if (kind === "processing" || kind === "jms") {
       return "Error";
     }
-    if (kind === "receiver") {
+    if (kind === "receiver" || kind === "router") {
       return "Warning";
     }
     return "None";
+  }
+
+  /** `NumericContent.valueColor` for a dead-letter queue's tile. */
+  public static deadLetterColor(kind: DeadLetterKind | undefined): string {
+    return kind === "processing" || kind === "jms" ? "Error" : "Critical";
+  }
+
+  /** The heading of a non-B2B row: its business flow, else its message type. */
+  public static transactionTitle(row: FailedTransaction | undefined): string {
+    return row?.businessFlow ?? row?.messageType ?? "—";
+  }
+
+  /** A transaction's path in one line. */
+  public static pathText(path: readonly string[] | undefined): string {
+    return (path ?? []).join(" → ");
+  }
+
+  /** Whether retrying this row first needs the operator to choose a queue. */
+  public static needsQueueChoice(row: FailedTransaction | undefined): boolean {
+    return row?.deadLetterKind === "jms" && (row.targetQueue ?? "") === "";
   }
 
   /** `ObjectStatus.state` for a retry outcome. Accepted is not a success: the retry was queued. */

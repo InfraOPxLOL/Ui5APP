@@ -42,9 +42,9 @@ const FRAMEWORK_CONFIGS: readonly FrameworkConfig[] = frameworksSchema.parse({
       id: "JMS_FRAMEWORK",
       label: "JMS Framework",
       priority: 1,
-      detect: { correlationFlowNames: ["IF_JMS_ingress", "IF_JMS_egress"] },
+      detect: { correlationFlowNames: ["IF_FM_Core_JMS_Step-3_Ingress_Dispatcher"] },
       queueResolution: {
-        headerName: "CH-Message-Queue",
+        headerName: "CH-Message-Log-QueueResolution",
         headerValuePattern: "\\[[^\\[\\]]*=\\s*([^\\]]+)\\]\\s*$",
         centralDeadLetterQueue: "Common_JMS_ID_DLQ",
       },
@@ -77,10 +77,10 @@ const FRAMEWORK_CONFIGS: readonly FrameworkConfig[] = frameworksSchema.parse({
       label: "Common IDoc Router",
       priority: 3,
       topology: {
-        traversalOrder: ["Common_Router_JMS", "Common_Router_JMS_DLQ"],
-        activeQueues: ["Common_Router_JMS"],
-        deadLetterQueues: ["Common_Router_JMS_DLQ"],
-        dlqRecoveryMap: { Common_Router_JMS_DLQ: "Common_Router_JMS" },
+        traversalOrder: ["Common_JMS_ID_Common_Router", "Common_JMS_ID_Router_DLQ"],
+        activeQueues: ["Common_JMS_ID_Common_Router"],
+        deadLetterQueues: ["Common_JMS_ID_Router_DLQ"],
+        dlqRecoveryMap: { Common_JMS_ID_Router_DLQ: "Common_JMS_ID_Common_Router" },
       },
     },
     {
@@ -286,7 +286,7 @@ describe("modules/message-monitoring/MessageMonitoringService JMS retry", () => 
     );
   });
 
-  it("getRetryCheck parses the resolved queue from the real CH-Message-Queue header format and finds it there", async () => {
+  it("getRetryCheck parses the resolved queue from the real CH-Message-Log-QueueResolution header format and finds it there", async () => {
     const result = await newService().getRetryCheck(MOCK_JMS_SOURCE_MESSAGE_ID);
     assert.equal(result.eligible, true);
     assert.equal(result.resolvedQueue, MOCK_JMS_RESOLVED_QUEUE);

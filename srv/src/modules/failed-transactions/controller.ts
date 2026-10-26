@@ -3,11 +3,12 @@ import { failedTransactionsService } from "./service.js";
 
 /** HTTP handlers for Failed Transactions. Thin: parse, call the service, respond. */
 
-/** GET / — messages on the TPM dead-letter queues. */
+/** GET /?category= — messages on the B2B (TPM) or non-B2B (JMS framework, router) dead-letter queues. */
 export async function list(req: Request, res: Response): Promise<void> {
   const q = req.query as Record<string, string | undefined>;
   res.json(
     await failedTransactionsService.list({
+      category: q.category === "nonB2b" ? "nonB2b" : "b2b",
       queue: q.queue,
       search: q.search,
       page: q.page === undefined ? undefined : Number(q.page),
@@ -34,12 +35,13 @@ export async function getPayload(req: Request, res: Response): Promise<void> {
 
 /** POST /:messageId/retry — move back to the mapped main queue, verify, retry. */
 export async function retry(req: Request, res: Response): Promise<void> {
-  const body = req.body as { queueName: string; reason?: string };
+  const body = req.body as { queueName: string; targetQueue?: string; reason?: string };
   res.json(
     await failedTransactionsService.retry(
       req.params.messageId as string,
       body.queueName,
       body.reason,
+      body.targetQueue,
     ),
   );
 }
@@ -47,7 +49,7 @@ export async function retry(req: Request, res: Response): Promise<void> {
 /** POST /retry — retry several messages. */
 export async function retryMany(req: Request, res: Response): Promise<void> {
   const body = req.body as {
-    items: readonly { messageId: string; queueName: string }[];
+    items: readonly { messageId: string; queueName: string; targetQueue?: string }[];
     reason?: string;
   };
   res.json(await failedTransactionsService.retryMany(body.items, body.reason));

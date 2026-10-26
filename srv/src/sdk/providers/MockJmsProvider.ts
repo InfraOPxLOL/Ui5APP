@@ -1,5 +1,6 @@
 import type { IJmsProvider } from "../../core/providers/IJmsProvider.js";
 import type {
+  JmsMessageFilter,
   JmsMessagePayload,
   JmsOperationResult,
   ProviderContext,
@@ -15,6 +16,7 @@ import {
   generateQueuedMessages,
   generateSingleMessage,
   generateTpmDlqMessages,
+  generateNonB2bDlqMessages,
   recordMockMove,
   MOCK_DISCOVERED_QUEUE_NAMES,
 } from "../mock/fixtures/index.js";
@@ -56,10 +58,14 @@ export class MockJmsProvider implements IJmsProvider {
       operationKey: "jms.listMessages",
       tenantId: context.tenantId,
       generateSuccess: () =>
-        generateTpmDlqMessages(queueName) ?? generateQueuedMessages(queueName, 30),
+        generateTpmDlqMessages(queueName) ??
+        generateNonB2bDlqMessages(queueName) ??
+        generateQueuedMessages(queueName, 30),
       generateEmpty: () => [],
       generateLarge: () =>
-        generateTpmDlqMessages(queueName) ?? generateQueuedMessages(queueName, 250),
+        generateTpmDlqMessages(queueName) ??
+        generateNonB2bDlqMessages(queueName) ??
+        generateQueuedMessages(queueName, 250),
     });
     return { items: all.slice(page.skip, page.skip + page.top), total: all.length };
   }
@@ -136,6 +142,26 @@ export class MockJmsProvider implements IJmsProvider {
       tenantId: context.tenantId,
       generateSuccess: () => generateSingleMessage(queueName, messageId),
       generateEmpty: () => undefined,
+    });
+  }
+
+  /** @inheritdoc */
+  public async findMessages(
+    context: ProviderContext,
+    queueName: string,
+    filter: JmsMessageFilter,
+  ): Promise<readonly QueuedMessage[]> {
+    return this.mockEngine.resolve({
+      operationKey: "jms.findMessages",
+      tenantId: context.tenantId,
+      generateSuccess: () =>
+        (generateTpmDlqMessages(queueName) ?? generateNonB2bDlqMessages(queueName) ?? []).filter(
+          (message) =>
+            (filter.correlationId === undefined ||
+              message.correlationId === filter.correlationId) &&
+            (filter.mplId === undefined || message.mplId === filter.mplId),
+        ),
+      generateEmpty: () => [],
     });
   }
 

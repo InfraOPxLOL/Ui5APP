@@ -227,6 +227,29 @@ export class RealMonitoringProvider implements IMonitoringProvider {
     if (filter.correlationId !== undefined) {
       and(ODataFilter.eq("CorrelationId", filter.correlationId));
     }
+    if (filter.correlationIds !== undefined && filter.correlationIds.length > 0) {
+      const [first, ...rest] = filter.correlationIds.map((id) =>
+        ODataFilter.eq("CorrelationId", id),
+      );
+      if (first !== undefined) {
+        and(rest.length === 0 ? first : ODataFilter.or(first, ...rest));
+      }
+    }
+    if (filter.messageId !== undefined) {
+      and(ODataFilter.eq("MessageGuid", filter.messageId));
+    }
+    if (filter.sender !== undefined) {
+      and(ODataFilter.contains("Sender", filter.sender));
+    }
+    if (filter.receiver !== undefined) {
+      and(ODataFilter.contains("Receiver", filter.receiver));
+    }
+    if (filter.applicationId !== undefined) {
+      and(ODataFilter.eq("ApplicationMessageId", filter.applicationId));
+    }
+    if (filter.messageType !== undefined) {
+      and(ODataFilter.eq("ApplicationMessageType", filter.messageType));
+    }
     return expression;
   }
 

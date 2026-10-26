@@ -25,6 +25,12 @@ export interface RecoveryContext {
    * itself (the JMS framework with an unparseable queue header). Never a default or a guess.
    */
   readonly operatorSelectedQueue: string | undefined;
+  /**
+   * The integration flow names of the message's correlation chain, newest first. Lets the JMS
+   * framework resolve a queue from the queue-consumer flow that picked the message up when the
+   * ingress dispatcher's queue header is missing. Empty when the caller did not read the chain.
+   */
+  readonly correlationFlows: readonly string[];
 }
 
 /**

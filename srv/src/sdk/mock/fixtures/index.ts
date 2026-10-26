@@ -33,6 +33,7 @@ export {
   generateQueuedMessages,
   generateSingleMessage,
   generateTpmDlqMessages,
+  generateNonB2bDlqMessages,
   recordMockMove,
   resetMockMoves,
   MOCK_DISCOVERED_QUEUE_NAMES,
@@ -60,3 +61,14 @@ export {
   generatePayloadContent,
   findInterchangeIdByMplId,
 } from "./B2bFixtures.js";
+export {
+  NON_B2B_SCENARIOS,
+  MOCK_JMS_DLQ,
+  MOCK_ROUTER_DEAD_LETTER_QUEUE,
+  MOCK_ROUTER_PROCESSING_QUEUE,
+  generateNonB2bRuns,
+  nonB2bStepMplId,
+  nonB2bCustomHeaders,
+  findNonB2bParkedScenario,
+  type NonB2bScenario,
+} from "./NonB2bScenarioFixtures.js";

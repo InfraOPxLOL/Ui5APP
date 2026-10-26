@@ -1,5 +1,6 @@
 import type { IJmsProvider } from "../../core/providers/IJmsProvider.js";
 import type {
+  JmsMessageFilter,
   JmsMessagePayload,
   JmsOperationResult,
   ProviderPage,
@@ -113,6 +114,19 @@ export class JmsClient {
       sourceQueue,
       targetQueue,
       messageIds,
+    );
+  }
+
+  /** Finds a queue's messages by correlation/MPL id. See {@link IJmsProvider.findMessages}. */
+  public findMessages(
+    queueName: string,
+    filter: JmsMessageFilter,
+    context?: ClientCallContext,
+  ): Promise<readonly QueuedMessage[]> {
+    return this.provider.findMessages(
+      resolveContext(this.defaultTenantId, context),
+      queueName,
+      filter,
     );
   }
 

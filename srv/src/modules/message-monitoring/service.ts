@@ -5,6 +5,7 @@ import type { OperationsEngine } from "../../operations/OperationsEngine.js";
 import type { MessageSummary, ExportModel } from "../../operations/dto/index.js";
 import type { Severity } from "../../operations/transform/index.js";
 import { HttpError } from "../../core/errors/HttpError.js";
+import { TransactionAnalyzer } from "../../operations/transactions/TransactionAnalyzer.js";
 import type { MessageRecoveryInput } from "../../operations/engines/RecoveryEngine.js";
 import type {
   FrameworkDetection,
@@ -100,29 +101,11 @@ const FUNCTIONAL_ERROR_STATUSES = new Set(["ESCALATED", "RETRY"]);
 const TECHNICAL_ERROR_STATUSES = new Set(["FAILED", "ABANDONED", "DISCARDED"]);
 
 /**
- * The two literal, fixed bridge-iFlow names a message's correlation chain passes through when it is
- * JMS-queue-retryable — confirmed against the real tenant's naming convention, not a guess (§ JMS
- * Retry). Matching is case-insensitive but otherwise exact; no wildcard/prefix matching is applied.
- *
- * **Superseded by `config/frameworks.json`** (Phase 13): these five constants now live in that
- * file's `JMS_FRAMEWORK` entry, where they are tunable without a code change and sit alongside the
- * other frameworks' rules. The copies below remain only to keep the pre-Phase-13
- * `/jms-eligibility` and `/retry-check` endpoints working unchanged for any caller still on them;
- * everything framework-aware reads the configuration instead. If you retune the JMS signals, change
- * the config — and update these only if you also intend to change the legacy endpoints' behaviour.
+ * JMS retry (the `/jms-eligibility` and `/retry-check` endpoints) reads the JMS framework's entry in
+ * `config/frameworks.json` — the ingress dispatcher flow, its queue header, the consumer-flow → queue
+ * table and the central DLQ — through {@link TransactionAnalyzer}, the same source the framework
+ * detection, Report Server and Failed Transactions use. Nothing here hardcodes a flow or queue name.
  */
-const JMS_INGRESS_IFLOW = "IF_JMS_ingress";
-const JMS_EGRESS_IFLOW = "IF_JMS_egress";
-/** The single, fixed central dead-letter queue JMS-retryable messages fall back to (§ JMS Retry). */
-const CENTRAL_DLQ_QUEUE = "Common_JMS_ID_DLQ";
-/** The `IF_JMS_ingress` entry's own custom header naming the queue a message should retry from. */
-const QUEUE_HEADER_NAME = "CH-Message-Queue";
-/**
- * Extracts the queue name from a `CH-Message-Queue` header value, e.g.
- * `📁 [PD Fetch Queue] Queue resolved via Direct Value [QUEUE_JMS_{RouteKey} = Common_JMS_ID_Ecom_P1]`
- * — the trailing `[... = <queue>]` segment, confirmed against a real example value.
- */
-const QUEUE_HEADER_VALUE_PATTERN = /\[[^[\]]*=\s*([^\]]+)\]\s*$/;
 
 /**
  * Aggregation service for the Message Investigation Workspace (Phase 9). It is the message-scoped
@@ -304,8 +287,9 @@ export class MessageMonitoringService {
     if (source === undefined) {
       throw HttpError.notFound(`No message found with id "${messageId}".`);
     }
-    const { eligible, ingress } = await MessageMonitoringService.resolveJmsGroup(engine, source);
-    return { messageId, eligible, ingressMessageId: eligible ? ingress?.messageId : undefined };
+    const { ingress } = await MessageMonitoringService.resolveJmsGroup(engine, source);
+    const eligible = ingress !== undefined;
+    return { messageId, eligible, ingressMessageId: ingress?.messageId };
   }
 
   /**
@@ -324,26 +308,33 @@ export class MessageMonitoringService {
     if (source === undefined) {
       throw HttpError.notFound(`No message found with id "${messageId}".`);
     }
-    const { eligible, ingress } = await MessageMonitoringService.resolveJmsGroup(engine, source);
-    if (!eligible || ingress === undefined) {
+    const { analyzer, group, ingress } = await MessageMonitoringService.resolveJmsGroup(
+      engine,
+      source,
+    );
+    const ingressFlow = analyzer.jmsConfig?.queueResolution?.headerFlowName ?? "JMS ingress";
+    if (ingress === undefined) {
       return MessageMonitoringService.unresolvedRetryCheck(
         messageId,
         false,
-        `This message's correlation chain does not show the JMS bridge flows ("${JMS_INGRESS_IFLOW}"/"${JMS_EGRESS_IFLOW}") — it was not routed through a JMS queue and cannot be retried from one.`,
+        `This message's correlation chain does not show the JMS framework's "${ingressFlow}" flow — it was not routed through a JMS queue and cannot be retried from one.`,
       );
     }
 
-    const ingressDetail = await engine.message.getMessage(ingress.messageId);
-    const resolvedQueue = MessageMonitoringService.resolveQueueFromHeaders(
-      ingressDetail?.customHeaders ?? {},
+    const resolved = analyzer.resolveJmsQueue(
+      group.map((item) => item.integrationFlow),
+      await engine.message.getCustomHeaders(ingress.messageId),
     );
+    const resolvedQueue = resolved?.queue;
     if (resolvedQueue === undefined) {
+      const headerName = analyzer.jmsConfig?.queueResolution?.headerName ?? "queue";
       return MessageMonitoringService.unresolvedRetryCheck(
         messageId,
         true,
-        `No "${QUEUE_HEADER_NAME}" header was found (or it could not be parsed) on the JMS ingress flow's log entry — pick a queue manually.`,
+        `No "${headerName}" header was found (or it could not be parsed) on the "${ingressFlow}" log entry, and no queue-consumer flow in the message's history names a queue — pick a queue manually.`,
       );
     }
+    const centralDlq = analyzer.jmsConfig?.queueResolution?.centralDeadLetterQueue;
 
     const inOriginalQueue = await engine.queue.getMessage(resolvedQueue, messageId);
     if (inOriginalQueue !== undefined) {
@@ -358,14 +349,15 @@ export class MessageMonitoringService {
       };
     }
 
-    const inDlq = await engine.queue.getMessage(CENTRAL_DLQ_QUEUE, messageId);
+    const inDlq =
+      centralDlq === undefined ? undefined : await engine.queue.getMessage(centralDlq, messageId);
     if (inDlq !== undefined) {
       return {
         messageId,
         eligible: true,
         reason: undefined,
         resolvedQueue,
-        currentQueue: CENTRAL_DLQ_QUEUE,
+        currentQueue: centralDlq,
         resolutionSource: "dead-letter-queue",
         retryCount: inDlq.retryCount,
       };
@@ -374,7 +366,7 @@ export class MessageMonitoringService {
     return {
       messageId,
       eligible: true,
-      reason: `Not found on its resolved queue "${resolvedQueue}" or on the dead-letter queue "${CENTRAL_DLQ_QUEUE}" — pick a queue manually.`,
+      reason: `Not found on its resolved queue "${resolvedQueue}" or on the dead-letter queue "${centralDlq ?? "(not configured)"}" — pick a queue manually.`,
       resolvedQueue,
       currentQueue: undefined,
       resolutionSource: "unresolved",
@@ -444,7 +436,12 @@ export class MessageMonitoringService {
     operatorSelectedQueue?: string,
   ): Promise<MessageRecoveryPlanDto> {
     const engine = this.engineFactory();
-    const input = await this.buildRecoveryInput(engine, messageId, undefined, operatorSelectedQueue);
+    const input = await this.buildRecoveryInput(
+      engine,
+      messageId,
+      undefined,
+      operatorSelectedQueue,
+    );
     return engine.recovery.resolveRecoveryPlan(input);
   }
 
@@ -458,9 +455,7 @@ export class MessageMonitoringService {
    * @param messageIds the selected message ids.
    * @returns the batch plan, with `executableMessageIds` naming exactly what execution would touch.
    */
-  public async buildRecoveryPlan(
-    messageIds: readonly string[],
-  ): Promise<RecoveryPlanBatchDto> {
+  public async buildRecoveryPlan(messageIds: readonly string[]): Promise<RecoveryPlanBatchDto> {
     const engine = this.engineFactory();
     const inputs = await Promise.all(
       messageIds.map(async (messageId) => {
@@ -528,45 +523,48 @@ export class MessageMonitoringService {
     operatorSelectedQueue: string | undefined,
   ): Promise<MessageRecoveryInput> {
     const { source, group, headers } = await this.loadDetectionInputs(engine, messageId);
+    // The JMS queue header lives on the ingress dispatcher's log entry, not on the message being
+    // recovered: merge it in so the JMS strategy can resolve the queue from it.
+    const ingress = new TransactionAnalyzer(engine.frameworkConfigs).jmsHeaderStep(group);
+    const recoveryHeaders =
+      ingress === undefined || ingress.messageId === source.messageId
+        ? headers
+        : { ...headers, ...(await engine.message.getCustomHeaders(ingress.messageId)) };
     const detection = await engine.frameworkDetection.detectFull(
       source,
       group,
-      headers,
+      recoveryHeaders,
       async (queueName, id) => (await engine.queue.getMessage(queueName, id)) !== undefined,
     );
-    return { message: source, detection, customHeaders: headers, reason, operatorSelectedQueue };
+    return {
+      message: source,
+      detection,
+      customHeaders: recoveryHeaders,
+      reason,
+      operatorSelectedQueue,
+      correlationFlows: [...group]
+        .sort((a, b) => b.startTime.localeCompare(a.startTime))
+        .map((item) => item.integrationFlow),
+    };
   }
 
+  /**
+   * The message's correlation chain and, when it went through the JMS framework, the ingress
+   * dispatcher entry whose header names the queue. A message parked on the DLQ never reached the
+   * egress dispatcher, so the ingress alone qualifies it.
+   */
   private static async resolveJmsGroup(
     engine: OperationsEngine,
     source: MessageSummary,
-  ): Promise<{ eligible: boolean; ingress: MessageSummary | undefined }> {
-    const group = await engine.message.findByCorrelationId(source.correlationId);
-    const ingress = group.find((item) =>
-      MessageMonitoringService.matchesFlow(item.integrationFlow, JMS_INGRESS_IFLOW),
-    );
-    const hasEgress = group.some((item) =>
-      MessageMonitoringService.matchesFlow(item.integrationFlow, JMS_EGRESS_IFLOW),
-    );
-    return { eligible: ingress !== undefined && hasEgress, ingress };
-  }
-
-  private static matchesFlow(integrationFlow: string, expected: string): boolean {
-    return integrationFlow.toLowerCase() === expected.toLowerCase();
-  }
-
-  private static resolveQueueFromHeaders(
-    headers: Readonly<Record<string, string>>,
-  ): string | undefined {
-    const entry = Object.entries(headers).find(
-      ([name]) => name.toLowerCase() === QUEUE_HEADER_NAME.toLowerCase(),
-    );
-    if (entry === undefined) {
-      return undefined;
-    }
-    const match = QUEUE_HEADER_VALUE_PATTERN.exec(entry[1].trim());
-    const captured = match?.[1]?.trim();
-    return captured === undefined || captured === "" ? undefined : captured;
+  ): Promise<{
+    analyzer: TransactionAnalyzer;
+    group: readonly MessageSummary[];
+    ingress: MessageSummary | undefined;
+  }> {
+    const analyzer = new TransactionAnalyzer(engine.frameworkConfigs);
+    const runs = await engine.message.listRunsByCorrelationId(source.correlationId);
+    const group = runs.length === 0 ? [source] : runs;
+    return { analyzer, group, ingress: analyzer.jmsHeaderStep(group) };
   }
 
   private static unresolvedRetryCheck(

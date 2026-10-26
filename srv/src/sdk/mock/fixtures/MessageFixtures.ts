@@ -1,3 +1,4 @@
+import { nonB2bCustomHeaders } from "./NonB2bScenarioFixtures.js";
 import type {
   MessageProcessingLog,
   MessageErrorDetail,
@@ -12,15 +13,15 @@ import { SeededRandom } from "../SeededRandom.js";
  * exported so the mock fixtures below and the real classification logic in `message-monitoring`
  * agree on the exact same strings.
  */
-export const JMS_INGRESS_IFLOW_NAME = "IF_JMS_ingress";
-export const JMS_EGRESS_IFLOW_NAME = "IF_JMS_egress";
-/** The mock `IF_JMS_ingress` entry's own message id — the fixed anchor for {@link generateCustomHeaders}. */
+export const JMS_INGRESS_IFLOW_NAME = "IF_FM_Core_JMS_Step-3_Ingress_Dispatcher";
+export const JMS_EGRESS_IFLOW_NAME = "IF_FM_Core_JMS_Step-6_Egress_Dispatcher";
+/** The mock JMS ingress dispatcher entry's own message id — the fixed anchor for {@link generateCustomHeaders}. */
 export const MOCK_JMS_INGRESS_MESSAGE_ID = "msg-jms-bridge-ingress";
 export const MOCK_JMS_EGRESS_MESSAGE_ID = "msg-jms-bridge-egress";
 export const MOCK_JMS_SOURCE_MESSAGE_ID = "msg-jms-bridge-source";
 const MOCK_JMS_BRIDGE_CORRELATION_ID = "corr-jms-bridge-fixture";
-/** The mock resolved queue `CH-Message-Queue` points at — mirrors the real header value's literal shape. */
-export const MOCK_JMS_RESOLVED_QUEUE = "Common_JMS_ID_Ecom_P1";
+/** The queue the mock ingress dispatcher's `CH-Message-Log-QueueResolution` header points at. */
+export const MOCK_JMS_RESOLVED_QUEUE = "Common_JMS_ID_NA_P1";
 
 /**
  * Framework scenario fixtures (Phase 13). One message per branch the recovery strategies must be able
@@ -47,8 +48,8 @@ export const MOCK_TPM_OUTBOUND_QUEUE = "SAP_TPM_OUTBOUND_Q";
 export const MOCK_TPM_PROCESSING_DLQ = "SAP_TPM_COM_PROCESSING_OUTBOUND_DEAD_LETTER_Q";
 export const MOCK_TPM_RECEIVER_DLQ = "SAP_TPM_COM_RECEIVER_OUTOUND_DEAD_LETTER_Q";
 /** The Common IDoc Router and IDoc Status Sync queue names. */
-export const MOCK_ROUTER_QUEUE = "Common_Router_JMS";
-export const MOCK_ROUTER_DLQ = "Common_Router_JMS_DLQ";
+export const MOCK_ROUTER_QUEUE = "Common_JMS_ID_Common_Router";
+export const MOCK_ROUTER_DLQ = "Common_JMS_ID_Router_DLQ";
 export const MOCK_STATUS_SYNC_QUEUE = "Status_JMS";
 export const MOCK_STATUS_SYNC_DLQ = "Status_JMS_DLQ";
 
@@ -149,7 +150,7 @@ export function generateMessageLogs(count: number, seed = 42): MessageProcessing
 
 /**
  * Deterministically repurposes 3 already-generated slots (indices 3–5) into a coherent JMS-bridge
- * correlation group — a source message plus its `IF_JMS_ingress`/`IF_JMS_egress` bridge-flow log
+ * correlation group — a source message plus its JMS ingress/egress dispatcher log
  * entries, all sharing one correlation id — so mock mode can exercise the real JMS retry-eligibility
  * classification (§ Message Monitoring JMS retry) end to end. Total entry count is unchanged; only
  * the default seed's fixture set carries this scenario, so other seeds stay purely random.
@@ -218,8 +219,12 @@ function applyFrameworkFixtures(logs: MessageProcessingLog[]): void {
       messageId: MOCK_TPM_ORPHAN_MESSAGE_ID,
       integrationFlow: "SAP_TPM_Inbound_Handler",
     },
-    // No configured detection rule matches these two names — queue evidence is their only signal.
-    { index: 10, messageId: MOCK_ROUTER_DLQ_MESSAGE_ID, integrationFlow: "IDoc_Router_Dispatch" },
+    {
+      index: 10,
+      messageId: MOCK_ROUTER_DLQ_MESSAGE_ID,
+      integrationFlow: "IF_FM_Core_IDoc_Router_Main",
+    },
+    // No configured detection rule matches this name — queue evidence is its only signal.
     {
       index: 11,
       messageId: MOCK_STATUS_SYNC_DLQ_MESSAGE_ID,
@@ -265,8 +270,8 @@ export function generateErrorDetails(messageId: string, seed = 42): MessageError
 
 /**
  * Generates a message's custom headers. The {@link MOCK_JMS_INGRESS_MESSAGE_ID} entry carries a
- * realistic `CH-Message-Queue` header value — the exact literal format confirmed against the real
- * tenant (`📁 [PD Fetch Queue] Queue resolved via Direct Value [QUEUE_JMS_{RouteKey} = <queue>]`) —
+ * realistic `CH-Message-Log-QueueResolution` header value — the literal format of the real ingress
+ * dispatcher (`📂 [PD Fetch] Queue resolved via Direct Value [QUEUE_JMS_... = <queue>]`) —
  * so mock mode can exercise the same header-parsing regex the real provider's data does. Every other
  * message gets a couple of generic, deterministic headers (one `SAP_`-prefixed, to exercise
  * `HeaderEngine`'s standard/custom split).
@@ -275,11 +280,15 @@ export function generateErrorDetails(messageId: string, seed = 42): MessageError
  * @returns the generated custom header entries.
  */
 export function generateCustomHeaders(messageId: string, seed = 42): MessageHeader[] {
+  const nonB2b = nonB2bCustomHeaders(messageId);
+  if (nonB2b !== undefined) {
+    return nonB2b;
+  }
   if (messageId === MOCK_JMS_INGRESS_MESSAGE_ID) {
     return [
       {
-        name: "CH-Message-Queue",
-        value: `📁 [PD Fetch Queue] Queue resolved via Direct Value [QUEUE_JMS_{RouteKey} = ${MOCK_JMS_RESOLVED_QUEUE}]`,
+        name: "CH-Message-Log-QueueResolution",
+        value: `📂 [PD Fetch] Queue resolved via Direct Value [QUEUE_JMS_SFDC_Orders = ${MOCK_JMS_RESOLVED_QUEUE}]`,
       },
       { name: "SAP_ApplicationErrorCategory", value: "NONE" },
     ];

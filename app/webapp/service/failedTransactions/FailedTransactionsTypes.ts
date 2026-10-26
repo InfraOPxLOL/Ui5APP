@@ -1,8 +1,15 @@
+import type { TransactionDetail } from "../reportServer/TransactionTypes";
 /** Client-side mirrors of the Failed Transactions API (`/api/v1/failed-transactions`). */
 
 import type { Interchange } from "../reportServer/ReportServerTypes";
 
-export type DeadLetterKind = "processing" | "receiver" | "other";
+export type DeadLetterKind = "processing" | "receiver" | "jms" | "router" | "other";
+
+/** TPM (B2B) or the in-house JMS framework and router (non-B2B). */
+export type FailedTransactionCategory = "b2b" | "nonB2b";
+
+/** Where a retry's destination came from; `undefined` = not determined, the operator chooses. */
+export type TargetSource = "configured" | "header" | "consumerFlow";
 
 export interface FailedInterchangeRef {
   readonly id: string;
@@ -17,8 +24,15 @@ export interface FailedInterchangeRef {
 export interface FailedTransaction {
   readonly messageId: string;
   readonly queueName: string;
+  readonly category: FailedTransactionCategory;
+  readonly framework: string;
   readonly deadLetterKind: DeadLetterKind;
   readonly targetQueue?: string;
+  readonly targetSource?: TargetSource;
+  /** Non-B2B: the business flow the transaction is for, once it has run. */
+  readonly businessFlow?: string;
+  /** Non-B2B: the transaction's path (router, JMS queue, business flow). */
+  readonly path: readonly string[];
   readonly failedAt: string;
   readonly jmsRetryCount: number;
   readonly mplId?: string;
@@ -33,6 +47,8 @@ export interface FailedTransaction {
 
 export interface DeadLetterQueueCount {
   readonly queueName: string;
+  readonly category: FailedTransactionCategory;
+  readonly framework: string;
   readonly deadLetterKind: DeadLetterKind;
   readonly targetQueue?: string;
   readonly count: number;
@@ -40,6 +56,7 @@ export interface DeadLetterQueueCount {
 }
 
 export interface FailedTransactionListResponse {
+  readonly category: FailedTransactionCategory;
   readonly items: readonly FailedTransaction[];
   readonly total: number;
   readonly page: number;
@@ -78,6 +95,10 @@ export interface FailedTransactionDetail {
   readonly recoveryPath: readonly RecoveryPathStep[];
   readonly history: RetryHistory;
   readonly interchange?: Interchange;
+  /** Non-B2B: every step of the transaction. */
+  readonly transaction?: TransactionDetail;
+  /** The queues the operator may choose from when the destination could not be determined. */
+  readonly queueOptions: readonly string[];
 }
 
 export type RecoveryOutcomeStatus =
@@ -108,6 +129,7 @@ export interface FailedTransactionRetryResult {
 }
 
 export interface FailedTransactionQuery {
+  readonly category?: FailedTransactionCategory;
   readonly queue?: string;
   readonly search?: string;
   readonly page?: number;

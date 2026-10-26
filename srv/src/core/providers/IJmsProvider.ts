@@ -1,4 +1,5 @@
 import type {
+  JmsMessageFilter,
   JmsMessagePayload,
   JmsOperationResult,
   ProviderContext,
@@ -103,6 +104,20 @@ export interface IJmsProvider {
     targetQueue: string,
     messageIds: readonly string[],
   ): Promise<JmsOperationResult>;
+
+  /**
+   * Finds a queue's messages by correlation id and/or MPL id — filtered by the tenant itself
+   * (`MessagingQueues('q')/MessagingMessages?correlationId=…`), so no full queue scan is needed.
+   * @param context the tenant/correlation context.
+   * @param queueName the physical queue to search.
+   * @param filter what to match.
+   * @returns the matching messages (empty when none).
+   */
+  findMessages(
+    context: ProviderContext,
+    queueName: string,
+    filter: JmsMessageFilter,
+  ): Promise<readonly QueuedMessage[]>;
 
   /**
    * Reads one message's body from the broker (`MessagingMessages(…)/$value`; needs the

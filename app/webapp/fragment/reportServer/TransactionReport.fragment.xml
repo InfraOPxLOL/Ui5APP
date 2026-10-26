@@ -1,0 +1,212 @@
+<!--
+  Report Server, non-B2B: every other transaction, read from the processing logs and folded by
+  correlation id into one row per business transaction. Binds to the "nb" model and calls the
+  TransactionReport presenter the controller exposes as `nb`; the detail is the shared transaction
+  panel (`txn`).
+-->
+<core:FragmentDefinition
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core"
+  xmlns:l="sap.ui.layout">
+  <VBox
+    visible="{= ${view>/category} === 'nonB2b' }"
+    height="100%"
+    class="reportServerBody">
+
+    <!-- Search -->
+    <FlexBox wrap="Wrap" alignItems="End" class="reportServerFilters">
+      <VBox>
+        <Label text="{i18n>filter.timeWindow}" labelFor="nbTimePreset" />
+        <Select
+          id="nbTimePreset"
+          selectedKey="{nb>/filters/timePreset}"
+          items="{view>/timePresets}"
+          showSecondaryValues="true"
+          width="12rem"
+          change=".nb.onTimePresetChange">
+          <core:ListItem key="{view>key}" text="{view>text}" additionalText="{view>code}" />
+        </Select>
+      </VBox>
+      <VBox visible="{= ${nb>/filters/timePreset} === 'custom' }">
+        <Label text="{i18n>filter.dateFrom}" labelFor="nbDateFrom" />
+        <DateTimePicker id="nbDateFrom" dateValue="{nb>/filters/dateFrom}" width="13rem" />
+      </VBox>
+      <VBox visible="{= ${nb>/filters/timePreset} === 'custom' }">
+        <Label text="{i18n>filter.dateTo}" labelFor="nbDateTo" />
+        <DateTimePicker id="nbDateTo" dateValue="{nb>/filters/dateTo}" width="13rem" />
+      </VBox>
+      <VBox>
+        <Label text="{i18n>nb.filter.sender}" labelFor="nbSender" />
+        <Input id="nbSender" value="{nb>/filters/sender}" width="10rem" submit=".nb.onSearch" />
+      </VBox>
+      <VBox>
+        <Label text="{i18n>nb.filter.receiver}" labelFor="nbReceiver" />
+        <Input id="nbReceiver" value="{nb>/filters/receiver}" width="10rem" submit=".nb.onSearch" />
+      </VBox>
+      <VBox>
+        <Label text="{i18n>nb.filter.integrationFlow}" labelFor="nbFlow" />
+        <Input id="nbFlow" value="{nb>/filters/integrationFlow}" width="13rem" submit=".nb.onSearch" />
+      </VBox>
+      <VBox>
+        <Label text="{i18n>nb.filter.status}" labelFor="nbStatus" />
+        <Select id="nbStatus" selectedKey="{nb>/filters/status}" width="9rem">
+          <core:Item key="" text="{i18n>filter.any}" />
+          <core:Item key="COMPLETED" text="{i18n>nb.status.completed}" />
+          <core:Item key="FAILED" text="{i18n>nb.status.failed}" />
+          <core:Item key="RETRY" text="{i18n>nb.status.retry}" />
+          <core:Item key="ESCALATED" text="{i18n>nb.status.escalated}" />
+          <core:Item key="PROCESSING" text="{i18n>nb.status.processing}" />
+        </Select>
+      </VBox>
+      <VBox>
+        <Label text="{i18n>nb.filter.framework}" labelFor="nbFramework" />
+        <Select id="nbFramework" selectedKey="{nb>/filters/framework}" width="10rem">
+          <core:Item key="" text="{i18n>filter.any}" />
+          <core:Item key="jms" text="{i18n>nb.framework.jms}" />
+          <core:Item key="router" text="{i18n>nb.framework.router}" />
+          <core:Item key="none" text="{i18n>nb.framework.none}" />
+        </Select>
+      </VBox>
+      <HBox class="reportServerFilterActions" alignItems="Center">
+        <Button text="{i18n>action.search}" type="Emphasized" icon="sap-icon://search" press=".nb.onSearch" />
+        <Button text="{i18n>action.clear}" type="Transparent" press=".nb.onClear" class="sapUiTinyMarginBegin" />
+        <ToggleButton
+          text="{= ${nb>/advancedCount} > 0 ? ${i18n>filter.more} + ' (' + ${nb>/advancedCount} + ')' : ${i18n>filter.more} }"
+          icon="sap-icon://filter"
+          type="Transparent"
+          pressed="{nb>/advanced}"
+          class="sapUiTinyMarginBegin" />
+      </HBox>
+    </FlexBox>
+
+    <FlexBox
+      wrap="Wrap"
+      alignItems="End"
+      class="reportServerFilters reportServerAdvanced"
+      visible="{nb>/advanced}">
+      <VBox>
+        <Label text="{i18n>nb.filter.correlationId}" labelFor="nbCorrelationId" />
+        <Input id="nbCorrelationId" value="{nb>/filters/correlationId}" width="16rem" submit=".nb.onSearch" />
+      </VBox>
+      <VBox>
+        <Label text="{i18n>filter.mplId}" labelFor="nbMplId" />
+        <Input id="nbMplId" value="{nb>/filters/mplId}" width="16rem" submit=".nb.onSearch" />
+      </VBox>
+      <VBox>
+        <Label text="{i18n>nb.filter.applicationId}" labelFor="nbApplicationId" />
+        <Input id="nbApplicationId" value="{nb>/filters/applicationId}" width="12rem" submit=".nb.onSearch" />
+      </VBox>
+      <VBox>
+        <Label text="{i18n>filter.messageType}" labelFor="nbMessageType" />
+        <Input id="nbMessageType" value="{nb>/filters/messageType}" width="10rem" submit=".nb.onSearch" />
+      </VBox>
+    </FlexBox>
+
+    <!-- Status tiles over the loaded transactions; pressing one narrows the list. -->
+    <HBox items="{nb>/tiles}" wrap="Wrap" class="reportServerTiles">
+      <GenericTile
+        header="{path: 'nb>key', formatter: '.nb.fmt.tileHeader'}"
+        frameType="OneByHalf"
+        class="reportServerTile"
+        press=".nb.onTilePress">
+        <customData>
+          <core:CustomData key="category" value="{nb>key}" />
+          <core:CustomData
+            key="active"
+            value="{= ${nb>key} === ${nb>/tileFilter} ? 'true' : 'false' }"
+            writeToDom="true" />
+        </customData>
+        <TileContent>
+          <NumericContent value="{nb>count}" valueColor="{nb>valueColor}" withMargin="false" animateTextChange="false" />
+        </TileContent>
+      </GenericTile>
+    </HBox>
+
+    <l:Splitter height="100%" orientation="Horizontal" class="reportServerSplitter">
+      <l:layoutData>
+        <FlexItemData growFactor="1" baseSize="0" />
+      </l:layoutData>
+      <l:contentAreas>
+
+        <ScrollContainer height="100%" vertical="true">
+          <layoutData>
+            <l:SplitterLayoutData size="58%" />
+          </layoutData>
+          <Table
+            id="nbTable"
+            items="{nb>/items}"
+            mode="SingleSelectMaster"
+            selectionChange=".nb.onSelect"
+            busy="{nb>/busy}"
+            busyIndicatorDelay="0"
+            sticky="ColumnHeaders"
+            fixedLayout="false"
+            contextualWidth="Auto"
+            noDataText="{i18n>nb.list.empty}"
+            class="reportServerTable">
+            <columns>
+              <Column width="8rem"><Text text="{i18n>column.status}" /></Column>
+              <Column width="9rem"><Text text="{i18n>nb.column.lastActivity}" /></Column>
+              <Column><Text text="{i18n>nb.column.transaction}" /></Column>
+              <Column minScreenWidth="720px" demandPopin="true"><Text text="{i18n>nb.column.parties}" /></Column>
+            </columns>
+            <items>
+              <ColumnListItem type="Active">
+                <cells>
+                  <ObjectStatus
+                    text="{nb>humanReadableStatus}"
+                    state="{path: 'nb>statusCategory', formatter: '.formatter.statusState'}"
+                    icon="{path: 'nb>statusCategory', formatter: '.formatter.statusIcon'}" />
+                  <Text text="{path: 'nb>lastActivityAt', formatter: '.fmt.dateTime'}" />
+                  <ObjectIdentifier
+                    title="{= ${nb>businessFlow} || ${nb>headline/label} }"
+                    text="{path: 'nb>path', formatter: '.nb.fmt.pathText'}" />
+                  <ObjectIdentifier
+                    title="{= (${nb>sender} || '—') + ' → ' + (${nb>receiver} || '—') }"
+                    text="{parts: ['nb>messageType', 'nb>applicationId'], formatter: '.nb.fmt.documentText'}" />
+                </cells>
+              </ColumnListItem>
+            </items>
+          </Table>
+          <Toolbar class="reportServerPager" visible="{= ${nb>/items}.length > 0 || ${nb>/hasMore} }">
+            <Text text="{nb>/showingText}" />
+            <ToolbarSpacer />
+            <Button text="{i18n>action.loadMore}" visible="{nb>/hasMore}" press=".nb.onLoadMore" />
+          </Toolbar>
+        </ScrollContainer>
+
+        <ScrollContainer height="100%" vertical="true">
+          <layoutData>
+            <l:SplitterLayoutData size="auto" />
+          </layoutData>
+          <VBox class="sapUiSmallMargin" busy="{txn>/busy}" busyIndicatorDelay="0">
+            <MessageStrip
+              text="{i18n>nb.detail.noneSelected}"
+              type="Information"
+              showIcon="true"
+              visible="{= ${txn>/detail} === null &amp;&amp; !${txn>/busy} }" />
+            <VBox visible="{= ${txn>/detail} !== null }">
+              <HBox alignItems="Start" justifyContent="SpaceBetween" class="sapUiSmallMarginBottom">
+                <VBox class="reportServerDetailTitle">
+                  <Title text="{= ${txn>/detail/businessFlow} || ${txn>/detail/headline/label} }" level="H3" wrapping="true" />
+                  <Text text="{path: 'txn>/detail/path', formatter: '.nb.fmt.pathText'}" class="reportServerMono" />
+                </VBox>
+                <ObjectStatus
+                  text="{txn>/detail/humanReadableStatus}"
+                  state="{path: 'txn>/detail/statusCategory', formatter: '.formatter.statusState'}"
+                  icon="{path: 'txn>/detail/statusCategory', formatter: '.formatter.statusIcon'}"
+                  inverted="true" />
+              </HBox>
+              <IconTabBar expandable="false" class="reportServerTabs">
+                <items>
+                  <core:Fragment fragmentName="com.middlewareops.integrationportal.fragment.transaction.TransactionTabs" type="XML" />
+                </items>
+              </IconTabBar>
+            </VBox>
+          </VBox>
+        </ScrollContainer>
+
+      </l:contentAreas>
+    </l:Splitter>
+  </VBox>
+</core:FragmentDefinition>

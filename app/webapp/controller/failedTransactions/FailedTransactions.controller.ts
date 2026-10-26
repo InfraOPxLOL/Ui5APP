@@ -12,6 +12,7 @@ import DownloadUtils from "../../core/utils/DownloadUtils";
 import DeepLinkHelper from "../../core/utils/DeepLinkHelper";
 import ReportServerFormatter from "../../formatter/reportServer/ReportServerFormatter";
 import InterchangePanel from "../shared/InterchangePanel";
+import TransactionPanel from "../shared/TransactionPanel";
 import UserContext from "../../shell/context/UserContext";
 import { RoleCollections } from "../../shell/permissions/RoleCollections";
 import FailedTransactionsService from "../../service/failedTransactions/FailedTransactionsService";
@@ -40,6 +41,11 @@ interface Bindable {
  * The detail also shows the message's own body (read from the broker) and, through the shared
  * interchange panel, the B2B interchange it belongs to with its documents, events and errors.
  *
+ * Two categories, switched in the header: **B2B** (TPM's dead-letter queues) and **Non-B2B** (the
+ * JMS framework's central DLQ and the Common IDoc Router's DLQ). A non-B2B JMS message goes back to
+ * the queue its ingress header or consumer flow names; when neither does, the operator chooses one
+ * of the framework's processing queues before the retry runs.
+ *
  * @namespace com.middlewareops.integrationportal.controller.failedTransactions
  */
 export default class FailedTransactionsController extends BaseController {
@@ -47,6 +53,18 @@ export default class FailedTransactionsController extends BaseController {
   public readonly fmt = {
     dateTime: DateTimeFormatter.formatDateTime,
     outcome: (status?: string): string => this.getText(`outcome.${status ?? "failed"}`),
+    /** A tile's heading: the kind of dead-letter queue, in business words. */
+    kpiHeader: (queue?: DeadLetterQueueCount): string =>
+      queue === undefined ? "" : this.kindLabel("kpi", queue.deadLetterKind, queue.queueName),
+    /** A row's "failed in": the kind of dead-letter queue. */
+    kindText: (row?: FailedTransaction): string =>
+      row === undefined ? "" : this.kindLabel("queue", row.deadLetterKind, row.queueName),
+    targetSourceText: (source?: string): string =>
+      source === undefined || source === null ? "" : this.getText(`target.${source}`),
+    targetExplanation: (source?: string): string =>
+      source === undefined || source === null
+        ? ""
+        : this.getText("target.explain", [this.getText(`target.${source}`)]),
   };
 
   /** The shared interchange panel the detail fragment binds to as `.b2b.*`. */
@@ -55,8 +73,19 @@ export default class FailedTransactionsController extends BaseController {
     handleError: (error) => this.getErrorHandler().handle(error),
   });
 
+  /** The shared non-B2B transaction panel the detail fragment binds to as `.txn.*`. */
+  public readonly txn = new TransactionPanel({
+    navigate: (route, parameters) => this.getRouter().navTo(route, parameters),
+    handleError: (error) => this.getErrorHandler().handle(error),
+  });
+
   private readonly service = new FailedTransactionsService();
   private listAbort: AbortController | undefined;
+  private chooseDialog: Dialog | undefined;
+  /** The row waiting for the operator's queue choice. */
+  private choosingFor: FailedTransaction | undefined;
+  /** The last `?query` this screen acted on. */
+  private lastQueryToken: string | undefined;
   /** Base64 body of an open binary message (kept out of the model; it is never displayed). */
   private binaryPayload: string | undefined;
   private loaded = false;
@@ -65,6 +94,7 @@ export default class FailedTransactionsController extends BaseController {
   public onInit(): void {
     this.setModel(new FailedTransactionsModel(), "view");
     this.b2b.attach(this.getView()!);
+    this.txn.attach(this.getView()!);
     this.model().setProperty(
       "/canRetry",
       UserContext.getInstance()
@@ -73,7 +103,30 @@ export default class FailedTransactionsController extends BaseController {
     );
     this.getRouter()
       .getRoute("failedTransactions")
-      ?.attachPatternMatched(() => {
+      ?.attachPatternMatched((event: Event) => {
+        const args = (event.getParameter("arguments" as never) ?? {}) as {
+          "?query"?: { readonly category?: string; readonly search?: string };
+        };
+        const query = args["?query"] ?? {};
+        const token = JSON.stringify(query);
+        const changed = token !== this.lastQueryToken;
+        this.lastQueryToken = token;
+        if (changed && (query.category !== undefined || query.search !== undefined)) {
+          this.model().setProperty(
+            "/category",
+            query.category === "nonB2b"
+              ? "nonB2b"
+              : query.category === "b2b"
+                ? "b2b"
+                : this.state<string>("/category"),
+          );
+          this.model().setProperty("/search", query.search ?? "");
+          this.model().setProperty("/queueFilter", "");
+          this.clearDetail();
+          this.loaded = true;
+          void this.reload();
+          return;
+        }
         if (!this.loaded) {
           this.loaded = true;
           void this.reload();
@@ -84,12 +137,36 @@ export default class FailedTransactionsController extends BaseController {
   public onExit(): void {
     this.listAbort?.abort();
     this.resultsDialog?.destroy();
+    this.chooseDialog?.destroy();
   }
 
   // --- List ------------------------------------------------------------------
 
   public onRefresh(): void {
     void this.reload();
+  }
+
+  /** The B2B / Non-B2B switch in the header. */
+  public onCategoryChange(): void {
+    this.model().setProperty("/queueFilter", "");
+    this.model().setProperty("/search", "");
+    this.clearDetail();
+    void this.reload();
+  }
+
+  private clearDetail(): void {
+    this.model().setProperty("/detail", null);
+    this.model().setProperty("/payload", null);
+    this.model().setProperty("/chosenTarget", "");
+    this.b2b.clear();
+    this.txn.clear();
+  }
+
+  /** "Processing failures" / "JMS framework" …: a kind of dead-letter queue in business words. */
+  private kindLabel(prefix: "kpi" | "queue", kind: string, queueName: string): string {
+    return ["processing", "receiver", "jms", "router"].includes(kind)
+      ? this.getText(`${prefix}.${kind}`)
+      : queueName;
   }
 
   public onSearch(): void {
@@ -124,6 +201,7 @@ export default class FailedTransactionsController extends BaseController {
     try {
       const response = await this.service.list(
         {
+          category: this.state<"b2b" | "nonB2b">("/category"),
           queue: this.state<string>("/queueFilter") || undefined,
           search: this.state<string>("/search").trim() || undefined,
           page,
@@ -189,14 +267,21 @@ export default class FailedTransactionsController extends BaseController {
     model.setProperty("/detailTab", "overview");
     model.setProperty("/payload", null);
     model.setProperty("/payloadError", "");
+    model.setProperty("/chosenTarget", "");
     this.binaryPayload = undefined;
     this.b2b.clear();
+    this.txn.clear();
     try {
       const detail = await this.service.getDetail(row.messageId, row.queueName);
       model.setProperty("/detail", detail);
       const interchangeId = detail.interchange?.id;
       if (interchangeId !== undefined) {
         void this.b2b.load(interchangeId);
+      }
+      const correlationId = detail.message.correlationId;
+      if (detail.transaction !== undefined && correlationId !== undefined) {
+        // The panel's own read adds the errors and where the message is parked.
+        void this.txn.load(correlationId);
       }
       model.setProperty(
         "/pathText",
@@ -305,10 +390,19 @@ export default class FailedTransactionsController extends BaseController {
     }
   }
 
+  /** Opens the message's interchange (B2B) or transaction (non-B2B) in the Report Server. */
   public onOpenInterchange(): void {
-    const id = this.state<FailedTransactionDetail | null>("/detail")?.interchange?.id;
+    const detail = this.state<FailedTransactionDetail | null>("/detail");
+    const id = detail?.interchange?.id;
     if (id !== undefined) {
       this.navTo("reportServer", { interchangeId: id });
+      return;
+    }
+    const correlationId = detail?.message.correlationId;
+    if (correlationId !== undefined) {
+      this.getRouter().navTo("reportServer", {
+        "?query": { category: "nonB2b", correlationId },
+      });
     }
   }
 
@@ -316,16 +410,70 @@ export default class FailedTransactionsController extends BaseController {
 
   public onRetryRow(event: Event): void {
     const row = FailedTransactionsController.rowOf(event);
-    if (row !== undefined) {
-      this.confirmRetry([row]);
+    if (row === undefined) {
+      return;
     }
+    if (FailedTransactionsFormatter.needsQueueChoice(row)) {
+      void this.chooseQueueFor(row);
+      return;
+    }
+    this.confirmRetry([row]);
   }
 
   public onRetryDetail(): void {
     const detail = this.state<FailedTransactionDetail | null>("/detail");
-    if (detail !== null) {
-      this.confirmRetry([detail.message]);
+    if (detail === null) {
+      return;
     }
+    if (detail.queueOptions.length > 0) {
+      const chosen = this.state<string>("/chosenTarget");
+      if (chosen === "") {
+        MessageToast.show(this.getText("toast.chooseQueue"));
+        return;
+      }
+      this.confirmRetry([detail.message], chosen);
+      return;
+    }
+    this.confirmRetry([detail.message]);
+  }
+
+  /** Asks which queue to send a message to whose destination could not be determined. */
+  private async chooseQueueFor(row: FailedTransaction): Promise<void> {
+    try {
+      const detail = await this.service.getDetail(row.messageId, row.queueName);
+      if (detail.queueOptions.length === 0) {
+        // Opening it resolved the queue after all (the ingress header was found).
+        this.confirmRetry([detail.message]);
+        return;
+      }
+      this.choosingFor = detail.message;
+      this.model().setProperty("/choose", {
+        text: this.getText("choose.text", [row.messageId]),
+        options: [...detail.queueOptions],
+        target: "",
+      });
+      this.chooseDialog ??= (await this.loadFragment({
+        name: "com.middlewareops.integrationportal.fragment.failedTransactions.ChooseQueueDialog",
+      })) as Dialog;
+      this.chooseDialog.open();
+    } catch (error) {
+      this.getErrorHandler().handle(error);
+    }
+  }
+
+  public onChooseQueueConfirm(): void {
+    const row = this.choosingFor;
+    const target = this.state<string>("/choose/target");
+    this.chooseDialog?.close();
+    this.choosingFor = undefined;
+    if (row !== undefined && target !== "") {
+      void this.runRetry([row], target);
+    }
+  }
+
+  public onChooseQueueCancel(): void {
+    this.chooseDialog?.close();
+    this.choosingFor = undefined;
   }
 
   public onRetrySelected(): void {
@@ -338,7 +486,7 @@ export default class FailedTransactionsController extends BaseController {
     }
   }
 
-  private confirmRetry(rows: readonly FailedTransaction[]): void {
+  private confirmRetry(rows: readonly FailedTransaction[], targetQueue?: string): void {
     const [first] = rows;
     if (first === undefined) {
       return;
@@ -348,7 +496,7 @@ export default class FailedTransactionsController extends BaseController {
         ? this.getText("confirm.single", [
             first.messageId,
             first.queueName,
-            first.targetQueue ?? this.getText("confirm.noTarget"),
+            targetQueue ?? first.targetQueue ?? this.getText("confirm.noTarget"),
           ])
         : this.getText("confirm.bulk", [rows.length]);
     MessageBox.confirm(text, {
@@ -357,19 +505,26 @@ export default class FailedTransactionsController extends BaseController {
       emphasizedAction: MessageBox.Action.OK,
       onClose: (action: string) => {
         if (action === MessageBox.Action.OK) {
-          void this.runRetry(rows);
+          void this.runRetry(rows, targetQueue);
         }
       },
     });
   }
 
-  private async runRetry(rows: readonly FailedTransaction[]): Promise<void> {
+  private async runRetry(rows: readonly FailedTransaction[], targetQueue?: string): Promise<void> {
     const model = this.model();
     model.setProperty("/retrying", true);
     try {
       const results =
         rows.length === 1 && rows[0] !== undefined
-          ? [await this.service.retry(rows[0].messageId, rows[0].queueName, RETRY_REASON)]
+          ? [
+              await this.service.retry(
+                rows[0].messageId,
+                rows[0].queueName,
+                RETRY_REASON,
+                targetQueue,
+              ),
+            ]
           : (
               await this.service.retryMany(
                 rows.map((row) => ({ messageId: row.messageId, queueName: row.queueName })),
@@ -379,9 +534,7 @@ export default class FailedTransactionsController extends BaseController {
       await this.showResults(results);
       const openId = this.state<FailedTransactionDetail | null>("/detail")?.message.messageId;
       if (openId !== undefined && results.some((result) => result.messageId === openId)) {
-        model.setProperty("/detail", null);
-        model.setProperty("/payload", null);
-        this.b2b.clear();
+        this.clearDetail();
       }
       await this.reload();
     } catch (error) {

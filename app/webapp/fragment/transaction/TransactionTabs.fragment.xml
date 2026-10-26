@@ -1,0 +1,146 @@
+<!--
+  The tabs of one non-B2B transaction: the business message, the Common IDoc Router and JMS framework
+  hops it passed through (with how their dead-letter queues connect), every step, and its errors.
+  Shared by the Report Server and Failed Transactions; place it inside an IconTabBar's items. Binds
+  to the "txn" model and "txnI18n" bundle and calls the TransactionPanel presenter the host
+  controller exposes as `txn`.
+-->
+<core:FragmentDefinition
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core"
+  xmlns:form="sap.ui.layout.form">
+
+  <!-- Transaction: the business message and its framework path -->
+  <IconTabFilter
+    key="transaction"
+    text="{txnI18n>tab.transaction}"
+    icon="sap-icon://process"
+    visible="{= !!${txn>/detail} }">
+    <VBox>
+      <VBox items="{txn>/detail/parked}">
+        <MessageStrip
+          text="{path: 'txn>', formatter: '.txn.fmt.parkedText'}"
+          type="Warning"
+          showIcon="true"
+          class="sapUiTinyMarginBottom">
+          <link>
+            <Link text="{txnI18n>parked.open}" press=".txn.onOpenFailedTransaction" />
+          </link>
+        </MessageStrip>
+      </VBox>
+
+      <form:SimpleForm title="{txnI18n>section.business}" editable="false" layout="ResponsiveGridLayout" labelSpanL="4" labelSpanM="4" columnsL="2" columnsXL="2">
+        <Label text="{txnI18n>field.businessFlow}" /><Text text="{= ${txn>/detail/businessFlow} || ${txnI18n>field.notYetRun} }" />
+        <Label text="{txnI18n>field.status}" />
+        <ObjectStatus
+          text="{txn>/detail/humanReadableStatus}"
+          state="{path: 'txn>/detail/statusCategory', formatter: '.txn.fmt.statusState'}"
+          icon="{path: 'txn>/detail/statusCategory', formatter: '.txn.fmt.statusIcon'}" />
+        <Label text="{txnI18n>field.sender}" /><Text text="{= ${txn>/detail/sender} || '—' }" />
+        <Label text="{txnI18n>field.receiver}" /><Text text="{= ${txn>/detail/receiver} || '—' }" />
+        <Label text="{txnI18n>field.applicationId}" /><Text text="{= ${txn>/detail/applicationId} || '—' }" />
+        <Label text="{txnI18n>field.messageType}" /><Text text="{= ${txn>/detail/messageType} || '—' }" />
+        <Label text="{txnI18n>field.started}" /><Text text="{path: 'txn>/detail/startedAt', formatter: '.txn.fmt.dateTime'}" />
+        <Label text="{txnI18n>field.lastActivity}" /><Text text="{path: 'txn>/detail/lastActivityAt', formatter: '.txn.fmt.dateTime'}" />
+        <Label text="{txnI18n>field.correlationId}" /><Text text="{txn>/detail/correlationId}" class="txnMono" />
+      </form:SimpleForm>
+
+      <form:SimpleForm
+        title="{txnI18n>section.router}"
+        visible="{= !!${txn>/detail/router} }"
+        editable="false"
+        layout="ResponsiveGridLayout"
+        labelSpanL="4"
+        labelSpanM="4">
+        <Label text="{txnI18n>field.inbound}" /><Text text="{= ${txn>/detail/router/inbound} || '—' }" />
+        <Label text="{txnI18n>field.stage}" />
+        <ObjectStatus
+          text="{path: 'txn>/detail/router/stage', formatter: '.txn.fmt.routerStageText'}"
+          state="{path: 'txn>/detail/router/stage', formatter: '.txn.fmt.routerStageState'}" />
+        <Label text="{txnI18n>field.processingQueue}" /><Text text="{txn>/detail/router/queue}" class="txnMono" />
+        <Label text="{txnI18n>field.deadLetterQueue}" /><Text text="{txn>/detail/router/deadLetterQueue}" class="txnMono" />
+        <Label text="{txnI18n>field.retryRoute}" />
+        <Text text="{= ${txn>/detail/router/deadLetterQueue} + '  →  ' + ${txn>/detail/router/queue} }" class="txnMono" />
+      </form:SimpleForm>
+
+      <form:SimpleForm
+        title="{txnI18n>section.jms}"
+        visible="{= !!${txn>/detail/jms} }"
+        editable="false"
+        layout="ResponsiveGridLayout"
+        labelSpanL="4"
+        labelSpanM="4">
+        <Label text="{txnI18n>field.queue}" /><Text text="{= ${txn>/detail/jms/queue} || '—' }" class="txnMono" />
+        <Label text="{txnI18n>field.queueSource}" />
+        <Text text="{path: 'txn>/detail/jms/queueSource', formatter: '.txn.fmt.queueSourceText'}" />
+        <Label text="{txnI18n>field.stage}" />
+        <ObjectStatus
+          text="{path: 'txn>/detail/jms/stage', formatter: '.txn.fmt.jmsStageText'}"
+          state="{path: 'txn>/detail/jms/stage', formatter: '.txn.fmt.jmsStageState'}" />
+        <Label text="{txnI18n>field.deadLetterQueue}" /><Text text="{txn>/detail/jms/deadLetterQueue}" class="txnMono" />
+        <Label text="{txnI18n>field.retryRoute}" />
+        <Text text="{= ${txn>/detail/jms/deadLetterQueue} + '  →  ' + (${txn>/detail/jms/queue} || '?') }" class="txnMono" />
+        <Label text="{txnI18n>field.queueHeader}" visible="{= !!${txn>/detail/queueHeader} }" />
+        <Text text="{txn>/detail/queueHeader}" visible="{= !!${txn>/detail/queueHeader} }" class="txnMono" />
+      </form:SimpleForm>
+
+      <Text
+        text="{txnI18n>section.noFramework}"
+        visible="{= !!${txn>/detail} &amp;&amp; ${txn>/detail/frameworks}.length === 0 }"
+        class="txnHint sapUiSmallMarginBottom" />
+
+      <Button
+        text="{txnI18n>action.openPayload}"
+        icon="sap-icon://inspect"
+        press=".txn.onOpenPayload"
+        class="sapUiSmallMarginTop" />
+    </VBox>
+  </IconTabFilter>
+
+  <!-- Every processing log of the transaction -->
+  <IconTabFilter
+    key="steps"
+    text="{txnI18n>tab.steps}"
+    icon="sap-icon://list"
+    count="{= ${txn>/detail/steps}.length }"
+    visible="{= !!${txn>/detail} }">
+    <Table items="{txn>/detail/steps}" noDataText="{txnI18n>steps.empty}" contextualWidth="Auto">
+      <columns>
+        <Column><Text text="{txnI18n>steps.step}" /></Column>
+        <Column width="7rem"><Text text="{txnI18n>steps.status}" /></Column>
+        <Column width="9rem" minScreenWidth="560px" demandPopin="true" popinDisplay="Inline"><Text text="{txnI18n>steps.started}" /></Column>
+        <Column minScreenWidth="560px" demandPopin="true" popinDisplay="Inline"><Text text="{txnI18n>steps.log}" /></Column>
+      </columns>
+      <items>
+        <ColumnListItem highlight="{= ${txn>role} === 'business' ? 'Information' : 'None' }">
+          <cells>
+            <ObjectIdentifier title="{txn>label}" text="{= ${txn>role} === 'business' ? '' : ${txn>integrationFlow} }" />
+            <ObjectStatus
+              text="{txn>humanReadableStatus}"
+              state="{path: 'txn>statusCategory', formatter: '.txn.fmt.statusState'}" />
+            <Text text="{path: 'txn>startTime', formatter: '.txn.fmt.dateTime'}" />
+            <Link text="{txn>messageId}" wrapping="false" press=".txn.onOpenProcessingLog" />
+          </cells>
+        </ColumnListItem>
+      </items>
+    </Table>
+  </IconTabFilter>
+
+  <!-- Errors of the failed steps -->
+  <IconTabFilter
+    key="errors"
+    text="{txnI18n>tab.errors}"
+    icon="sap-icon://message-error"
+    iconColor="{= (${txn>/detail/errors} || []).length > 0 ? 'Negative' : 'Default' }"
+    count="{= (${txn>/detail/errors} || []).length }"
+    visible="{= !!${txn>/detail} }">
+    <VBox items="{txn>/detail/errors}">
+      <MessageStrip
+        text="{= ${txn>label} + ': ' + ${txn>text} }"
+        type="Error"
+        showIcon="true"
+        class="sapUiTinyMarginBottom" />
+    </VBox>
+    <Text text="{txnI18n>errors.none}" visible="{= (${txn>/detail/errors} || []).length === 0 }" />
+  </IconTabFilter>
+</core:FragmentDefinition>

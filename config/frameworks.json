@@ -5,9 +5,10 @@
       "label": "JMS Framework",
       "enabled": true,
       "priority": 1,
+      "category": "nonB2b",
       "detect": {
-        "integrationFlowPatterns": [],
-        "correlationFlowNames": ["IF_JMS_ingress", "IF_JMS_egress"],
+        "integrationFlowPatterns": ["^IF_FM_Core_JMS_"],
+        "correlationFlowNames": ["IF_FM_Core_JMS_Step-3_Ingress_Dispatcher"],
         "customHeaderNames": [],
         "customHeaderMatches": []
       },
@@ -18,10 +19,51 @@
         "dlqRecoveryMap": {}
       },
       "queueResolution": {
-        "headerName": "CH-Message-Queue",
+        "headerName": "CH-Message-Log-QueueResolution",
         "headerValuePattern": "\\[[^\\[\\]]*=\\s*([^\\]]+)\\]\\s*$",
-        "centralDeadLetterQueue": "Common_JMS_ID_DLQ"
-      }
+        "centralDeadLetterQueue": "Common_JMS_ID_DLQ",
+        "headerFlowName": "IF_FM_Core_JMS_Step-3_Ingress_Dispatcher",
+        "consumerFlowQueues": {
+          "IF_FM_Core_JMS_Step-3_Queue_Consumer_Asia_P1": "Common_JMS_ID_AS_P1",
+          "IF_FM_Core_JMS_Step-3_Queue_Consumer_Asia_P2": "Common_JMS_ID_AS_P2",
+          "IF_FM_Core_JMS_Step-3_Queue_Consumer_Asia_P3": "Common_JMS_ID_AS_P3",
+          "IF_FM_Core_JMS_Step-3_Queue_Consumer_Europe_P1": "Common_JMS_ID_EU_P1",
+          "IF_FM_Core_JMS_Step-3_Queue_Consumer_Europe_P2": "Common_JMS_ID_EU_P2",
+          "IF_FM_Core_JMS_Step-3_Queue_Consumer_Europe_P3": "Common_JMS_ID_EU_P3",
+          "IF_FM_Core_JMS_Step-3_Queue_Consumer_Generic_P1": "Common_JMS_ID_Generic_P1",
+          "IF_FM_Core_JMS_Step-3_Queue_Consumer_Generic_P2": "Common_JMS_ID_Generic_P2",
+          "IF_FM_Core_JMS_Step-3_Queue_Consumer_Generic_P3": "Common_JMS_ID_Generic_P3",
+          "IF_FM_Core_JMS_Step-3_Queue_Consumer_Generic_P4": "Common_JMS_ID_Generic_P4",
+          "IF_FM_Core_JMS_Step-3_Queue_Consumer_Generic_P5": "Common_JMS_ID_Generic_P5",
+          "IF_FM_Core_JMS_Step-3_Queue_Consumer_Hills_P1": "Common_JMS_ID_Hills_P1",
+          "IF_FM_Core_JMS_Step-3_Queue_Consumer_Hills_P2": "Common_JMS_ID_Hills_P2",
+          "IF_FM_Core_JMS_Step-3_Queue_Consumer_Hills_P3": "Common_JMS_ID_Hills_P3",
+          "IF_FM_Core_JMS_Step-3_Queue_Consumer_LATAM_P1": "Common_JMS_ID_LATAM_P1",
+          "IF_FM_Core_JMS_Step-3_Queue_Consumer_LATAM_P2": "Common_JMS_ID_LATAM_P2",
+          "IF_FM_Core_JMS_Step-3_Queue_Consumer_LATAM_P3": "Common_JMS_ID_LATAM_P3",
+          "IF_FM_Core_JMS_Step-3_Queue_Consumer_NA_P1": "Common_JMS_ID_NA_P1",
+          "IF_FM_Core_JMS_Step-3_Queue_Consumer_NA_P2": "Common_JMS_ID_NA_P2",
+          "IF_FM_Core_JMS_Step-3_Queue_Consumer_NA_P3": "Common_JMS_ID_NA_P3"
+        }
+      },
+      "steps": [
+        {
+          "flowPattern": "^IF_FM_Core_JMS_Step-3_Ingress_Dispatcher$",
+          "label": "JMS ingress"
+        },
+        {
+          "flowPattern": "^IF_FM_Core_JMS_Step-3_Queue_Consumer_(.+)$",
+          "label": "JMS queue consumer ($1)"
+        },
+        {
+          "flowPattern": "^IF_FM_Core_JMS_Step-6_Egress_Dispatcher$",
+          "label": "JMS egress"
+        },
+        {
+          "flowPattern": "^IF_FM_Core_JMS_",
+          "label": "JMS framework"
+        }
+      ]
     },
     {
       "id": "TPM_V2",
@@ -50,27 +92,43 @@
           "SAP_TPM_COM_PROCESSING_OUTBOUND_DEAD_LETTER_Q": "SAP_TPM_INBOUND_Q",
           "SAP_TPM_COM_RECEIVER_OUTOUND_DEAD_LETTER_Q": "SAP_TPM_OUTBOUND_Q"
         }
-      }
+      },
+      "category": "b2b"
     },
     {
       "id": "COMMON_IDOC_ROUTER",
       "label": "Common IDoc Router",
       "enabled": true,
       "priority": 3,
+      "category": "nonB2b",
       "detect": {
-        "integrationFlowPatterns": [],
+        "integrationFlowPatterns": ["^IF_FM_Core_IDoc_Router_"],
         "correlationFlowNames": [],
         "customHeaderNames": [],
         "customHeaderMatches": []
       },
       "topology": {
-        "traversalOrder": ["Common_Router_JMS", "Common_Router_JMS_DLQ"],
-        "activeQueues": ["Common_Router_JMS"],
-        "deadLetterQueues": ["Common_Router_JMS_DLQ"],
+        "traversalOrder": ["Common_JMS_ID_Common_Router", "Common_JMS_ID_Router_DLQ"],
+        "activeQueues": ["Common_JMS_ID_Common_Router"],
+        "deadLetterQueues": ["Common_JMS_ID_Router_DLQ"],
         "dlqRecoveryMap": {
-          "Common_Router_JMS_DLQ": "Common_Router_JMS"
+          "Common_JMS_ID_Router_DLQ": "Common_JMS_ID_Common_Router"
         }
-      }
+      },
+      "steps": [
+        {
+          "flowPattern": "^IF_FM_Core_IDoc_Router_RFC-ID_(.+)$",
+          "label": "Router inbound ($1)"
+        },
+        {
+          "flowPattern": "^IF_FM_Core_IDoc_Router_Main$",
+          "label": "Router main"
+        },
+        {
+          "flowPattern": "^IF_FM_Core_IDoc_Router_",
+          "label": "Common router"
+        }
+      ]
     },
     {
       "id": "IDOC_STATUS_SYNC",

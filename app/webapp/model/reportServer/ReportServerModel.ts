@@ -26,6 +26,8 @@ export interface TimePresetItem {
 
 /** Shape of the Report Server view model. */
 export interface ReportServerState {
+  /** `b2b` (TPM interchanges) or `nonB2b` (every other transaction). */
+  category: "b2b" | "nonB2b";
   busy: boolean;
   detailBusy: boolean;
   /** Set when the tenant has no B2B monitoring (TPM not activated); the list is hidden. */
@@ -65,6 +67,7 @@ export function emptyFilters(): ReportServerFilters {
 export default class ReportServerModel extends JSONModel {
   public constructor() {
     const initial: ReportServerState = {
+      category: "b2b",
       busy: false,
       detailBusy: false,
       unavailableMessage: "",

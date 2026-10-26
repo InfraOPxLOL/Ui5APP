@@ -73,6 +73,18 @@ export interface MessageLogFilter {
   readonly search?: string;
   /** Exact match on the MPL `CorrelationId` — every processing run of one business message. */
   readonly correlationId?: string;
+  /** Any of these correlation ids — the chains of several transactions in one call. */
+  readonly correlationIds?: readonly string[];
+  /** Exact match on the MPL id (`MessageGuid`). */
+  readonly messageId?: string;
+  /** Substring of `Sender`. */
+  readonly sender?: string;
+  /** Substring of `Receiver`. */
+  readonly receiver?: string;
+  /** Exact match on `ApplicationMessageId`. */
+  readonly applicationId?: string;
+  /** Exact match on `ApplicationMessageType`. */
+  readonly messageType?: string;
 }
 
 /** A single error detail attached to a failed message. */
@@ -132,6 +144,12 @@ export interface QueuedMessage {
   readonly applicationId?: string;
   readonly nextRetryAt?: string;
   readonly expiresAt?: string;
+}
+
+/** Filters the JMS API applies itself when listing a queue's messages. */
+export interface JmsMessageFilter {
+  readonly correlationId?: string;
+  readonly mplId?: string;
 }
 
 /** What the tenant reports for a JMS move or retry. */

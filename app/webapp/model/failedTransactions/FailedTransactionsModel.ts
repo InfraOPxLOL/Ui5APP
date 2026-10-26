@@ -18,6 +18,12 @@ export interface MessagePayloadView {
 
 /** Shape of the Failed Transactions view model. */
 export interface FailedTransactionsState {
+  /** `b2b` (TPM dead-letter queues) or `nonB2b` (JMS framework and router). */
+  category: "b2b" | "nonB2b";
+  /** The queue the operator picked for a message whose destination could not be determined. */
+  chosenTarget: string;
+  /** The "choose the queue" dialog for a row retry. */
+  choose: { text: string; options: string[]; target: string };
   busy: boolean;
   detailBusy: boolean;
   retrying: boolean;
@@ -56,6 +62,9 @@ export interface FailedTransactionsState {
 export default class FailedTransactionsModel extends JSONModel {
   public constructor() {
     const initial: FailedTransactionsState = {
+      category: "b2b",
+      chosenTarget: "",
+      choose: { text: "", options: [], target: "" },
       busy: false,
       detailBusy: false,
       retrying: false,

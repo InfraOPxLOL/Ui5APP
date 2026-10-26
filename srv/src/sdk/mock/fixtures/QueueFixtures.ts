@@ -12,6 +12,12 @@ import {
 } from "./MessageFixtures.js";
 import { generateInterchanges, generatePayloadContent } from "./B2bFixtures.js";
 import {
+  NON_B2B_SCENARIOS,
+  findNonB2bParkedScenario,
+  nonB2bPayload,
+  nonB2bQueuedMessage,
+} from "./NonB2bScenarioFixtures.js";
+import {
   TPM_DLQ_SCENARIOS,
   findTpmDlqScenario,
   scenarioFailedAt,
@@ -171,6 +177,14 @@ export function generateSingleMessage(
       return undefined;
     }
     const moved = findTpmDlqScenario(messageId);
+    const movedNonB2b = findNonB2bParkedScenario(messageId);
+    if (movedNonB2b !== undefined) {
+      return {
+        ...nonB2bQueuedMessage(movedNonB2b, queueName),
+        enqueuedAt: new Date().toISOString(),
+        failed: false,
+      };
+    }
     return moved !== undefined
       ? {
           ...scenarioMessage(moved, queueName),
@@ -201,6 +215,13 @@ export function generateSingleMessage(
   const scenario = findTpmDlqScenario(messageId);
   if (scenario !== undefined) {
     return scenario.queueName === queueName ? scenarioMessage(scenario, queueName) : undefined;
+  }
+
+  const nonB2b = findNonB2bParkedScenario(messageId);
+  if (nonB2b !== undefined) {
+    return nonB2b.parked?.queueName === queueName
+      ? nonB2bQueuedMessage(nonB2b, queueName)
+      : undefined;
   }
 
   if (MOCK_FRAMEWORK_ABSENT_MESSAGE_IDS.has(messageId)) {
@@ -255,6 +276,10 @@ export function generateQueuedMessagePayload(
   if (generateSingleMessage(queueName, messageId) === undefined) {
     return undefined;
   }
+  const nonB2b = findNonB2bParkedScenario(messageId);
+  if (nonB2b !== undefined) {
+    return nonB2bPayload(nonB2b);
+  }
   const scenario = findTpmDlqScenario(messageId);
   const edi =
     scenario === undefined
@@ -269,4 +294,20 @@ export function generateQueuedMessagePayload(
       "</Message>",
     ].join("\n");
   return { content, encoding: "text", sizeBytes: Buffer.byteLength(content, "utf8") };
+}
+
+/**
+ * The non-B2B dead-letter messages currently on `queueName` (the JMS framework's central DLQ or the
+ * router DLQ), newest first, or `undefined` when no scenario parks a message there. A message moved
+ * away by {@link recordMockMove} is gone.
+ */
+export function generateNonB2bDlqMessages(queueName: string): QueuedMessage[] | undefined {
+  const parked = NON_B2B_SCENARIOS.filter((scenario) => scenario.parked?.queueName === queueName);
+  if (parked.length === 0) {
+    return undefined;
+  }
+  return parked
+    .filter((scenario) => !relocatedMessages.has(scenario.parked?.jmsMessageId ?? ""))
+    .map((scenario) => nonB2bQueuedMessage(scenario, queueName))
+    .sort((a, b) => b.enqueuedAt.localeCompare(a.enqueuedAt));
 }

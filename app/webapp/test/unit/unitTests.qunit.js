@@ -32,6 +32,7 @@ sap.ui.define(
     "./CertificateSecurityCenterFormatterTest.qunit",
     "./ReportServerFormatterTest.qunit",
     "./FailedTransactionsFormatterTest.qunit",
+    "./TransactionFormatterTest.qunit",
     "./TimePresetsTest.qunit",
     "./SavedViewStoreTest.qunit",
   ],

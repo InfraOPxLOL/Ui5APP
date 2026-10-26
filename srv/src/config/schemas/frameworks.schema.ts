@@ -17,13 +17,19 @@ export const CONFIGURABLE_FRAMEWORK_IDS = [
 export type ConfigurableFrameworkId = (typeof CONFIGURABLE_FRAMEWORK_IDS)[number];
 
 /** A compiled-at-boot regular expression source. Rejected here (not at match time) if it cannot compile. */
-const regexSourceSchema = z.string().min(1).superRefine((value, ctx) => {
-  try {
-    new RegExp(value);
-  } catch {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: `invalid regular expression: "${value}"` });
-  }
-});
+const regexSourceSchema = z
+  .string()
+  .min(1)
+  .superRefine((value, ctx) => {
+    try {
+      new RegExp(value);
+    } catch {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `invalid regular expression: "${value}"`,
+      });
+    }
+  });
 
 /**
  * One custom-header match rule: the header must be present *and* its value must match
@@ -90,12 +96,58 @@ export const frameworkTopologySchema = z.object({
  *   `📁 [PD Fetch Queue] Queue resolved via Direct Value [QUEUE_JMS_{RouteKey} = Common_JMS_ID_Ecom_P1]`.
  * - `centralDeadLetterQueue`  — the single fixed DLQ these messages fall back to when they are not on
  *   their resolved queue.
+ * - `headerFlowName`          — the integration flow whose log entry carries the header (the JMS
+ *   Ingress Dispatcher). Defaults to the first of the framework's `correlationFlowNames`.
+ * - `consumerFlowQueues`      — the fallback when the header is missing: each queue-consumer flow name
+ *   → the queue it reads. A message whose chain shows the consumer that picked it up therefore still
+ *   resolves to its queue. Exact flow names, matched case-insensitively.
  */
 export const frameworkQueueResolutionSchema = z.object({
   headerName: z.string().min(1),
   headerValuePattern: regexSourceSchema,
   centralDeadLetterQueue: z.string().min(1),
+  headerFlowName: z.string().min(1).optional(),
+  consumerFlowQueues: z.record(z.string().min(1), z.string().min(1)).default({}),
 });
+
+/**
+ * One named step of a framework's processing chain, used to describe a transaction's path in words
+ * ("Router inbound (BTP_IS_CORE_LA)" → "JMS ingress" → "Queue consumer NA_P1").
+ *
+ * - `flowPattern` — regex matched against an integration flow name.
+ * - `label`       — the step's name; `$1`, `$2`… insert the pattern's capture groups.
+ */
+export const frameworkStepSchema = z.object({
+  flowPattern: regexSourceSchema,
+  label: z.string().min(1),
+});
+
+/**
+ * Which business area a framework serves: `b2b` (Trading Partner Management), `nonB2b` (the
+ * in-house JMS and router frameworks every other transaction runs through), or `other`. The
+ * operator screens list the dead-letter queues of the area being viewed.
+ */
+export const FRAMEWORK_CATEGORIES = ["b2b", "nonB2b", "other"] as const;
+export type FrameworkCategory = (typeof FRAMEWORK_CATEGORIES)[number];
+
+/** The category a framework entry serves when `category` is not set (older configurations). */
+const DEFAULT_CATEGORY: Readonly<Record<string, FrameworkCategory>> = {
+  TPM_V2: "b2b",
+  JMS_FRAMEWORK: "nonB2b",
+  COMMON_IDOC_ROUTER: "nonB2b",
+};
+
+/**
+ * The business area a framework serves: its `category`, else the default for its id.
+ * @param framework the framework entry.
+ * @returns `b2b`, `nonB2b` or `other`.
+ */
+export function categoryOf(framework: {
+  readonly id: string;
+  readonly category?: FrameworkCategory;
+}): FrameworkCategory {
+  return framework.category ?? DEFAULT_CATEGORY[framework.id] ?? "other";
+}
 
 /**
  * Schema for a single framework entry in `config/frameworks.json`.
@@ -114,9 +166,11 @@ export const frameworkSchema = z
     label: z.string().min(1),
     enabled: z.boolean().default(true),
     priority: z.number().int().min(1),
+    category: z.enum(FRAMEWORK_CATEGORIES).optional(),
     detect: frameworkDetectionSchema.default({}),
     topology: frameworkTopologySchema.default({}),
     queueResolution: frameworkQueueResolutionSchema.optional(),
+    steps: z.array(frameworkStepSchema).default([]),
   })
   .superRefine((value, ctx) => {
     const active = new Set(value.topology.activeQueues);

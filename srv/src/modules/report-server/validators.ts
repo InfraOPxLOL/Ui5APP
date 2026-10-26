@@ -40,3 +40,24 @@ export const interchangeIdParamSchema = z.object({
 export const payloadParamSchema = interchangeIdParamSchema.extend({
   payloadId: z.string().trim().min(1).max(200),
 });
+
+/** Filters of the non-B2B transaction list. Every field is optional and ANDed. */
+export const transactionListQuerySchema = z.object({
+  dateFrom: z.string().datetime().optional(),
+  dateTo: z.string().datetime().optional(),
+  status: z.string().trim().min(1).max(40).optional(),
+  sender: z.string().trim().min(1).max(120).optional(),
+  receiver: z.string().trim().min(1).max(120).optional(),
+  integrationFlow: z.string().trim().min(1).max(200).optional(),
+  correlationId: z.string().trim().min(1).max(200).optional(),
+  mplId: z.string().trim().min(1).max(120).optional(),
+  applicationId: z.string().trim().min(1).max(120).optional(),
+  messageType: z.string().trim().min(1).max(120).optional(),
+  framework: z.enum(["jms", "router", "none"]).optional(),
+  page: z.coerce.number().int().min(1).optional(),
+  pageSize: z.coerce.number().int().min(1).max(200).optional(),
+});
+
+export const correlationIdParamSchema = z.object({
+  correlationId: z.string().trim().min(1).max(200),
+});

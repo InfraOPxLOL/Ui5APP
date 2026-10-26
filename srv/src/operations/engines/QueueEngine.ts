@@ -163,6 +163,20 @@ export class QueueEngine {
   }
 
   /**
+   * Finds a queue's messages by correlation id and/or MPL id (filtered by the tenant).
+   * @param queueName the queue to search.
+   * @param filter what to match.
+   * @returns the matching messages.
+   */
+  public async findMessages(
+    queueName: string,
+    filter: { readonly correlationId?: string; readonly mplId?: string },
+  ): Promise<readonly QueuedMessageSummary[]> {
+    const messages = await this.client.findMessages(queueName, filter);
+    return messages.map(QueueEngine.toMessageSummary);
+  }
+
+  /**
    * Reads one queued message's body straight from the broker.
    * @param queueName the queue the message sits on.
    * @param messageId the JMS message id.

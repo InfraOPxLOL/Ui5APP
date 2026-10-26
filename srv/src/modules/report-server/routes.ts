@@ -2,17 +2,35 @@ import { Router } from "express";
 import { catchAsync } from "../../core/middleware/errorHandler.middleware.js";
 import { validateRequest } from "../../core/middleware/validateRequest.middleware.js";
 import {
+  correlationIdParamSchema,
   interchangeIdParamSchema,
   listQuerySchema,
   payloadParamSchema,
   summaryQuerySchema,
+  transactionListQuerySchema,
 } from "./validators.js";
 import * as controller from "./controller.js";
 
-/** Router for the Report Server (B2B interchanges), mounted at /api/v1/report-server. */
+/**
+ * Router for the Report Server, mounted at /api/v1/report-server: B2B interchanges at the root,
+ * non-B2B transactions under /transactions.
+ */
 export const reportServerRouter: Router = Router();
 
-// /summary is registered before /:interchangeId so the param route never swallows it.
+// Fixed paths (/summary, /transactions) are registered before /:interchangeId so the param route
+// never swallows them.
+reportServerRouter.get(
+  "/transactions",
+  validateRequest({ query: transactionListQuerySchema }),
+  catchAsync(controller.listTransactions),
+);
+
+reportServerRouter.get(
+  "/transactions/:correlationId",
+  validateRequest({ params: correlationIdParamSchema }),
+  catchAsync(controller.getTransaction),
+);
+
 reportServerRouter.get(
   "/summary",
   validateRequest({ query: summaryQuerySchema }),

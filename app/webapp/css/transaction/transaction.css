@@ -1,0 +1,12 @@
+/* Shared non-B2B transaction panel (fragment/transaction/TransactionTabs). Theme variables only. */
+
+.txnMono {
+  font-family: var(--sapFontMonospaceFamily, monospace);
+  font-size: var(--sapFontSmallSize);
+  overflow-wrap: anywhere;
+}
+
+.txnHint {
+  color: var(--sapContent_LabelColor);
+  font-size: var(--sapFontSmallSize);
+}

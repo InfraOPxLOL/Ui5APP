@@ -27,7 +27,7 @@ import type {
 } from "../dto/FrameworkDto.js";
 import type { QueueEngine } from "./QueueEngine.js";
 import type { RuntimeEngine } from "./RuntimeEngine.js";
-import type { RecoveryStrategy } from "../recovery/RecoveryStrategy.js";
+import type { RecoveryContext, RecoveryStrategy } from "../recovery/RecoveryStrategy.js";
 import type { RecoveryStrategyResolver } from "../recovery/RecoveryStrategyResolver.js";
 import { recoveryLockStore, RecoveryLockStore } from "../recovery/RecoveryLockStore.js";
 import { OperationsCache } from "../cache/index.js";
@@ -43,6 +43,8 @@ export interface MessageRecoveryInput {
   readonly reason?: string;
   /** A queue the operator explicitly chose, for the one case a strategy legitimately cannot resolve one. */
   readonly operatorSelectedQueue?: string;
+  /** The integration flow names of the message's correlation chain, newest first (see RecoveryContext). */
+  readonly correlationFlows?: readonly string[];
 }
 
 /** How many messages of a queue's parked backlog are sampled when computing "oldest message age". */
@@ -220,9 +222,7 @@ export class RecoveryEngine {
       // must stay immediately retryable once the operator fixes whatever blocked it.
       this.lockStore.release(
         messageId,
-        outcome.status === "accepted" || outcome.status === "successful"
-          ? outcome.note
-          : undefined,
+        outcome.status === "accepted" || outcome.status === "successful" ? outcome.note : undefined,
       );
       return outcome;
     } catch (error) {
@@ -231,7 +231,7 @@ export class RecoveryEngine {
     }
   }
 
-  private toContext(input: MessageRecoveryInput) {
+  private toContext(input: MessageRecoveryInput): RecoveryContext {
     return {
       message: input.message,
       detection: input.detection,
@@ -239,6 +239,7 @@ export class RecoveryEngine {
       queue: this.queue,
       reason: input.reason,
       operatorSelectedQueue: input.operatorSelectedQueue,
+      correlationFlows: input.correlationFlows ?? [],
     };
   }
 

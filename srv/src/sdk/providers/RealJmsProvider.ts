@@ -1,5 +1,6 @@
 import type { IJmsProvider } from "../../core/providers/IJmsProvider.js";
 import type {
+  JmsMessageFilter,
   JmsMessagePayload,
   JmsOperationResult,
   ProviderContext,
@@ -368,6 +369,43 @@ export class RealJmsProvider implements IJmsProvider {
           opContext,
         );
         return raw === undefined ? undefined : RealJmsProvider.toMessageDomain(raw);
+      },
+    });
+  }
+
+  /** @inheritdoc */
+  public async findMessages(
+    context: ProviderContext,
+    queueName: string,
+    filter: JmsMessageFilter,
+  ): Promise<readonly QueuedMessage[]> {
+    return this.pipeline.run({
+      operationName: "jms.findMessages",
+      tenantId: context.tenantId,
+      correlationId: context.correlationId,
+      execute: async (tenant, opContext) => {
+        const query: Record<string, string> = { pageSize: String(MIN_MESSAGE_PAGE_SIZE) };
+        if (filter.correlationId !== undefined) {
+          query.correlationId = filter.correlationId;
+        }
+        if (filter.mplId !== undefined) {
+          query.mplId = filter.mplId;
+        }
+        try {
+          const url = `${tenant.baseUrl}/${this.endpoints.messagingQueueEntitySet}(${toODataV2KeyLiteral(queueName)})/${this.endpoints.messageEntitySet}`;
+          const response = await this.restClient.get<ODataV2Collection<CpiMessagingMessage>>(
+            url,
+            opContext,
+            { headers: RealJmsProvider.jsonHeaders(tenant), query },
+          );
+          return (response.data?.d?.results ?? []).map(RealJmsProvider.toMessageDomain);
+        } catch (error) {
+          // A queue that does not exist on this tenant holds nothing.
+          if (error instanceof HttpError && error.statusCode === 404) {
+            return [];
+          }
+          throw error;
+        }
       },
     });
   }

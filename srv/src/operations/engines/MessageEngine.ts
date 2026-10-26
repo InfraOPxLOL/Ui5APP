@@ -29,6 +29,10 @@ import {
  * over a bounded live window.
  */
 const DEFAULT_WORKING_SET_SIZE = 500;
+/** Correlation ids ORed into one tenant query (keeps the request URL well inside limits). */
+const CORRELATION_BATCH_SIZE = 15;
+/** Processing logs read per chain in a batched lookup — a framework chain has well under this. */
+const MAX_RUNS_PER_CHAIN = 25;
 
 interface WorkingSetResult {
   readonly items: readonly MessageSummary[];
@@ -148,6 +152,66 @@ export class MessageEngine {
         .map(MessageEngine.toSummary)
         .sort((a, b) => b.startTime.localeCompare(a.startTime));
     });
+  }
+
+  /**
+   * A processing log's custom headers only (one tenant call) — e.g. the JMS ingress dispatcher's
+   * queue-resolution header.
+   * @param messageId the MPL message id.
+   * @returns header name → value.
+   */
+  public async getCustomHeaders(messageId: string): Promise<Readonly<Record<string, string>>> {
+    return this.cache.dedupe(`message.customHeaders:${messageId}`, async () => {
+      const headers = await this.client.getCustomHeaders(messageId);
+      return Object.fromEntries(headers.map((header) => [header.name, header.value]));
+    });
+  }
+
+  /**
+   * One page of processing logs, newest first, filtered and paged on the tenant itself — no
+   * working-set cap, so a report can page through everything the filter matches.
+   * @param filter server-side filters.
+   * @param page the page to read.
+   * @returns the page and the tenant's total match count.
+   */
+  public async pageLogs(
+    filter: MessageLogFilter,
+    page: { readonly skip: number; readonly top: number },
+  ): Promise<{ readonly items: readonly MessageSummary[]; readonly total: number }> {
+    const result = await this.client.queryMessageLogs(filter, page);
+    return { items: result.items.map(MessageEngine.toSummary), total: result.total };
+  }
+
+  /**
+   * The full processing chains of several correlation ids, in as few tenant calls as the request
+   * size allows (one OData filter ORs up to {@link CORRELATION_BATCH_SIZE} ids).
+   * @param correlationIds the correlation ids.
+   * @returns each correlation id's runs, oldest first.
+   */
+  public async listRunsByCorrelationIds(
+    correlationIds: readonly string[],
+  ): Promise<ReadonlyMap<string, readonly MessageSummary[]>> {
+    const unique = [...new Set(correlationIds)];
+    const batches: string[][] = [];
+    for (let index = 0; index < unique.length; index += CORRELATION_BATCH_SIZE) {
+      batches.push(unique.slice(index, index + CORRELATION_BATCH_SIZE));
+    }
+    const pages = await Promise.all(
+      batches.map((batch) =>
+        this.client.queryMessageLogs(
+          { correlationIds: batch },
+          { skip: 0, top: CORRELATION_BATCH_SIZE * MAX_RUNS_PER_CHAIN },
+        ),
+      ),
+    );
+    const chains = new Map<string, MessageSummary[]>(unique.map((id) => [id, []]));
+    for (const log of pages.flatMap((page) => page.items)) {
+      chains.get(log.correlationId)?.push(MessageEngine.toSummary(log));
+    }
+    for (const chain of chains.values()) {
+      chain.sort((a, b) => a.startTime.localeCompare(b.startTime));
+    }
+    return chains;
   }
 
   private async fetchWorkingSet(query: OperationsQuery): Promise<WorkingSetResult> {
