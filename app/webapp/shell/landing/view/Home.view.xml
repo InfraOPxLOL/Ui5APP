@@ -47,6 +47,12 @@
               text="{home>/health/text}"
               state="{home>/health/state}"
               class="ipChip" />
+            <Button
+              text="{i18n>shell.signOut}"
+              icon="sap-icon://log"
+              type="Transparent"
+              press=".onSignOut"
+              class="ipHeroSignOut" />
           </HBox>
         </FlexBox>
       </VBox>

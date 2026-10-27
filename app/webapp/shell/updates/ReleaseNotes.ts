@@ -35,6 +35,22 @@ export interface Release {
 
 export const RELEASES: readonly Release[] = [
   {
+    id: "2026-10-27",
+    date: "2026-10-27",
+    title: "Sign out",
+    summary: "End your session from the portal itself — useful to pick up newly assigned roles.",
+    items: [
+      {
+        type: "new",
+        area: "platform",
+        title: "Sign out",
+        description:
+          "Sign out from the account menu (top right) or the Home page. It ends both the portal and the SAP BTP sign-in, so signing in again picks up role collections assigned in the meantime — no private window needed.",
+        route: "home",
+      },
+    ],
+  },
+  {
     id: "2026-10-26.2",
     date: "2026-10-26",
     title: "Transaction journey and What's new",

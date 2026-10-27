@@ -13,6 +13,7 @@ import ClientLogger, { type CategoryLogger } from "../../../core/logging/ClientL
 import { Severity } from "../../../core/constants/Severity";
 import { RouteNames } from "../../../core/constants/RouteNames";
 import UpdatesService from "../../updates/UpdatesService";
+import { ShellCommands } from "../../actions/QuickActionRegistry";
 import type {
   AnnouncementVM,
   ModuleCardVM,
@@ -131,6 +132,11 @@ export default class HomeController extends BaseController {
       });
     }
     return announcements;
+  }
+
+  /** Asks the shell to sign the user out (it owns the confirmation and the redirect). */
+  public onSignOut(): void {
+    AppEventBus.getInstance().publish("context:shellCommand", { command: ShellCommands.SignOut });
   }
 
   /**

@@ -30,6 +30,20 @@
         showSeparators="None">
         <StandardListItem title="{shell>}" icon="sap-icon://role" />
       </List>
+      <Text
+        text="{i18n>shell.signOut.hint}"
+        wrapping="true"
+        class="ipMuted sapUiSmallMarginTop" />
     </VBox>
+    <footer>
+      <OverflowToolbar>
+        <ToolbarSpacer />
+        <Button
+          text="{i18n>shell.signOut}"
+          icon="sap-icon://log"
+          type="Emphasized"
+          press=".onSignOut" />
+      </OverflowToolbar>
+    </footer>
   </Popover>
 </core:FragmentDefinition>

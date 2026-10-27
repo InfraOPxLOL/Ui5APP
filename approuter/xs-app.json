@@ -4,7 +4,9 @@
   "sessionTimeout": 30,
   "logout": {
     "logoutEndpoint": "/logout",
-    "logoutPage": "/"
+    "logoutPage": "/logged-out.html",
+    "logoutMethod": "POST",
+    "csrfProtection": true
   },
   "routes": [
     {
@@ -20,6 +22,12 @@
       "destination": "srv-api",
       "authenticationType": "xsuaa",
       "csrfProtection": false
+    },
+    {
+      "source": "^/logged-out\\.html$",
+      "localDir": "static",
+      "authenticationType": "none",
+      "cacheControl": "no-cache, no-store, must-revalidate"
     },
     {
       "source": "^(.*)$",

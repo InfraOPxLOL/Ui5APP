@@ -3,6 +3,9 @@ import JSONModel from "sap/ui/model/json/JSONModel";
 import Fragment from "sap/ui/core/Fragment";
 import ManagedObject from "sap/ui/base/ManagedObject";
 import MessageToast from "sap/m/MessageToast";
+import MessageBox from "sap/m/MessageBox";
+import BusyIndicator from "sap/ui/core/BusyIndicator";
+import LogoutService from "../../core/services/auth/LogoutService";
 import type Popover from "sap/m/Popover";
 import type Control from "sap/ui/core/Control";
 import type Context from "sap/ui/model/Context";
@@ -466,7 +469,44 @@ export default class ShellController extends BaseController {
     this.userPopover.openBy(source);
   }
 
+  /**
+   * Signs out completely (portal and XSUAA sessions), after a confirmation. Signing in again picks
+   * up role collection changes without a private window.
+   */
+  public onSignOut(): void {
+    this.userPopover?.close();
+    MessageBox.confirm(this.getText("shell.signOut.confirm"), {
+      title: this.getText("shell.signOut"),
+      emphasizedAction: MessageBox.Action.OK,
+      onClose: (action: string | null) => {
+        if (action === MessageBox.Action.OK) {
+          void this.signOut();
+        }
+      },
+    });
+  }
+
+  private async signOut(): Promise<void> {
+    BusyIndicator.show(0);
+    const result = await new LogoutService().logout();
+    if (result.kind === "redirect") {
+      try {
+        window.sessionStorage.clear();
+      } catch {
+        // Storage unavailable: nothing session-scoped to clear.
+      }
+      window.location.assign(result.url);
+      return;
+    }
+    BusyIndicator.hide();
+    MessageBox.information(this.getText("shell.signOut.unavailable"));
+  }
+
   private onShellCommand(command: string): void {
+    if (command === ShellCommands.SignOut) {
+      this.onSignOut();
+      return;
+    }
     if (command === ShellCommands.SwitchTenant) {
       const button = this.byId("tenantButton") as Control | undefined;
       if (button !== undefined) {

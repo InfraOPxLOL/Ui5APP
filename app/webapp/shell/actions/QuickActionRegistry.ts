@@ -19,6 +19,7 @@ export const ShellCommands = {
   SwitchTenant: "switchTenant",
   OpenSearch: "openSearch",
   OpenNotifications: "openNotifications",
+  SignOut: "signOut",
 } as const;
 
 /** Declarative definition of a reusable quick action (§16). */
